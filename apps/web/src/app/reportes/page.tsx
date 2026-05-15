@@ -25,7 +25,7 @@ export default async function ReportesPage() {
           <Link href="/dashboard" className="text-xs text-muted hover:text-text">← Dashboard</Link>
           <p className={`role-badge role-${profile.rol} mt-2 mb-2`}>{profile.rol}</p>
           <h1 className="font-display text-3xl sm:text-4xl">
-            Reportes <span className="text-gradient-gold serif-italic">PDF</span>
+            Reportes <span className="text-gradient-blue serif-italic">PDF</span>
           </h1>
           <p className="mt-1 max-w-2xl text-sm text-muted">
             Nómina quincenal con cálculo de pago estimado y reporte de asistencias con matriz por día.

@@ -14,7 +14,7 @@ export default function LoginPage() {
         <div className="mb-10 flex flex-col items-center gap-3">
           <Logo className="h-16 w-auto" withWordmark={false} />
           <h1 className="font-serif text-3xl">
-            Vér<span className="text-gradient-gold serif-italic">tice</span>
+            Vor<span className="text-gradient-blue serif-italic">tex</span>
           </h1>
           <p className="text-[10px] uppercase tracking-ultra text-muted">Sistema de Recursos Humanos</p>
         </div>
@@ -28,7 +28,7 @@ export default function LoginPage() {
         </div>
 
         <p className="mt-6 text-center text-[10px] uppercase tracking-ultra text-muted-2">
-          MHS Integradora · Vértice
+          MHS Integradora · Vortex
         </p>
       </div>
     </main>

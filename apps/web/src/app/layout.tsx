@@ -1,20 +1,21 @@
 import type { Metadata, Viewport } from "next";
+import { ParticlesBg } from "@/components/ParticlesBg";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: {
-    default: "Vértice",
-    template: "%s · Vértice",
+    default: "Vortex",
+    template: "%s · Vortex",
   },
-  description: "Vértice — sistema premium de asistencia, operación y datos para RH multi-sede.",
-  applicationName: "Vértice",
+  description: "Vortex — centro de operación de asistencia, incidencias, nómina y datos para RH multi-sede.",
+  applicationName: "Vortex",
   icons: {
     icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0A0E1A",
+  themeColor: "#050B18",
   width: "device-width",
   initialScale: 1,
 };
@@ -22,7 +23,10 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es">
-      <body>{children}</body>
+      <body>
+        <ParticlesBg />
+        {children}
+      </body>
     </html>
   );
 }

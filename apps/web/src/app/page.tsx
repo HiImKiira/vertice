@@ -54,10 +54,10 @@ export default async function Home() {
           <p className="pill pill-gold mb-4">Asistencia · Operación · Datos</p>
           <h1 className="font-serif text-5xl leading-[1.05] tracking-tight text-balance lg:text-7xl">
             Una sola plataforma para gobernar la{" "}
-            <span className="text-gradient-gold serif-italic">operación</span> de tus sedes.
+            <span className="text-gradient-blue serif-italic">operación</span> de tus sedes.
           </h1>
           <p className="mt-8 max-w-2xl text-lg leading-relaxed text-muted">
-            Vértice reemplaza hojas de cálculo dispersas con un sistema único de captura,
+            Vortex reemplaza hojas de cálculo dispersas con un sistema único de captura,
             incidencias, nómina y monitoreo en vivo. Cuatro roles, una verdad.
           </p>
         </section>
@@ -85,7 +85,7 @@ export default async function Home() {
         </section>
 
         <footer className="mt-24 flex flex-wrap items-center justify-between gap-3 border-t border-white/5 pt-8 text-xs text-muted-2">
-          <p>© {new Date().getFullYear()} Vértice · MHS Integradora</p>
+          <p>© {new Date().getFullYear()} Vortex · MHS Integradora</p>
           <p className="flex items-center gap-2 font-mono">
             <span className={`inline-block h-1.5 w-1.5 rounded-full ${heartbeat.ok ? "bg-emerald-400" : "bg-red-400"}`} aria-hidden />
             {heartbeat.ok ? `Supabase OK · ${heartbeat.sedes} sedes` : `Supabase ERR: ${heartbeat.error}`}

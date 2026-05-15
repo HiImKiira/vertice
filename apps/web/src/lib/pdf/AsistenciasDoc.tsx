@@ -147,13 +147,13 @@ export function AsistenciasDoc(props: AsistenciasDocProps) {
   }
 
   return (
-    <Document title={`Vertice Asistencias ${props.sedeAbrev} ${props.rangoLabel}`} author="Vértice">
+    <Document title={`Vertice Asistencias ${props.sedeAbrev} ${props.rangoLabel}`} author="Vortex">
       <Page size="A4" orientation="landscape" style={styles.page} wrap>
         <View style={styles.header}>
           <View style={styles.brand}>
             <LogoMark size={28} />
             <View>
-              <Text style={styles.brandText}>VÉRTICE</Text>
+              <Text style={styles.brandText}>VORTEX</Text>
               <Text style={styles.brandSub}>MHS INTEGRADORA · ASISTENCIAS</Text>
             </View>
           </View>
@@ -242,7 +242,7 @@ export function AsistenciasDoc(props: AsistenciasDocProps) {
         </View>
 
         <View style={styles.footer} fixed>
-          <Text>Vértice · MHS Integradora · Generado por {props.generadoPor}</Text>
+          <Text>Vortex · MHS Integradora · Generado por {props.generadoPor}</Text>
           <Text render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`} />
         </View>
       </Page>

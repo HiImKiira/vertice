@@ -207,7 +207,7 @@ export function PaseListaClient(props: Props) {
             Supervisor Pro · Pase de lista
           </p>
           <h1 className="font-serif text-3xl leading-none sm:text-4xl">
-            {sedeActual?.abrev ?? "—"} <span className="text-gradient-gold serif-italic">·</span>{" "}
+            {sedeActual?.abrev ?? "—"} <span className="text-gradient-blue serif-italic">·</span>{" "}
             <span className="text-gradient-gold">{props.jornada}</span>
           </h1>
           <p className="max-w-md text-xs text-muted sm:text-right">
@@ -448,7 +448,7 @@ export function PaseListaClient(props: Props) {
               <div>
                 <p className="pill pill-blue mb-2">Revisión final</p>
                 <h2 className="font-serif text-2xl">
-                  Revisar <span className="text-gradient-gold serif-italic">pase</span>
+                  Revisar <span className="text-gradient-blue serif-italic">pase</span>
                 </h2>
                 <p className="mt-1 text-xs text-muted">
                   {sedeActual?.nombre} · {props.jornada} · {props.fecha} · {cambiosCount} cambio{cambiosCount === 1 ? "" : "s"}

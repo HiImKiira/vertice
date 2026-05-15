@@ -184,14 +184,14 @@ export function NominaDoc(props: NominaDocProps) {
   const colDateW = Math.max(14, Math.min(20, 200 / fechasObj.length));
 
   return (
-    <Document title={`Vertice Nomina ${props.sedeAbrev} ${props.periodoLabel}`} author="Vértice">
+    <Document title={`Vertice Nomina ${props.sedeAbrev} ${props.periodoLabel}`} author="Vortex">
       <Page size="A4" orientation="landscape" style={styles.page} wrap>
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.brand}>
             <LogoMark size={28} />
             <View>
-              <Text style={styles.brandText}>VÉRTICE</Text>
+              <Text style={styles.brandText}>VORTEX</Text>
               <Text style={styles.brandSub}>MHS INTEGRADORA · NÓMINA</Text>
             </View>
           </View>
@@ -293,7 +293,7 @@ export function NominaDoc(props: NominaDocProps) {
         </View>
 
         <View style={styles.footer} fixed>
-          <Text>Vértice · MHS Integradora · Generado por {props.generadoPor}</Text>
+          <Text>Vortex · MHS Integradora · Generado por {props.generadoPor}</Text>
           <Text render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`} />
         </View>
       </Page>

@@ -34,21 +34,24 @@ interface Props {
 const DIAS_NOMBRE = ["D", "L", "M", "X", "J", "V", "S"];
 const MESES_NOMBRE = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 
-const CYCLE: CodigoAsistencia[] = ["A", "F", "DS", "A"]; // cycle al hacer click simple
+const CYCLE: CodigoAsistencia[] = ["A", "F", "DS", "A"];
 
 function ymToNumbers(ym: string): { y: number; m: number } {
   const p = ym.split("-");
   return { y: Number(p[0]!), m: Number(p[1]!) };
 }
 
-function buildDays(mes: string): { iso: string; day: number; dow: number; isSunday: boolean }[] {
+function buildDays(mes: string): { iso: string; day: number; dow: number; isSunday: boolean; isToday: boolean }[] {
   const { y, m } = ymToNumbers(mes);
   const lastDay = new Date(y, m, 0).getDate();
-  const out: { iso: string; day: number; dow: number; isSunday: boolean }[] = [];
+  const today = new Date();
+  today.setHours(today.getHours() - 6);
+  const todayISO = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  const out: { iso: string; day: number; dow: number; isSunday: boolean; isToday: boolean }[] = [];
   for (let d = 1; d <= lastDay; d++) {
     const dt = new Date(y, m - 1, d);
     const iso = `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-    out.push({ iso, day: d, dow: dt.getDay(), isSunday: dt.getDay() === 0 });
+    out.push({ iso, day: d, dow: dt.getDay(), isSunday: dt.getDay() === 0, isToday: iso === todayISO });
   }
   return out;
 }
@@ -67,14 +70,11 @@ function nextCode(current: string | undefined): CodigoAsistencia {
 }
 
 function normalizeDescanso(d: Empleado["dia_descanso"]): Set<number> {
-  // dia_descanso en DB es array dia_semana[]: LUN/MAR/.../DOM
   const map: Record<string, number> = { DOM: 0, LUN: 1, MAR: 2, MIE: 3, JUE: 4, VIE: 5, SAB: 6 };
   const set = new Set<number>();
   if (!d) return set;
   const arr = Array.isArray(d) ? d : [d];
-  for (const v of arr) {
-    if (typeof v === "string" && map[v] !== undefined) set.add(map[v]!);
-  }
+  for (const v of arr) if (typeof v === "string" && map[v] !== undefined) set.add(map[v]!);
   return set;
 }
 
@@ -84,8 +84,9 @@ export function CalendarioQuickMark(props: Props) {
   const [pendientes, setPendientes] = useState<Record<string, Record<string, CodigoAsistencia>>>({});
   const [resultado, setResultado] = useState<BulkResult | null>(null);
   const [isPending, startTransition] = useTransition();
-  const [paintCode, setPaintCode] = useState<CodigoAsistencia>("A");
   const [paintMode, setPaintMode] = useState(false);
+  const [paintCode, setPaintCode] = useState<CodigoAsistencia>("A");
+  const [showRowActions, setShowRowActions] = useState<string | null>(null);
 
   const dias = useMemo(() => buildDays(props.mes), [props.mes]);
   const { y, m } = ymToNumbers(props.mes);
@@ -103,11 +104,7 @@ export function CalendarioQuickMark(props: Props) {
   }
 
   function setCell(empId: string, iso: string, codigo: CodigoAsistencia) {
-    setPendientes((prev) => {
-      const empMap = { ...(prev[empId] ?? {}) };
-      empMap[iso] = codigo;
-      return { ...prev, [empId]: empMap };
-    });
+    setPendientes((prev) => ({ ...prev, [empId]: { ...(prev[empId] ?? {}), [iso]: codigo } }));
     setResultado(null);
   }
 
@@ -116,8 +113,7 @@ export function CalendarioQuickMark(props: Props) {
       setCell(empId, iso, paintCode);
       return;
     }
-    const current = getCell(empId, iso);
-    setCell(empId, iso, nextCode(current));
+    setCell(empId, iso, nextCode(getCell(empId, iso)));
   }
 
   function fillRow(empId: string, codigo: CodigoAsistencia, soloPendientes: boolean) {
@@ -130,6 +126,19 @@ export function CalendarioQuickMark(props: Props) {
       return { ...prev, [empId]: empMap };
     });
     setResultado(null);
+    setShowRowActions(null);
+  }
+
+  function fillRowDescansos(emp: Empleado) {
+    const dows = normalizeDescanso(emp.dia_descanso);
+    if (!dows.size) return;
+    setPendientes((prev) => {
+      const empMap = { ...(prev[emp.id] ?? {}) };
+      for (const d of dias) if (dows.has(d.dow)) empMap[d.iso] = "DS";
+      return { ...prev, [emp.id]: empMap };
+    });
+    setResultado(null);
+    setShowRowActions(null);
   }
 
   function fillColumn(iso: string, codigo: CodigoAsistencia, soloPendientes: boolean) {
@@ -141,19 +150,6 @@ export function CalendarioQuickMark(props: Props) {
         next[emp.id] = { ...(next[emp.id] ?? {}), [iso]: codigo };
       }
       return next;
-    });
-    setResultado(null);
-  }
-
-  function fillRowDescansos(emp: Empleado) {
-    const dows = normalizeDescanso(emp.dia_descanso);
-    if (!dows.size) return;
-    setPendientes((prev) => {
-      const empMap = { ...(prev[emp.id] ?? {}) };
-      for (const d of dias) {
-        if (dows.has(d.dow)) empMap[d.iso] = "DS";
-      }
-      return { ...prev, [emp.id]: empMap };
     });
     setResultado(null);
   }
@@ -187,10 +183,13 @@ export function CalendarioQuickMark(props: Props) {
     });
   }
 
+  // Width responsive de celdas día (cabe el mes en pantalla común)
+  const cellW = dias.length <= 28 ? 30 : 26;
+
   return (
     <>
       {/* Toolbar de control */}
-      <div className="mb-5 grid gap-3 surface-glow p-4 sm:grid-cols-[2fr_1fr_auto]">
+      <div className="mb-4 grid gap-3 surface-glow p-4 sm:grid-cols-[2fr_1fr_auto] sm:items-end">
         <div className="field">
           <label>Sede</label>
           <select value={props.sedeId} onChange={(e) => updateUrl({ sede: e.target.value })}>
@@ -215,44 +214,41 @@ export function CalendarioQuickMark(props: Props) {
         </div>
       </div>
 
-      {/* Modo pintar */}
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[color:var(--border)] bg-[color:var(--surface)] px-4 py-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-[10px] uppercase tracking-tagline text-muted">Modo</span>
-          <button
-            type="button"
-            onClick={() => setPaintMode((v) => !v)}
-            className={`btn btn-sm ${paintMode ? "btn-primary" : "btn-ghost"}`}
-            title="Cuando activo, cada click pinta con el código seleccionado en lugar de ciclar A→F→DS"
-          >
-            {paintMode ? "🎨 Pintando con" : "🖱 Click cycle A→F→DS"}
-          </button>
-          {paintMode && (
-            <div className="flex flex-wrap gap-1">
-              {(["A", "F", "DS", "AF", "DT", "PCG", "PSG", "I", "FER", "INH"] as CodigoAsistencia[]).map((cod) => {
-                const active = paintCode === cod;
-                const spec = CODIGO_SPEC[cod];
-                return (
-                  <button
-                    key={cod}
-                    type="button"
-                    onClick={() => setPaintCode(cod)}
-                    className={`chip-code ${active ? "chip-code-active" : ""}`}
-                    style={active ? { background: spec.color } : undefined}
-                  >
-                    {cod}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
+      {/* Paint mode strip */}
+      <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-[color:var(--border)] bg-[color:var(--surface)] px-4 py-3">
+        <span className="text-[10px] uppercase tracking-tagline text-muted">Modo</span>
+        <button
+          type="button"
+          onClick={() => setPaintMode((v) => !v)}
+          className={`btn btn-sm ${paintMode ? "btn-primary" : "btn-ghost"}`}
+        >
+          {paintMode ? "🎨 Pintar con" : "🖱 Cycle A→F→DS"}
+        </button>
+        {paintMode && (
+          <div className="flex flex-wrap gap-1.5">
+            {(["A", "AF", "F", "DS", "DT", "PCG", "PSG", "I", "FER", "INH"] as CodigoAsistencia[]).map((cod) => {
+              const active = paintCode === cod;
+              const spec = CODIGO_SPEC[cod];
+              return (
+                <button
+                  key={cod}
+                  type="button"
+                  onClick={() => setPaintCode(cod)}
+                  className={`chip-code ${active ? "chip-code-active" : ""}`}
+                  style={active ? { background: spec.color } : undefined}
+                  title={spec.nombre}
+                >
+                  {cod}
+                </button>
+              );
+            })}
+          </div>
+        )}
+        <div className="ml-auto flex items-center gap-2 text-xs text-muted">
           {Object.keys(pendientes).length > 0 && (
-            <button type="button" onClick={reset} className="btn btn-sm btn-ghost">↺ Deshacer todo</button>
+            <button type="button" onClick={reset} className="btn btn-sm btn-ghost">↺ Deshacer</button>
           )}
-          <span>{cambiosCount} cambio{cambiosCount === 1 ? "" : "s"} pendiente{cambiosCount === 1 ? "" : "s"}</span>
+          {cambiosCount > 0 && <span className="font-mono text-[#FCD34D]">{cambiosCount} sin guardar</span>}
         </div>
       </div>
 
@@ -263,56 +259,106 @@ export function CalendarioQuickMark(props: Props) {
         </div>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-[color:var(--border)] bg-[color:var(--card)]">
-          <table className="w-full border-collapse text-xs">
-            <thead className="bg-[color:var(--surface)]">
+          <table className="border-collapse text-xs" style={{ borderSpacing: 0 }}>
+            <thead>
               <tr>
-                <th className="sticky left-0 z-10 min-w-[200px] border-r border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2 text-left text-[10px] uppercase tracking-tagline text-muted">
-                  Empleado <span className="opacity-50">{titulo}</span>
+                <th
+                  className="sticky left-0 z-20 border-b border-r border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2 text-left text-[10px] uppercase tracking-tagline text-muted"
+                  style={{ minWidth: 220 }}
+                >
+                  Empleado · <span className="text-text opacity-60">{titulo}</span>
                 </th>
                 {dias.map((d) => (
                   <th
                     key={d.iso}
-                    className={`border-l border-[color:var(--border)] px-1 py-2 text-center text-[10px] font-bold ${
-                      d.isSunday ? "bg-[rgba(245,158,11,0.06)] text-[#FCD34D]" : "text-muted"
+                    className={`border-b border-l border-[color:var(--border)] px-0.5 py-1 text-center ${
+                      d.isSunday ? "bg-[rgba(245,158,11,0.06)]" : ""
                     }`}
+                    style={{ width: cellW, minWidth: cellW }}
                   >
-                    <div>{DIAS_NOMBRE[d.dow]}</div>
-                    <div className="text-text">{d.day}</div>
-                    <div className="mt-1 flex flex-col gap-0.5">
-                      <button
-                        type="button"
-                        onClick={() => fillColumn(d.iso, "A", true)}
-                        className="rounded bg-[rgba(16,185,129,0.18)] px-1 py-0.5 text-[8px] font-bold text-[#6EE7B7] hover:bg-[rgba(16,185,129,0.35)]"
-                        title={`Marcar todos pendientes del día ${d.day} como A`}
-                      >
-                        Todos A
-                      </button>
+                    <div className={`text-[9px] uppercase ${d.isSunday ? "text-[#FCD34D]" : "text-muted"}`}>
+                      {DIAS_NOMBRE[d.dow]}
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => fillColumn(d.iso, "A", true)}
+                      title={`Marcar todos pendientes del día ${d.day} como A`}
+                      className={`mx-auto block rounded-md px-1.5 py-0.5 text-[10px] font-bold transition hover:scale-105 ${
+                        d.isToday
+                          ? "bg-[rgba(59,130,246,0.25)] text-[#93C5FD] ring-1 ring-[color:var(--blue)]"
+                          : "text-text hover:bg-[rgba(16,185,129,0.18)] hover:text-[#6EE7B7]"
+                      }`}
+                    >
+                      {d.day}
+                    </button>
                   </th>
                 ))}
-                <th className="sticky right-0 z-10 min-w-[140px] border-l border-[color:var(--border)] bg-[color:var(--surface)] px-2 py-2 text-center text-[10px] uppercase tracking-tagline text-muted">
-                  Acciones fila
-                </th>
               </tr>
             </thead>
             <tbody>
               {props.empleados.map((emp, idx) => {
                 const dows = normalizeDescanso(emp.dia_descanso);
                 return (
-                  <tr key={emp.id} className={idx % 2 === 0 ? "bg-transparent" : "bg-white/[0.01]"}>
-                    <td className="sticky left-0 z-10 border-r border-[color:var(--border)] bg-[color:var(--card)] px-3 py-1.5">
+                  <tr key={emp.id} className={idx % 2 === 0 ? "" : "bg-white/[0.015]"}>
+                    <td
+                      className="sticky left-0 z-10 border-b border-r border-[color:var(--border)] bg-[color:var(--card)] px-3 py-2"
+                      style={{ minWidth: 220 }}
+                    >
                       <div className="flex items-center gap-2">
                         <span className="font-mono text-[9px] text-muted-2">#{emp.numero_empleado}</span>
-                        <span className="truncate font-medium text-text">{emp.nombre}</span>
+                        <span className="flex-1 truncate font-medium text-text">{emp.nombre}</span>
+                        <button
+                          type="button"
+                          onClick={() => setShowRowActions(showRowActions === emp.id ? null : emp.id)}
+                          className="rounded-md border border-[color:var(--border)] bg-[color:var(--surface)] px-1.5 py-0.5 text-[10px] text-muted hover:border-[color:var(--blue)] hover:text-[#93C5FD]"
+                          title="Acciones de fila"
+                        >
+                          ⚡
+                        </button>
                       </div>
-                      <div className="mt-0.5 flex items-center gap-1.5 text-[9px] text-muted">
+                      <div className="mt-0.5 flex items-center gap-1.5">
                         <span className="pill pill-amber" style={{ padding: "1px 6px", fontSize: 9 }}>{emp.jornada}</span>
                         {dows.size > 0 && (
-                          <span className="text-muted-2">
-                            descanso: {[...dows].map((d) => DIAS_NOMBRE[d]).join(",")}
+                          <span className="text-[9px] text-muted-2">
+                            ⊙ {[...dows].map((d) => DIAS_NOMBRE[d]).join(",")}
                           </span>
                         )}
                       </div>
+                      {showRowActions === emp.id && (
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          <button
+                            type="button"
+                            onClick={() => fillRow(emp.id, "A", true)}
+                            className="rounded-md bg-[rgba(16,185,129,0.18)] px-2 py-1 text-[10px] font-bold text-[#6EE7B7] hover:bg-[rgba(16,185,129,0.35)]"
+                          >
+                            Pendientes → A
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => fillRow(emp.id, "A", false)}
+                            className="rounded-md bg-[rgba(16,185,129,0.10)] px-2 py-1 text-[10px] font-bold text-[#6EE7B7] hover:bg-[rgba(16,185,129,0.25)]"
+                          >
+                            Todos → A
+                          </button>
+                          {dows.size > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => fillRowDescansos(emp)}
+                              className="rounded-md bg-[rgba(6,182,212,0.18)] px-2 py-1 text-[10px] font-bold text-[#67E8F9] hover:bg-[rgba(6,182,212,0.35)]"
+                              title={`DS en ${[...dows].map((d) => DIAS_NOMBRE[d]).join(",")}`}
+                            >
+                              Descansos → DS
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => fillRow(emp.id, "F", false)}
+                            className="rounded-md bg-[rgba(239,68,68,0.18)] px-2 py-1 text-[10px] font-bold text-[#FCA5A5] hover:bg-[rgba(239,68,68,0.35)]"
+                          >
+                            Todos → F
+                          </button>
+                        </div>
+                      )}
                     </td>
                     {dias.map((d) => {
                       const cod = getCell(emp.id, d.iso);
@@ -322,46 +368,23 @@ export function CalendarioQuickMark(props: Props) {
                       return (
                         <td
                           key={d.iso}
-                          className={`border-l border-[color:var(--border)] p-0.5 text-center ${d.isSunday ? "bg-[rgba(245,158,11,0.04)]" : ""}`}
+                          className={`border-b border-l border-[color:var(--border)] p-0.5 text-center ${d.isSunday ? "bg-[rgba(245,158,11,0.04)]" : ""}`}
+                          style={{ width: cellW, minWidth: cellW }}
                         >
                           <button
                             type="button"
                             onClick={() => clickCell(emp.id, d.iso)}
-                            className={`block h-7 w-full min-w-[28px] rounded font-mono text-[10px] font-bold transition ${
-                              isPending ? "ring-1 ring-[color:var(--blue)]" : ""
-                            } ${esDescansoDia && !cod ? "border border-dashed border-[color:var(--border2)] text-muted-2" : ""}`}
+                            className={`block h-8 w-full rounded-md font-mono text-[10px] font-bold transition active:scale-95 ${
+                              isPending ? "ring-2 ring-[color:var(--blue)] shadow-[0_0_8px_rgba(59,130,246,0.5)]" : ""
+                            } ${esDescansoDia && !cod ? "border border-dashed border-[color:var(--border2)] text-muted-2" : ""} ${!cod && !esDescansoDia ? "hover:bg-white/5" : ""}`}
                             style={spec ? { background: spec.color, color: "white" } : undefined}
-                            title={cod ? `${spec?.nombre} (${cod})` : esDescansoDia ? "Día de descanso programado" : "Sin marcar"}
+                            title={cod ? `${spec?.nombre} (${cod})` : esDescansoDia ? "Día de descanso programado" : "Click para marcar"}
                           >
                             {cod ?? (esDescansoDia ? "·" : "")}
                           </button>
                         </td>
                       );
                     })}
-                    <td className="sticky right-0 z-10 border-l border-[color:var(--border)] bg-[color:var(--card)] px-1 py-1.5">
-                      <div className="flex flex-col gap-1">
-                        <div className="flex gap-1">
-                          <button
-                            type="button"
-                            onClick={() => fillRow(emp.id, "A", true)}
-                            className="flex-1 rounded bg-[rgba(16,185,129,0.18)] px-1 py-1 text-[9px] font-bold text-[#6EE7B7] hover:bg-[rgba(16,185,129,0.35)]"
-                            title="Todos los días sin marcar → A"
-                          >
-                            Todos A
-                          </button>
-                          {dows.size > 0 && (
-                            <button
-                              type="button"
-                              onClick={() => fillRowDescansos(emp)}
-                              className="rounded bg-[rgba(6,182,212,0.18)] px-1 py-1 text-[9px] font-bold text-[#67E8F9] hover:bg-[rgba(6,182,212,0.35)]"
-                              title={`Marcar como DS sus días de descanso (${[...dows].map((d) => DIAS_NOMBRE[d]).join(",")})`}
-                            >
-                              DS
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    </td>
                   </tr>
                 );
               })}
@@ -370,6 +393,11 @@ export function CalendarioQuickMark(props: Props) {
         </div>
       )}
 
+      {/* Hint */}
+      <p className="mt-3 text-xs text-muted-2">
+        ⚡ Click en <strong>nombre del empleado</strong> abre acciones de fila · Click en <strong>número del día</strong> arriba marca todos pendientes con A · Click en celda <strong>cycla A → F → DS</strong> · Activa modo Pintar para aplicar un código fijo.
+      </p>
+
       {/* Save bar */}
       {props.empleados.length > 0 && (
         <div className="sticky bottom-0 mt-6 -mx-4 border-t border-[color:var(--border)] bg-[color:var(--bg)]/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
@@ -377,13 +405,28 @@ export function CalendarioQuickMark(props: Props) {
             <div className="text-xs text-muted">
               {resultado?.ok && <span className="text-[#6EE7B7]">✓ {resultado.saved} marcas guardadas</span>}
               {resultado && !resultado.ok && <span className="text-[#FCA5A5]">⚠ {resultado.error}</span>}
-              {!resultado && cambiosCount > 0 && <span className="text-[#FCD34D]">{cambiosCount} sin guardar</span>}
+              {!resultado && cambiosCount > 0 && <span className="font-mono text-[#FCD34D]">{cambiosCount} sin guardar</span>}
               {!resultado && !cambiosCount && <span>Sin cambios</span>}
             </div>
             <button type="button" onClick={guardar} disabled={!cambiosCount || isPending} className="btn btn-primary">
-              {isPending ? "Guardando..." : `💾 Guardar ${cambiosCount || ""}`.trim()}
+              {isPending ? (
+                <>
+                  <span className="loader-vortex-sm" />
+                  Guardando...
+                </>
+              ) : (
+                <>💾 Guardar {cambiosCount || ""}</>
+              )}
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Overlay loader full-screen mientras guarda */}
+      {isPending && (
+        <div className="overlay-loader">
+          <div className="loader-vortex-lg" />
+          <p className="overlay-loader-text">Guardando {cambiosCount} marca{cambiosCount === 1 ? "" : "s"}...</p>
         </div>
       )}
     </>

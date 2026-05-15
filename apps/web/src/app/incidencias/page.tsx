@@ -114,7 +114,7 @@ export default async function IncidenciasPage({ searchParams }: PageProps) {
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6 sm:py-4">
           <a href="/dashboard" className="flex items-center gap-3">
             <Logo className="h-8 w-auto" withWordmark={false} />
-            <span className="hidden font-serif text-lg sm:inline">Vértice</span>
+            <span className="hidden font-serif text-lg sm:inline">Vortex</span>
           </a>
           <div className="flex items-center gap-3">
             <span className="hidden items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-tagline text-emerald-300 sm:inline-flex">
@@ -135,7 +135,7 @@ export default async function IncidenciasPage({ searchParams }: PageProps) {
           <div>
             <p className="pill pill-gold mb-2 inline-flex">Incidencias</p>
             <h1 className="font-serif text-3xl sm:text-4xl">
-              Calendario <span className="text-gradient-gold serif-italic">mensual</span>
+              Calendario <span className="text-gradient-blue serif-italic">mensual</span>
             </h1>
           </div>
           <nav className="flex gap-2 text-xs">

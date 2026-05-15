@@ -124,7 +124,7 @@ export default async function DashboardPage() {
         <section className="mb-10 animate-fade-up">
           <p className={`role-badge role-${profile.rol} mb-3`}>{profile.rol}</p>
           <h1 className="font-display text-4xl leading-[1.1] sm:text-5xl">
-            Hola, <span className="text-gradient-gold serif-italic">{profile.nombre?.split(" ")[0] ?? "—"}</span>.
+            Hola, <span className="text-gradient-blue serif-italic">{profile.nombre?.split(" ")[0] ?? "—"}</span>.
           </h1>
           <p className="mt-3 max-w-2xl text-[15px] text-muted">
             {isAdminLike(profile.rol)
@@ -181,7 +181,7 @@ export default async function DashboardPage() {
         </section>
 
         <footer className="mt-16 border-t border-[color:var(--border)] pt-6 text-xs text-muted-2">
-          <p>Vértice · MHS Integradora · Auth Supabase + RLS</p>
+          <p>Vortex · MHS Integradora · Auth Supabase + RLS</p>
         </footer>
       </div>
     </main>

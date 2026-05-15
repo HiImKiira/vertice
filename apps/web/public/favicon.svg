@@ -1,18 +1,17 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
   <defs>
     <linearGradient id="vL" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#F1CB7E"/>
-      <stop offset="50%" stop-color="#C9A961"/>
-      <stop offset="100%" stop-color="#85692A"/>
+      <stop offset="0%" stop-color="#93C5FD"/>
+      <stop offset="50%" stop-color="#3B82F6"/>
+      <stop offset="100%" stop-color="#1D4ED8"/>
     </linearGradient>
     <linearGradient id="vR" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#A88944"/>
-      <stop offset="55%" stop-color="#6E5520"/>
-      <stop offset="100%" stop-color="#3F2F11"/>
+      <stop offset="0%" stop-color="#1D4ED8"/>
+      <stop offset="100%" stop-color="#0F2E70"/>
     </linearGradient>
   </defs>
-  <rect width="200" height="200" rx="36" fill="#0A0E1A"/>
+  <rect width="200" height="200" rx="36" fill="#050B18"/>
   <polygon points="40,50 70,50 100,115 100,165" fill="url(#vL)"/>
   <polygon points="100,115 130,50 160,50 100,165" fill="url(#vR)"/>
-  <line x1="100" y1="115" x2="100" y2="165" stroke="#FFF6D5" stroke-opacity="0.55" stroke-width="1.2"/>
+  <line x1="100" y1="115" x2="100" y2="165" stroke="#E0F2FE" stroke-opacity="0.55" stroke-width="1.2"/>
 </svg>

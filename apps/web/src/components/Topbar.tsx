@@ -56,7 +56,7 @@ export function Topbar({ user }: { user: TopbarUser }) {
         <Link href="/dashboard" className="flex items-center gap-2.5">
           <Logo className="h-8 w-auto" withWordmark={false} />
           <span className="font-display text-[15px] tracking-tight text-text">
-            Vér<span className="text-gradient-gold">tice</span>
+            Vor<span className="text-gradient-blue">tex</span>
           </span>
         </Link>
 
