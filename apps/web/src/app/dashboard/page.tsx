@@ -77,11 +77,11 @@ function modulosFor(rol: string): Modulo[] {
     {
       href: "/reportes",
       icon: "📄",
-      iconBg: "rgba(201,169,97,0.12)",
-      iconBorder: "rgba(201,169,97,0.3)",
+      iconBg: "rgba(6,182,212,0.12)",
+      iconBorder: "rgba(6,182,212,0.3)",
       title: "Reportes PDF",
       sub: "Genera reportes históricos por sede o trabajador en formato PDF operativo.",
-      badge: { label: "ADMIN / SUPERADMIN", cls: "pill pill-gold" },
+      badge: { label: "ADMIN / SUPERADMIN", cls: "pill pill-cyan" },
     },
   ];
 

@@ -88,10 +88,9 @@ export default async function RHProPage() {
               iconBg="rgba(16,185,129,0.12)"
               iconBorder="rgba(16,185,129,0.3)"
               title="Alta de empleado"
-              sub="Registra un nuevo trabajador en la base de contratos."
+              sub="Genera folio (MHS/ABREV/NNN/2026), crea empleado y contrato. PDF firmable viene en el siguiente release."
               badge="ADMIN / SUPERADMIN"
               badgeCls="pill pill-green"
-              disabled
             />
             <ActionCard
               href="/rh-pro/baja"

@@ -26,7 +26,7 @@ export function ReportesClient({ sedes }: { sedes: Sede[] }) {
           type="button"
           onClick={() => setTab("nomina")}
           className={`px-4 py-2 text-sm font-medium transition ${
-            tab === "nomina" ? "border-b-2 border-[color:var(--gold)] text-text" : "text-muted hover:text-text"
+            tab === "nomina" ? "border-b-2 border-[color:var(--blue)] text-text" : "text-muted hover:text-text"
           }`}
         >
           💰 Nómina quincenal
@@ -35,7 +35,7 @@ export function ReportesClient({ sedes }: { sedes: Sede[] }) {
           type="button"
           onClick={() => setTab("asistencias")}
           className={`px-4 py-2 text-sm font-medium transition ${
-            tab === "asistencias" ? "border-b-2 border-[color:var(--gold)] text-text" : "text-muted hover:text-text"
+            tab === "asistencias" ? "border-b-2 border-[color:var(--blue)] text-text" : "text-muted hover:text-text"
           }`}
         >
           📋 Reporte de asistencias
@@ -87,7 +87,7 @@ function NominaPanel({ sedes }: { sedes: Sede[] }) {
       <div className="section-label">Centro de exportación quincenal</div>
       <div className="surface-glow p-5 sm:p-6">
         <div className="mb-5 flex items-start gap-3">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[rgba(201,169,97,0.3)] bg-[rgba(201,169,97,0.12)] text-xl">📤</div>
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[rgba(6,182,212,0.3)] bg-[rgba(6,182,212,0.12)] text-xl">📤</div>
           <div>
             <h2 className="font-display text-lg">Nómina estimada</h2>
             <p className="text-sm text-muted">
