@@ -109,8 +109,8 @@ export default async function IncidenciasPage({ searchParams }: PageProps) {
   }
 
   return (
-    <main className="min-h-screen text-ink">
-      <header className="border-b border-white/5 bg-surface/60 backdrop-blur">
+    <main className="min-h-screen text-text">
+      <header className="border-b border-white/5 bg-[color:var(--surface)]/60 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6 sm:py-4">
           <a href="/dashboard" className="flex items-center gap-3">
             <Logo className="h-8 w-auto" withWordmark={false} />
@@ -123,7 +123,7 @@ export default async function IncidenciasPage({ searchParams }: PageProps) {
             </span>
             <div className="text-right">
               <p className="text-xs font-medium sm:text-sm">{perfil?.nombre}</p>
-              <p className="font-mono text-[9px] uppercase tracking-tagline text-ink-muted sm:text-[10px]">{perfil?.rol}</p>
+              <p className="font-mono text-[9px] uppercase tracking-tagline text-muted sm:text-[10px]">{perfil?.rol}</p>
             </div>
             <SignOutButton />
           </div>

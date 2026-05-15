@@ -29,7 +29,7 @@ export function LoginForm() {
   return (
     <form action={onSubmit} className="space-y-4">
       <div>
-        <label htmlFor="identifier" className="mb-1.5 block text-[10px] font-semibold uppercase tracking-tagline text-ink-muted">
+        <label htmlFor="identifier" className="mb-1.5 block text-[10px] font-semibold uppercase tracking-tagline text-muted">
           Usuario
         </label>
         <input
@@ -39,14 +39,14 @@ export function LoginForm() {
           autoComplete="username"
           required
           autoFocus
-          className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-4 py-3 font-mono text-sm text-ink placeholder:text-ink-dim focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+          className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-4 py-3 font-mono text-sm text-text placeholder:text-muted-2 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
           placeholder="super, admin, edy..."
           disabled={isPending}
         />
       </div>
 
       <div>
-        <label htmlFor="password" className="mb-1.5 block text-[10px] font-semibold uppercase tracking-tagline text-ink-muted">
+        <label htmlFor="password" className="mb-1.5 block text-[10px] font-semibold uppercase tracking-tagline text-muted">
           Contraseña
         </label>
         <div className="flex gap-2">
@@ -56,13 +56,13 @@ export function LoginForm() {
             type={showPwd ? "text" : "password"}
             autoComplete="current-password"
             required
-            className="flex-1 rounded-lg border border-white/10 bg-white/[0.04] px-4 py-3 font-mono text-sm text-ink focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+            className="flex-1 rounded-lg border border-white/10 bg-white/[0.04] px-4 py-3 font-mono text-sm text-text focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
             disabled={isPending}
           />
           <button
             type="button"
             onClick={() => setShowPwd((p) => !p)}
-            className="rounded-lg border border-white/10 bg-white/[0.04] px-3 text-sm text-ink-muted transition hover:bg-white/[0.08]"
+            className="rounded-lg border border-white/10 bg-white/[0.04] px-3 text-sm text-muted transition hover:bg-white/[0.08]"
             aria-label={showPwd ? "Ocultar contraseña" : "Mostrar contraseña"}
           >
             {showPwd ? "🙈" : "👁"}

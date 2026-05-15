@@ -199,7 +199,7 @@ export function PaseListaClient(props: Props) {
           <span className="font-serif text-6xl text-gradient-gold sm:text-7xl">{fechaInfo.dia}</span>
           <div>
             <p className="font-serif text-xl capitalize sm:text-2xl">{fechaInfo.nombreDia}</p>
-            <p className="text-xs uppercase tracking-tagline text-ink-muted">{fechaInfo.mesAnio}</p>
+            <p className="text-xs uppercase tracking-tagline text-muted">{fechaInfo.mesAnio}</p>
           </div>
         </div>
         <div className="flex flex-col items-start gap-2 sm:items-end">
@@ -210,7 +210,7 @@ export function PaseListaClient(props: Props) {
             {sedeActual?.abrev ?? "—"} <span className="text-gradient-gold serif-italic">·</span>{" "}
             <span className="text-gradient-gold">{props.jornada}</span>
           </h1>
-          <p className="max-w-md text-xs text-ink-muted sm:text-right">
+          <p className="max-w-md text-xs text-muted sm:text-right">
             {sedeActual?.nombre ?? "Sin sede seleccionada"} · {stats.total} empleado{stats.total === 1 ? "" : "s"}
           </p>
         </div>
@@ -242,14 +242,14 @@ export function PaseListaClient(props: Props) {
       {/* ============ Selectores ============ */}
       <section className="mb-6 grid gap-3 surface-glow rounded-2xl p-4 sm:grid-cols-3 sm:p-5">
         <label className="block">
-          <span className="mb-1 block text-[10px] font-semibold uppercase tracking-tagline text-ink-muted">Sede</span>
+          <span className="mb-1 block text-[10px] font-semibold uppercase tracking-tagline text-muted">Sede</span>
           <select
             value={props.sedeId}
             onChange={(e) => updateUrl({ sede: e.target.value, jornada: "" })}
-            className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2.5 text-sm text-ink focus:border-blue-400 focus:outline-none"
+            className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2.5 text-sm text-text focus:border-blue-400 focus:outline-none"
           >
             {props.asignaciones.map((a) => (
-              <option key={a.sede.id} value={a.sede.id} className="bg-surface">
+              <option key={a.sede.id} value={a.sede.id} className="bg-[color:var(--surface)]">
                 {a.sede.abrev} · {a.sede.nombre}
               </option>
             ))}
@@ -257,25 +257,25 @@ export function PaseListaClient(props: Props) {
         </label>
 
         <label className="block">
-          <span className="mb-1 block text-[10px] font-semibold uppercase tracking-tagline text-ink-muted">Jornada</span>
+          <span className="mb-1 block text-[10px] font-semibold uppercase tracking-tagline text-muted">Jornada</span>
           <select
             value={props.jornada}
             onChange={(e) => updateUrl({ jornada: e.target.value })}
-            className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2.5 text-sm text-ink focus:border-blue-400 focus:outline-none"
+            className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2.5 text-sm text-text focus:border-blue-400 focus:outline-none"
           >
             {(jornadasDeSede.length ? jornadasDeSede : ["MATUTINO", "VESPERTINO", "NOCTURNO"]).map((j) => (
-              <option key={j} value={j} className="bg-surface">{j}</option>
+              <option key={j} value={j} className="bg-[color:var(--surface)]">{j}</option>
             ))}
           </select>
         </label>
 
         <label className="block">
-          <span className="mb-1 block text-[10px] font-semibold uppercase tracking-tagline text-ink-muted">Fecha</span>
+          <span className="mb-1 block text-[10px] font-semibold uppercase tracking-tagline text-muted">Fecha</span>
           <input
             type="date"
             value={props.fecha}
             onChange={(e) => updateUrl({ fecha: e.target.value })}
-            className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2.5 text-sm text-ink focus:border-blue-400 focus:outline-none"
+            className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2.5 text-sm text-text focus:border-blue-400 focus:outline-none"
           />
         </label>
       </section>
@@ -287,7 +287,7 @@ export function PaseListaClient(props: Props) {
             <h2 className="font-serif text-lg italic">
               <span className="text-gradient-gold">Captura por ID</span>
             </h2>
-            <span className="font-mono text-[10px] text-ink-dim">Bulk-mode estilo legacy</span>
+            <span className="font-mono text-[10px] text-muted-2">Bulk-mode estilo legacy</span>
           </div>
           <div className="mb-3 flex flex-wrap gap-1.5">
             {CODIGOS.filter((c) => c !== "SN").map((cod) => {
@@ -319,7 +319,7 @@ export function PaseListaClient(props: Props) {
                 }
               }}
               placeholder="Ej: 92, 45, 21 o uno por uno..."
-              className="min-w-0 flex-1 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2.5 font-mono text-sm text-ink placeholder:text-ink-dim focus:border-blue-400 focus:outline-none"
+              className="min-w-0 flex-1 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2.5 font-mono text-sm text-text placeholder:text-muted-2 focus:border-blue-400 focus:outline-none"
               disabled={!props.canEdit}
             />
             <button
@@ -373,7 +373,7 @@ export function PaseListaClient(props: Props) {
 
       {/* ============ LISTA DE EMPLEADOS ============ */}
       {!props.empleados.length ? (
-        <div className="rounded-2xl border border-dashed border-white/10 bg-surface/40 p-10 text-center text-sm text-ink-muted">
+        <div className="rounded-2xl border border-dashed border-white/10 bg-[color:var(--surface)]/40 p-10 text-center text-sm text-muted">
           No hay empleados activos para esta combinación sede × jornada.
         </div>
       ) : (
@@ -385,12 +385,12 @@ export function PaseListaClient(props: Props) {
             return (
               <li
                 key={emp.id}
-                className={`flex items-center gap-3 rounded-xl border bg-surface/60 px-3 py-2.5 transition sm:px-4 sm:py-3 ${
+                className={`flex items-center gap-3 rounded-xl border bg-[color:var(--surface)]/60 px-3 py-2.5 transition sm:px-4 sm:py-3 ${
                   isPendingChange ? "border-blue-400/40 ring-1 ring-blue-400/20" : "border-white/5"
                 }`}
               >
-                <span className="font-mono text-[10px] text-ink-dim sm:text-xs">#{emp.numero_empleado}</span>
-                <p className="min-w-0 flex-1 truncate text-sm font-medium text-ink sm:text-base">{emp.nombre}</p>
+                <span className="font-mono text-[10px] text-muted-2 sm:text-xs">#{emp.numero_empleado}</span>
+                <p className="min-w-0 flex-1 truncate text-sm font-medium text-text sm:text-base">{emp.nombre}</p>
                 {current ? (
                   <span
                     className="rounded-full px-2.5 py-1 font-mono text-[10px] font-bold uppercase text-white"
@@ -400,7 +400,7 @@ export function PaseListaClient(props: Props) {
                     {current}
                   </span>
                 ) : (
-                  <span className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 font-mono text-[10px] uppercase text-ink-dim">
+                  <span className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 font-mono text-[10px] uppercase text-muted-2">
                     Sin marcar
                   </span>
                 )}
@@ -412,9 +412,9 @@ export function PaseListaClient(props: Props) {
 
       {/* ============ Save bar sticky ============ */}
       {props.empleados.length > 0 && (
-        <div className="sticky bottom-0 mt-8 -mx-4 border-t border-white/10 bg-bg/95 px-4 py-4 backdrop-blur sm:-mx-6 sm:px-6">
+        <div className="sticky bottom-0 mt-8 -mx-4 border-t border-white/10 bg-[color:var(--bg)]/95 px-4 py-4 backdrop-blur sm:-mx-6 sm:px-6">
           <div className="mx-auto flex max-w-6xl items-center justify-between gap-3">
-            <div className="text-xs text-ink-muted">
+            <div className="text-xs text-muted">
               {resultado?.ok && (
                 <span className="text-emerald-300">
                   ✓ {resultado.saved} marca{resultado.saved === 1 ? "" : "s"} guardada{resultado.saved === 1 ? "" : "s"}
@@ -438,10 +438,10 @@ export function PaseListaClient(props: Props) {
 
       {/* ============ MODAL DE REVISIÓN FINAL ============ */}
       {showReview && (
-        <div className="fixed inset-0 z-50 flex items-end bg-bg/70 backdrop-blur-sm sm:items-center sm:justify-center"
+        <div className="fixed inset-0 z-50 flex items-end bg-[color:var(--bg)]/70 backdrop-blur-sm sm:items-center sm:justify-center"
              onClick={() => setShowReview(false)}>
           <div
-            className="max-h-[90vh] w-full overflow-y-auto rounded-t-3xl bg-surface p-5 shadow-2xl sm:max-w-2xl sm:rounded-3xl sm:p-7"
+            className="max-h-[90vh] w-full overflow-y-auto rounded-t-3xl bg-[color:var(--surface)] p-5 shadow-2xl sm:max-w-2xl sm:rounded-3xl sm:p-7"
             onClick={(e) => e.stopPropagation()}
           >
             <header className="mb-4 flex items-start justify-between">
@@ -450,14 +450,14 @@ export function PaseListaClient(props: Props) {
                 <h2 className="font-serif text-2xl">
                   Revisar <span className="text-gradient-gold serif-italic">pase</span>
                 </h2>
-                <p className="mt-1 text-xs text-ink-muted">
+                <p className="mt-1 text-xs text-muted">
                   {sedeActual?.nombre} · {props.jornada} · {props.fecha} · {cambiosCount} cambio{cambiosCount === 1 ? "" : "s"}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setShowReview(false)}
-                className="rounded-md p-1.5 text-ink-dim hover:bg-white/5"
+                className="rounded-md p-1.5 text-muted-2 hover:bg-white/5"
               >
                 ✕
               </button>
@@ -467,14 +467,14 @@ export function PaseListaClient(props: Props) {
               <span className="font-semibold">Una vez guardado no se puede modificar</span> (excepto SUPERADMIN). Revisa bien.
             </div>
 
-            <ul className="mb-5 max-h-[40vh] space-y-1 overflow-y-auto rounded-xl border border-white/5 bg-bg/40 p-2 text-xs sm:text-sm">
+            <ul className="mb-5 max-h-[40vh] space-y-1 overflow-y-auto rounded-xl border border-white/5 bg-[color:var(--bg)]/40 p-2 text-xs sm:text-sm">
               {Object.entries(pendientes).map(([id, cod]) => {
                 const emp = props.empleados.find((e) => e.id === id);
                 const spec = CODIGO_SPEC[cod];
                 if (!emp) return null;
                 return (
                   <li key={id} className="flex items-center gap-3 rounded-lg px-2 py-1.5">
-                    <span className="font-mono text-[10px] text-ink-dim">#{emp.numero_empleado}</span>
+                    <span className="font-mono text-[10px] text-muted-2">#{emp.numero_empleado}</span>
                     <span className="flex-1 truncate">{emp.nombre}</span>
                     <span
                       className="rounded-full px-2 py-0.5 font-mono text-[10px] font-bold text-white"
@@ -521,7 +521,7 @@ function StatRing({ label, value, total, color }: { label: string; value: number
   const circumference = 2 * Math.PI * 22;
   const offset = circumference - (pct / 100) * circumference;
   return (
-    <div className="flex flex-col items-center justify-center rounded-2xl border border-white/5 bg-surface/60 p-3 sm:p-4">
+    <div className="flex flex-col items-center justify-center rounded-2xl border border-white/5 bg-[color:var(--surface)]/60 p-3 sm:p-4">
       <div className="relative h-14 w-14 sm:h-16 sm:w-16">
         <svg className="h-full w-full -rotate-90" viewBox="0 0 50 50">
           <circle cx="25" cy="25" r="22" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="4" />
@@ -533,11 +533,11 @@ function StatRing({ label, value, total, color }: { label: string; value: number
             style={{ transition: "stroke-dashoffset 0.4s ease" }}
           />
         </svg>
-        <span className="absolute inset-0 flex items-center justify-center text-base font-bold text-ink sm:text-lg">
+        <span className="absolute inset-0 flex items-center justify-center text-base font-bold text-text sm:text-lg">
           {value}
         </span>
       </div>
-      <p className="mt-1.5 text-[10px] font-semibold uppercase tracking-tagline text-ink-muted">{label}</p>
+      <p className="mt-1.5 text-[10px] font-semibold uppercase tracking-tagline text-muted">{label}</p>
     </div>
   );
 }
@@ -560,8 +560,8 @@ function QuickAction({ icon, title, hint, onClick, disabled }: {
         {icon}
       </span>
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold text-ink">{title}</p>
-        <p className="truncate text-[11px] text-ink-muted">{hint}</p>
+        <p className="text-sm font-semibold text-text">{title}</p>
+        <p className="truncate text-[11px] text-muted">{hint}</p>
       </div>
     </button>
   );

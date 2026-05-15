@@ -196,9 +196,9 @@ export function IncidenciasClient(props: Props) {
   return (
     <>
       {/* Controles */}
-      <div className="mb-6 grid gap-3 rounded-xl border border-white/10 bg-surface p-4 sm:grid-cols-3 sm:items-end sm:p-5">
+      <div className="mb-6 grid gap-3 rounded-xl border border-white/10 bg-[color:var(--surface)] p-4 sm:grid-cols-3 sm:items-end sm:p-5">
         <label className="block">
-          <span className="mb-1 block text-[10px] font-semibold uppercase tracking-tagline text-ink-muted">Sede</span>
+          <span className="mb-1 block text-[10px] font-semibold uppercase tracking-tagline text-muted">Sede</span>
           <select
             value={props.sedeId}
             onChange={(e) => updateUrl({ sede: e.target.value })}
@@ -235,18 +235,18 @@ export function IncidenciasClient(props: Props) {
           </button>
         </div>
 
-        <div className="text-right text-xs text-ink-muted sm:text-sm">
-          <span className="font-mono text-ink">{props.incidencias.length}</span> incidencias en {tituloMes}
+        <div className="text-right text-xs text-muted sm:text-sm">
+          <span className="font-mono text-text">{props.incidencias.length}</span> incidencias en {tituloMes}
         </div>
       </div>
 
       {/* Calendario */}
-      <div className="overflow-hidden rounded-xl border border-white/10 bg-surface">
+      <div className="overflow-hidden rounded-xl border border-white/10 bg-[color:var(--surface)]">
         <div className="grid grid-cols-7 border-b border-white/10 bg-white/[0.03]">
           {DIAS_SEMANA.map((d, i) => (
             <div
               key={d}
-              className={`px-2 py-2 text-center text-[10px] font-semibold uppercase tracking-tagline ${i === 6 ? "text-blue-300" : "text-ink-muted"}`}
+              className={`px-2 py-2 text-center text-[10px] font-semibold uppercase tracking-tagline ${i === 6 ? "text-blue-300" : "text-muted"}`}
             >
               {d}
             </div>
@@ -261,7 +261,7 @@ export function IncidenciasClient(props: Props) {
                 type="button"
                 onClick={() => openFormFor(cell.date)}
                 className={`min-h-[80px] border-b border-r border-white/5 p-1.5 text-left transition hover:bg-blue-500/[0.06] sm:min-h-[110px] sm:p-2 ${
-                  cell.isOtherMonth ? "bg-bg/40 text-ink-dim" : "bg-surface"
+                  cell.isOtherMonth ? "bg-[color:var(--bg)]/40 text-muted-2" : "bg-[color:var(--surface)]"
                 } ${cell.isSunday && !cell.isOtherMonth ? "bg-orange-500/[0.06]" : ""}`}
               >
                 <div className={`mb-1 flex items-center justify-between text-xs ${today ? "font-bold text-blue-300" : ""}`}>
@@ -284,7 +284,7 @@ export function IncidenciasClient(props: Props) {
                     </span>
                   ))}
                   {cell.incidencias.length > 4 && (
-                    <span className="text-[9px] text-ink-muted">+{cell.incidencias.length - 4}</span>
+                    <span className="text-[9px] text-muted">+{cell.incidencias.length - 4}</span>
                   )}
                 </div>
               </button>
@@ -295,9 +295,9 @@ export function IncidenciasClient(props: Props) {
 
       {/* Drawer / Modal del día seleccionado */}
       {diaSeleccionado && (
-        <div className="fixed inset-0 z-50 flex items-end bg-bg/70 backdrop-blur-sm sm:items-center sm:justify-center" onClick={() => { setDiaSeleccionado(null); setShowForm(false); }}>
+        <div className="fixed inset-0 z-50 flex items-end bg-[color:var(--bg)]/70 backdrop-blur-sm sm:items-center sm:justify-center" onClick={() => { setDiaSeleccionado(null); setShowForm(false); }}>
           <div
-            className="max-h-[90vh] w-full overflow-y-auto rounded-t-3xl bg-surface p-5 shadow-2xl sm:max-w-2xl sm:rounded-3xl sm:p-7"
+            className="max-h-[90vh] w-full overflow-y-auto rounded-t-3xl bg-[color:var(--surface)] p-5 shadow-2xl sm:max-w-2xl sm:rounded-3xl sm:p-7"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-4 flex items-start justify-between">
@@ -308,7 +308,7 @@ export function IncidenciasClient(props: Props) {
               <button
                 type="button"
                 onClick={() => { setDiaSeleccionado(null); setShowForm(false); }}
-                className="rounded-md p-1.5 text-ink-dim hover:bg-white/5"
+                className="rounded-md p-1.5 text-muted-2 hover:bg-white/5"
               >
                 ✕
               </button>
@@ -332,7 +332,7 @@ export function IncidenciasClient(props: Props) {
                             <span className="truncate font-medium">{emp?.nombre ?? "Empleado desconocido"}</span>
                           </div>
                           {inc.observacion && (
-                            <p className="mt-1 text-xs text-ink-muted">{inc.observacion}</p>
+                            <p className="mt-1 text-xs text-muted">{inc.observacion}</p>
                           )}
                         </div>
                         <button
@@ -358,7 +358,7 @@ export function IncidenciasClient(props: Props) {
                 <p className="pill pill-blue inline-flex">Nueva incidencia</p>
 
                 <label className="block">
-                  <span className="mb-1 block text-[10px] uppercase tracking-tagline text-ink-muted">Empleado *</span>
+                  <span className="mb-1 block text-[10px] uppercase tracking-tagline text-muted">Empleado *</span>
                   <select
                     value={formState.empleado_id}
                     onChange={(e) => setFormState({ ...formState, empleado_id: e.target.value })}
@@ -372,7 +372,7 @@ export function IncidenciasClient(props: Props) {
                 </label>
 
                 <label className="block">
-                  <span className="mb-1 block text-[10px] uppercase tracking-tagline text-ink-muted">Código *</span>
+                  <span className="mb-1 block text-[10px] uppercase tracking-tagline text-muted">Código *</span>
                   <div className="flex flex-wrap gap-1.5">
                     {CODIGOS.filter((c) => c !== "SN").map((cod) => {
                       const spec = CODIGO_SPEC[cod];
@@ -384,7 +384,7 @@ export function IncidenciasClient(props: Props) {
                           onClick={() => setFormState({ ...formState, codigo: cod })}
                           title={spec.nombre}
                           className={`rounded-md px-2.5 py-1.5 font-mono text-[11px] font-bold transition ${
-                            active ? "text-white" : "border border-white/10 bg-white/[0.04] text-ink-muted hover:bg-white/[0.08]"
+                            active ? "text-white" : "border border-white/10 bg-white/[0.04] text-muted hover:bg-white/[0.08]"
                           }`}
                           style={active ? { backgroundColor: spec.color } : undefined}
                         >
@@ -396,7 +396,7 @@ export function IncidenciasClient(props: Props) {
                 </label>
 
                 <label className="block">
-                  <span className="mb-1 block text-[10px] uppercase tracking-tagline text-ink-muted">Observación</span>
+                  <span className="mb-1 block text-[10px] uppercase tracking-tagline text-muted">Observación</span>
                   <textarea
                     value={formState.observacion}
                     onChange={(e) => setFormState({ ...formState, observacion: e.target.value })}
@@ -408,7 +408,7 @@ export function IncidenciasClient(props: Props) {
 
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className="block">
-                    <span className="mb-1 block text-[10px] uppercase tracking-tagline text-ink-muted">Cubre a (opcional)</span>
+                    <span className="mb-1 block text-[10px] uppercase tracking-tagline text-muted">Cubre a (opcional)</span>
                     <select
                       value={formState.cubre_id}
                       onChange={(e) => setFormState({ ...formState, cubre_id: e.target.value })}
@@ -421,7 +421,7 @@ export function IncidenciasClient(props: Props) {
                     </select>
                   </label>
                   <label className="block">
-                    <span className="mb-1 block text-[10px] uppercase tracking-tagline text-ink-muted">Autoriza (opcional)</span>
+                    <span className="mb-1 block text-[10px] uppercase tracking-tagline text-muted">Autoriza (opcional)</span>
                     <select
                       value={formState.autoriza}
                       onChange={(e) => setFormState({ ...formState, autoriza: e.target.value })}

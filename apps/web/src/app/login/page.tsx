@@ -16,18 +16,18 @@ export default function LoginPage() {
           <h1 className="font-serif text-3xl">
             Vér<span className="text-gradient-gold serif-italic">tice</span>
           </h1>
-          <p className="text-[10px] uppercase tracking-ultra text-ink-muted">Sistema de Recursos Humanos</p>
+          <p className="text-[10px] uppercase tracking-ultra text-muted">Sistema de Recursos Humanos</p>
         </div>
 
         <div className="surface-glow rounded-2xl p-7">
           <h2 className="mb-1 font-serif text-xl">Iniciar sesión</h2>
-          <p className="mb-6 text-xs text-ink-muted">Sistema interno · acceso autorizado únicamente.</p>
-          <Suspense fallback={<div className="text-sm text-ink-dim">Cargando...</div>}>
+          <p className="mb-6 text-xs text-muted">Sistema interno · acceso autorizado únicamente.</p>
+          <Suspense fallback={<div className="text-sm text-muted-2">Cargando...</div>}>
             <LoginForm />
           </Suspense>
         </div>
 
-        <p className="mt-6 text-center text-[10px] uppercase tracking-ultra text-ink-dim">
+        <p className="mt-6 text-center text-[10px] uppercase tracking-ultra text-muted-2">
           MHS Integradora · Vértice
         </p>
       </div>

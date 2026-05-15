@@ -1,7 +1,6 @@
-import { redirect } from "next/navigation";
-import { Logo } from "@/components/Logo";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { SignOutButton } from "../dashboard/SignOutButton";
+import { requireUser } from "@/lib/session";
+import { Topbar } from "@/components/Topbar";
 import { PaseListaClient, type Asignacion, type Empleado, type SedeShape } from "./PaseListaClient";
 
 export const dynamic = "force-dynamic";
@@ -29,24 +28,17 @@ function previousDay(iso: string): string {
 }
 
 export default async function PaseListaPage({ searchParams }: PageProps) {
+  const { id: userId, profile } = await requireUser();
   const supabase = await createSupabaseServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
 
   const params = await searchParams;
   const fecha = params.fecha?.trim() || todayISOMerida();
-
-  const { data: perfil } = await supabase
-    .from("usuarios")
-    .select("nombre, username, rol")
-    .eq("id", user.id)
-    .single<{ nombre: string; username: string; rol: string }>();
 
   // Asignaciones del usuario, agrupadas por sede
   const { data: asignRaw } = await supabase
     .from("asignaciones_supervisor")
     .select("jornada, sedes(id, codigo, abrev, nombre)")
-    .eq("usuario_id", user.id)
+    .eq("usuario_id", userId)
     .eq("activo", true)
     .order("jornada");
 
@@ -59,7 +51,7 @@ export default async function PaseListaPage({ searchParams }: PageProps) {
   }
   const asignaciones = [...sedeMap.values()];
 
-  const isAdmin = perfil?.rol === "ADMIN" || perfil?.rol === "SUPERADMIN" || perfil?.rol === "CEO";
+  const isAdmin = profile.rol === "ADMIN" || profile.rol === "SUPERADMIN" || profile.rol === "CEO";
 
   // Si admin sin asignaciones, traerle todas las sedes
   if (isAdmin && !asignaciones.length) {
@@ -120,30 +112,10 @@ export default async function PaseListaPage({ searchParams }: PageProps) {
             : "";
 
   return (
-    <main className="min-h-screen text-ink">
-      <header className="border-b border-white/5 bg-surface/60 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6 sm:py-4">
-          <a href="/dashboard" className="flex items-center gap-3">
-            <Logo className="h-8 w-auto" withWordmark={false} />
-            <span className="hidden font-serif text-lg text-ink sm:inline">Vértice</span>
-          </a>
-          <div className="flex items-center gap-3">
-            <span className="hidden items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-tagline text-emerald-300 sm:inline-flex">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-              {perfil?.username}
-            </span>
-            <div className="text-right">
-              <p className="text-xs font-medium text-ink sm:text-sm">{perfil?.nombre}</p>
-              <p className="font-mono text-[9px] uppercase tracking-tagline text-ink-muted sm:text-[10px]">
-                {perfil?.rol}
-              </p>
-            </div>
-            <SignOutButton />
-          </div>
-        </div>
-      </header>
+    <main className="min-h-screen text-text">
+      <Topbar user={profile} />
 
-      <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
+      <div className="relative z-10 mx-auto max-w-[1280px] px-4 py-6 sm:px-6 sm:py-10">
         <PaseListaClient
           fecha={fecha}
           sedeId={sedeId}
