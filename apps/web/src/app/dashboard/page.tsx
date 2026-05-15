@@ -17,7 +17,6 @@ interface AsignacionRow {
   id: string;
   jornada: string;
   activo: boolean;
-  /** PostgREST devuelve la relación to-one como array de 0..1 elementos. */
   sedes: SedeJoin[] | SedeJoin | null;
 }
 
@@ -37,9 +36,7 @@ interface UsuarioRow {
 
 export default async function DashboardPage() {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
   const { data: perfil } = await supabase
@@ -56,98 +53,95 @@ export default async function DashboardPage() {
     .order("jornada");
 
   const rows = (asignaciones ?? []) as unknown as AsignacionRow[];
-  const sedesUnicas = new Set(rows.map((a) => sedeOf(a)?.codigo).filter(Boolean));
+
+  // Agrupar por sede
+  const porSede = new Map<string, { sede: SedeJoin; jornadas: string[] }>();
+  for (const a of rows) {
+    const sede = sedeOf(a);
+    if (!sede) continue;
+    if (!porSede.has(sede.codigo)) porSede.set(sede.codigo, { sede, jornadas: [] });
+    porSede.get(sede.codigo)!.jornadas.push(a.jornada);
+  }
+  const sedesAgrupadas = [...porSede.values()];
 
   return (
-    <main className="min-h-screen bg-cream text-onyx">
-      <header className="border-b border-onyx/10 bg-cream-50">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-          <Logo className="h-9 w-auto" withWordmark />
-          <div className="flex items-center gap-4">
-            <div className="text-right">
-              <p className="text-sm font-medium text-onyx">{perfil?.nombre ?? "—"}</p>
-              <p className="font-mono text-[10px] uppercase tracking-tagline text-onyx/50">
-                {perfil?.username} · {ROL_LABEL[perfil?.rol ?? "USER"]}
-              </p>
+    <main className="min-h-screen text-ink">
+      <header className="border-b border-white/5 bg-surface/60 backdrop-blur">
+        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
+          <div className="flex items-center gap-3">
+            <Logo className="h-8 w-auto" withWordmark={false} />
+            <div>
+              <p className="font-serif text-lg leading-none">Vértice</p>
+              <p className="pill pill-blue mt-1 inline-flex">RH</p>
             </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="hidden items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-tagline text-emerald-300 sm:inline-flex">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+              {perfil?.username}
+            </span>
             <SignOutButton />
           </div>
         </div>
       </header>
 
-      <div className="mx-auto max-w-5xl px-6 py-12">
-        <section className="mb-12">
-          <p className="mb-2 text-[11px] font-semibold uppercase tracking-tagline text-gold-700">
-            Dashboard · {ROL_LABEL[perfil?.rol ?? "USER"]}
-          </p>
-          <h1 className="font-serif text-4xl text-balance lg:text-5xl">
-            Hola, {perfil?.nombre?.split(" ")[0] ?? "—"}.
+      <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 sm:py-14">
+        <section className="mb-10">
+          <p className="pill pill-gold mb-3 inline-flex">Dashboard · {ROL_LABEL[perfil?.rol ?? "USER"]}</p>
+          <h1 className="font-serif text-5xl leading-[1.05] text-balance sm:text-6xl">
+            Hola, <span className="text-gradient-blue serif-italic">{perfil?.nombre?.split(" ")[0] ?? "—"}</span>.
           </h1>
-          <p className="mt-3 max-w-2xl text-onyx/65">
+          <p className="mt-4 max-w-2xl text-base text-ink-muted">
             Tu perfil está autenticado contra Supabase. Las asignaciones que ves abajo vienen filtradas por
-            RLS — solo las tuyas. Esta página es el punto de partida para los siguientes módulos.
+            RLS — solo las tuyas.
           </p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <a
-              href="/pase-lista"
-              className="inline-flex items-center gap-2 rounded-lg bg-onyx px-5 py-2.5 text-[11px] font-semibold uppercase tracking-tagline text-cream transition hover:bg-onyx-900"
-            >
-              Capturar pase de lista →
+          <div className="mt-7 flex flex-wrap gap-3">
+            <a href="/pase-lista" className="btn-primary inline-flex items-center gap-2">
+              Iniciar pase de lista →
             </a>
-            <a
-              href="/incidencias"
-              className="inline-flex items-center gap-2 rounded-lg border border-onyx/15 bg-cream-50 px-5 py-2.5 text-[11px] font-semibold uppercase tracking-tagline text-onyx/75 transition hover:bg-onyx hover:text-cream"
-            >
-              Incidencias →
+            <a href="/incidencias" className="btn-ghost inline-flex items-center gap-2">
+              Incidencias
             </a>
           </div>
         </section>
 
         <section>
           <div className="mb-4 flex items-baseline justify-between">
-            <h2 className="text-[11px] font-semibold uppercase tracking-tagline text-onyx/50">
-              Tus asignaciones
+            <h2 className="text-[10px] font-semibold uppercase tracking-ultra text-ink-muted">
+              Tus sedes asignadas
             </h2>
-            <span className="font-mono text-[11px] text-onyx/40">
-              {rows.length} asignaciones · {sedesUnicas.size} sede{sedesUnicas.size === 1 ? "" : "s"}
+            <span className="font-mono text-[11px] text-ink-dim">
+              {sedesAgrupadas.length} sede{sedesAgrupadas.length === 1 ? "" : "s"} · {rows.length} asignaciones
             </span>
           </div>
 
-          {rows.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-onyx/15 bg-cream-50 p-10 text-center text-sm text-onyx/55">
-              No tienes sedes asignadas todavía. Pide a un admin que te asigne en{" "}
-              <span className="font-mono">asignaciones_supervisor</span>.
+          {sedesAgrupadas.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-white/10 bg-surface/40 p-10 text-center text-sm text-ink-muted">
+              No tienes sedes asignadas. Si eres admin, igual tienes acceso global.
             </div>
           ) : (
-            <ul className="grid gap-3 sm:grid-cols-2">
-              {rows.map((a) => {
-                const sede = sedeOf(a);
-                return (
-                  <li
-                    key={a.id}
-                    className="rounded-lg border border-onyx/10 bg-cream-50 p-4 transition hover:border-gold-300"
-                  >
-                    <div className="mb-1 flex items-center gap-2">
-                      <span className="rounded-md bg-gold-100 px-1.5 py-0.5 font-mono text-[10px] font-bold text-gold-800">
-                        {sede?.abrev ?? "—"}
-                      </span>
-                      <span className="text-[10px] uppercase tracking-tagline text-onyx/55">
-                        {a.jornada}
-                      </span>
-                    </div>
-                    <p className="text-sm font-medium text-onyx">{sede?.nombre ?? "—"}</p>
-                    <p className="font-mono text-[10px] text-onyx/40">{sede?.codigo ?? "—"}</p>
-                  </li>
-                );
-              })}
+            <ul className="grid gap-2 sm:grid-cols-2">
+              {sedesAgrupadas.map(({ sede, jornadas }) => (
+                <li key={sede.codigo} className="surface-glow rounded-xl p-4 transition hover:border-blue-400/40">
+                  <div className="mb-2 flex items-center gap-2">
+                    <span className="rounded-md bg-blue-500/20 px-1.5 py-0.5 font-mono text-[10px] font-bold text-blue-300">
+                      {sede.abrev}
+                    </span>
+                    <p className="flex-1 truncate text-sm font-medium text-ink">{sede.nombre}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {jornadas.map((j) => (
+                      <span key={j} className="pill pill-blue">{j}</span>
+                    ))}
+                  </div>
+                </li>
+              ))}
             </ul>
           )}
         </section>
 
-        <footer className="mt-16 border-t border-onyx/10 pt-6 text-xs text-onyx/40">
-          <p>
-            Auth via Supabase · RLS aplicada · próximo: módulo de pase de lista.
-          </p>
+        <footer className="mt-16 border-t border-white/5 pt-6 text-xs text-ink-dim">
+          <p>Auth via Supabase · RLS aplicada · próximo: módulo de soporte.</p>
         </footer>
       </div>
     </main>

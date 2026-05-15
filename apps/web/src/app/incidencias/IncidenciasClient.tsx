@@ -196,13 +196,13 @@ export function IncidenciasClient(props: Props) {
   return (
     <>
       {/* Controles */}
-      <div className="mb-6 grid gap-3 rounded-xl border border-onyx/10 bg-cream-50 p-4 sm:grid-cols-3 sm:items-end sm:p-5">
+      <div className="mb-6 grid gap-3 rounded-xl border border-white/10 bg-surface p-4 sm:grid-cols-3 sm:items-end sm:p-5">
         <label className="block">
-          <span className="mb-1 block text-[10px] font-semibold uppercase tracking-tagline text-onyx/55">Sede</span>
+          <span className="mb-1 block text-[10px] font-semibold uppercase tracking-tagline text-ink-muted">Sede</span>
           <select
             value={props.sedeId}
             onChange={(e) => updateUrl({ sede: e.target.value })}
-            className="w-full rounded-md border border-onyx/15 bg-white px-3 py-2 font-mono text-sm focus:border-gold-500 focus:outline-none"
+            className="w-full rounded-md border border-white/10 bg-white/[0.04] px-3 py-2 font-mono text-sm focus:border-blue-400 focus:outline-none"
           >
             {props.sedes.map((s) => (
               <option key={s.id} value={s.id}>{s.abrev} · {s.nombre}</option>
@@ -214,7 +214,7 @@ export function IncidenciasClient(props: Props) {
           <button
             type="button"
             onClick={() => updateUrl({ mes: shiftMonth(props.mes, -1) })}
-            className="rounded-md border border-onyx/15 bg-white px-3 py-2 text-sm hover:bg-cream-100"
+            className="rounded-md border border-white/10 bg-white/[0.04] px-3 py-2 text-sm hover:bg-white/[0.08]"
             aria-label="Mes anterior"
           >
             ←
@@ -223,30 +223,30 @@ export function IncidenciasClient(props: Props) {
             type="month"
             value={props.mes}
             onChange={(e) => updateUrl({ mes: e.target.value })}
-            className="flex-1 rounded-md border border-onyx/15 bg-white px-3 py-2 font-mono text-sm focus:border-gold-500 focus:outline-none"
+            className="flex-1 rounded-md border border-white/10 bg-white/[0.04] px-3 py-2 font-mono text-sm focus:border-blue-400 focus:outline-none"
           />
           <button
             type="button"
             onClick={() => updateUrl({ mes: shiftMonth(props.mes, 1) })}
-            className="rounded-md border border-onyx/15 bg-white px-3 py-2 text-sm hover:bg-cream-100"
+            className="rounded-md border border-white/10 bg-white/[0.04] px-3 py-2 text-sm hover:bg-white/[0.08]"
             aria-label="Mes siguiente"
           >
             →
           </button>
         </div>
 
-        <div className="text-right text-xs text-onyx/60 sm:text-sm">
-          <span className="font-mono text-onyx">{props.incidencias.length}</span> incidencias en {tituloMes}
+        <div className="text-right text-xs text-ink-muted sm:text-sm">
+          <span className="font-mono text-ink">{props.incidencias.length}</span> incidencias en {tituloMes}
         </div>
       </div>
 
       {/* Calendario */}
-      <div className="overflow-hidden rounded-xl border border-onyx/10 bg-cream-50">
-        <div className="grid grid-cols-7 border-b border-onyx/10 bg-onyx text-cream">
+      <div className="overflow-hidden rounded-xl border border-white/10 bg-surface">
+        <div className="grid grid-cols-7 border-b border-white/10 bg-white/[0.03]">
           {DIAS_SEMANA.map((d, i) => (
             <div
               key={d}
-              className={`px-2 py-2 text-center text-[10px] font-semibold uppercase tracking-tagline ${i === 6 ? "text-gold-100" : ""}`}
+              className={`px-2 py-2 text-center text-[10px] font-semibold uppercase tracking-tagline ${i === 6 ? "text-blue-300" : "text-ink-muted"}`}
             >
               {d}
             </div>
@@ -260,14 +260,14 @@ export function IncidenciasClient(props: Props) {
                 key={cell.date}
                 type="button"
                 onClick={() => openFormFor(cell.date)}
-                className={`min-h-[80px] border-b border-r border-onyx/10 p-1.5 text-left transition hover:bg-gold-50 sm:min-h-[110px] sm:p-2 ${
-                  cell.isOtherMonth ? "bg-cream/40 text-onyx/30" : "bg-cream-50"
-                } ${cell.isSunday && !cell.isOtherMonth ? "bg-orange-50" : ""}`}
+                className={`min-h-[80px] border-b border-r border-white/5 p-1.5 text-left transition hover:bg-blue-500/[0.06] sm:min-h-[110px] sm:p-2 ${
+                  cell.isOtherMonth ? "bg-bg/40 text-ink-dim" : "bg-surface"
+                } ${cell.isSunday && !cell.isOtherMonth ? "bg-orange-500/[0.06]" : ""}`}
               >
-                <div className={`mb-1 flex items-center justify-between text-xs ${today ? "font-bold text-gold-700" : ""}`}>
+                <div className={`mb-1 flex items-center justify-between text-xs ${today ? "font-bold text-blue-300" : ""}`}>
                   <span>{cell.dayNum}</span>
                   {today && (
-                    <span className="rounded-full bg-gold-500 px-1.5 py-0.5 text-[8px] font-bold uppercase text-white">
+                    <span className="rounded-full bg-blue-500 px-1.5 py-0.5 text-[8px] font-bold uppercase text-white">
                       hoy
                     </span>
                   )}
@@ -284,7 +284,7 @@ export function IncidenciasClient(props: Props) {
                     </span>
                   ))}
                   {cell.incidencias.length > 4 && (
-                    <span className="text-[9px] text-onyx/55">+{cell.incidencias.length - 4}</span>
+                    <span className="text-[9px] text-ink-muted">+{cell.incidencias.length - 4}</span>
                   )}
                 </div>
               </button>
@@ -295,32 +295,31 @@ export function IncidenciasClient(props: Props) {
 
       {/* Drawer / Modal del día seleccionado */}
       {diaSeleccionado && (
-        <div className="fixed inset-0 z-50 flex items-end bg-onyx/40 sm:items-center sm:justify-center" onClick={() => { setDiaSeleccionado(null); setShowForm(false); }}>
+        <div className="fixed inset-0 z-50 flex items-end bg-bg/70 backdrop-blur-sm sm:items-center sm:justify-center" onClick={() => { setDiaSeleccionado(null); setShowForm(false); }}>
           <div
-            className="max-h-[90vh] w-full overflow-y-auto rounded-t-2xl bg-cream-50 p-5 sm:max-w-2xl sm:rounded-2xl sm:p-7"
+            className="max-h-[90vh] w-full overflow-y-auto rounded-t-3xl bg-surface p-5 shadow-2xl sm:max-w-2xl sm:rounded-3xl sm:p-7"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-4 flex items-start justify-between">
               <div>
-                <p className="text-[10px] font-semibold uppercase tracking-tagline text-gold-700">{diaSeleccionado}</p>
+                <p className="pill pill-blue mb-2 inline-flex">{diaSeleccionado}</p>
                 <h2 className="font-serif text-2xl">Incidencias del día</h2>
               </div>
               <button
                 type="button"
                 onClick={() => { setDiaSeleccionado(null); setShowForm(false); }}
-                className="rounded-md p-1.5 text-onyx/40 hover:bg-onyx/5"
+                className="rounded-md p-1.5 text-ink-dim hover:bg-white/5"
               >
                 ✕
               </button>
             </div>
 
-            {/* Listado de incidencias del día */}
             {incidenciasDelDia.length > 0 && (
               <ul className="mb-4 space-y-2">
                 {incidenciasDelDia.map((inc) => {
                   const emp = empleadosMap.get(inc.empleado_id);
                   return (
-                    <li key={inc.id} className="rounded-lg border border-onyx/10 bg-white p-3 text-sm">
+                    <li key={inc.id} className="rounded-lg border border-white/10 bg-white/[0.04] p-3 text-sm">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
@@ -333,13 +332,13 @@ export function IncidenciasClient(props: Props) {
                             <span className="truncate font-medium">{emp?.nombre ?? "Empleado desconocido"}</span>
                           </div>
                           {inc.observacion && (
-                            <p className="mt-1 text-xs text-onyx/70">{inc.observacion}</p>
+                            <p className="mt-1 text-xs text-ink-muted">{inc.observacion}</p>
                           )}
                         </div>
                         <button
                           type="button"
                           onClick={() => eliminar(inc.id)}
-                          className="rounded px-2 py-0.5 text-[10px] font-semibold text-red-600 hover:bg-red-50"
+                          className="rounded px-2 py-0.5 text-[10px] font-semibold text-red-400 hover:bg-red-500/10"
                         >
                           Eliminar
                         </button>
@@ -350,25 +349,20 @@ export function IncidenciasClient(props: Props) {
               </ul>
             )}
 
-            {/* Form de nueva */}
             {!showForm ? (
-              <button
-                type="button"
-                onClick={() => setShowForm(true)}
-                className="w-full rounded-lg bg-onyx px-4 py-2.5 text-[11px] font-semibold uppercase tracking-tagline text-cream hover:bg-onyx-900"
-              >
+              <button type="button" onClick={() => setShowForm(true)} className="btn-primary w-full">
                 + Registrar nueva incidencia
               </button>
             ) : (
-              <div className="space-y-3 rounded-lg border border-gold-200 bg-cream-100 p-3">
-                <p className="text-[10px] font-semibold uppercase tracking-tagline text-gold-700">Nueva incidencia</p>
+              <div className="space-y-3 rounded-lg border border-blue-400/30 bg-blue-500/[0.06] p-3">
+                <p className="pill pill-blue inline-flex">Nueva incidencia</p>
 
                 <label className="block">
-                  <span className="mb-1 block text-[10px] uppercase tracking-tagline text-onyx/55">Empleado *</span>
+                  <span className="mb-1 block text-[10px] uppercase tracking-tagline text-ink-muted">Empleado *</span>
                   <select
                     value={formState.empleado_id}
                     onChange={(e) => setFormState({ ...formState, empleado_id: e.target.value })}
-                    className="w-full rounded-md border border-onyx/15 bg-white px-3 py-2 text-sm focus:border-gold-500 focus:outline-none"
+                    className="w-full rounded-md border border-white/10 bg-white/[0.04] px-3 py-2 text-sm focus:border-blue-400 focus:outline-none"
                   >
                     <option value="">— elegir —</option>
                     {props.empleados.map((e) => (
@@ -378,7 +372,7 @@ export function IncidenciasClient(props: Props) {
                 </label>
 
                 <label className="block">
-                  <span className="mb-1 block text-[10px] uppercase tracking-tagline text-onyx/55">Código *</span>
+                  <span className="mb-1 block text-[10px] uppercase tracking-tagline text-ink-muted">Código *</span>
                   <div className="flex flex-wrap gap-1.5">
                     {CODIGOS.filter((c) => c !== "SN").map((cod) => {
                       const spec = CODIGO_SPEC[cod];
@@ -390,7 +384,7 @@ export function IncidenciasClient(props: Props) {
                           onClick={() => setFormState({ ...formState, codigo: cod })}
                           title={spec.nombre}
                           className={`rounded-md px-2.5 py-1.5 font-mono text-[11px] font-bold transition ${
-                            active ? "text-white" : "border border-onyx/15 bg-white text-onyx/70 hover:bg-cream-100"
+                            active ? "text-white" : "border border-white/10 bg-white/[0.04] text-ink-muted hover:bg-white/[0.08]"
                           }`}
                           style={active ? { backgroundColor: spec.color } : undefined}
                         >
@@ -402,23 +396,23 @@ export function IncidenciasClient(props: Props) {
                 </label>
 
                 <label className="block">
-                  <span className="mb-1 block text-[10px] uppercase tracking-tagline text-onyx/55">Observación</span>
+                  <span className="mb-1 block text-[10px] uppercase tracking-tagline text-ink-muted">Observación</span>
                   <textarea
                     value={formState.observacion}
                     onChange={(e) => setFormState({ ...formState, observacion: e.target.value })}
                     rows={2}
                     placeholder="Notas, justificación, etc."
-                    className="w-full rounded-md border border-onyx/15 bg-white px-3 py-2 text-sm focus:border-gold-500 focus:outline-none"
+                    className="w-full rounded-md border border-white/10 bg-white/[0.04] px-3 py-2 text-sm focus:border-blue-400 focus:outline-none"
                   />
                 </label>
 
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className="block">
-                    <span className="mb-1 block text-[10px] uppercase tracking-tagline text-onyx/55">Cubre a (opcional)</span>
+                    <span className="mb-1 block text-[10px] uppercase tracking-tagline text-ink-muted">Cubre a (opcional)</span>
                     <select
                       value={formState.cubre_id}
                       onChange={(e) => setFormState({ ...formState, cubre_id: e.target.value })}
-                      className="w-full rounded-md border border-onyx/15 bg-white px-3 py-2 text-sm focus:border-gold-500 focus:outline-none"
+                      className="w-full rounded-md border border-white/10 bg-white/[0.04] px-3 py-2 text-sm focus:border-blue-400 focus:outline-none"
                     >
                       <option value="">—</option>
                       {props.empleados.map((e) => (
@@ -427,11 +421,11 @@ export function IncidenciasClient(props: Props) {
                     </select>
                   </label>
                   <label className="block">
-                    <span className="mb-1 block text-[10px] uppercase tracking-tagline text-onyx/55">Autoriza (opcional)</span>
+                    <span className="mb-1 block text-[10px] uppercase tracking-tagline text-ink-muted">Autoriza (opcional)</span>
                     <select
                       value={formState.autoriza}
                       onChange={(e) => setFormState({ ...formState, autoriza: e.target.value })}
-                      className="w-full rounded-md border border-onyx/15 bg-white px-3 py-2 text-sm focus:border-gold-500 focus:outline-none"
+                      className="w-full rounded-md border border-white/10 bg-white/[0.04] px-3 py-2 text-sm focus:border-blue-400 focus:outline-none"
                     >
                       <option value="">—</option>
                       {props.usuariosAutoriza.map((u) => (
@@ -442,23 +436,14 @@ export function IncidenciasClient(props: Props) {
                 </div>
 
                 {formError && (
-                  <p className="rounded border border-red-200 bg-red-50 px-3 py-1.5 text-xs text-red-700">{formError}</p>
+                  <p className="rounded border border-red-400/30 bg-red-500/10 px-3 py-1.5 text-xs text-red-300">{formError}</p>
                 )}
 
                 <div className="flex justify-end gap-2 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowForm(false)}
-                    className="rounded-md border border-onyx/15 bg-white px-4 py-2 text-xs text-onyx/65 hover:bg-cream-100"
-                  >
+                  <button type="button" onClick={() => setShowForm(false)} className="btn-ghost">
                     Cancelar
                   </button>
-                  <button
-                    type="button"
-                    onClick={submitForm}
-                    disabled={isPending}
-                    className="rounded-md bg-onyx px-4 py-2 text-[11px] font-semibold uppercase tracking-tagline text-cream hover:bg-onyx-900 disabled:opacity-50"
-                  >
+                  <button type="button" onClick={submitForm} disabled={isPending} className="btn-primary">
                     {isPending ? "Guardando..." : "Registrar"}
                   </button>
                 </div>

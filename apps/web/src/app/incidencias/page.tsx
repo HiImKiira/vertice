@@ -109,38 +109,38 @@ export default async function IncidenciasPage({ searchParams }: PageProps) {
   }
 
   return (
-    <main className="min-h-screen bg-cream text-onyx">
-      <header className="border-b border-onyx/10 bg-cream-50">
+    <main className="min-h-screen text-ink">
+      <header className="border-b border-white/5 bg-surface/60 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6 sm:py-4">
           <a href="/dashboard" className="flex items-center gap-3">
             <Logo className="h-8 w-auto" withWordmark={false} />
             <span className="hidden font-serif text-lg sm:inline">Vértice</span>
           </a>
           <div className="flex items-center gap-3">
+            <span className="hidden items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-tagline text-emerald-300 sm:inline-flex">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+              {perfil?.username}
+            </span>
             <div className="text-right">
               <p className="text-xs font-medium sm:text-sm">{perfil?.nombre}</p>
-              <p className="font-mono text-[9px] uppercase tracking-tagline text-onyx/50 sm:text-[10px]">
-                {perfil?.username} · {perfil?.rol}
-              </p>
+              <p className="font-mono text-[9px] uppercase tracking-tagline text-ink-muted sm:text-[10px]">{perfil?.rol}</p>
             </div>
             <SignOutButton />
           </div>
         </div>
       </header>
 
-      <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
+      <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
         <section className="mb-6 flex items-end justify-between gap-3">
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-tagline text-gold-700">Incidencias</p>
-            <h1 className="mt-1 font-serif text-3xl sm:text-4xl">Calendario mensual</h1>
+            <p className="pill pill-gold mb-2 inline-flex">Incidencias</p>
+            <h1 className="font-serif text-3xl sm:text-4xl">
+              Calendario <span className="text-gradient-blue serif-italic">mensual</span>
+            </h1>
           </div>
           <nav className="flex gap-2 text-xs">
-            <a href="/dashboard" className="rounded-md border border-onyx/15 bg-cream-50 px-3 py-1.5 text-onyx/65 transition hover:border-onyx/30">
-              Dashboard
-            </a>
-            <a href="/pase-lista" className="rounded-md border border-onyx/15 bg-cream-50 px-3 py-1.5 text-onyx/65 transition hover:border-onyx/30">
-              Pase de lista
-            </a>
+            <a href="/dashboard" className="btn-ghost">Dashboard</a>
+            <a href="/pase-lista" className="btn-ghost">Pase de lista</a>
           </nav>
         </section>
 
