@@ -22,7 +22,7 @@ export function AltaForm({ sedes, config }: { sedes: Sede[]; config: Record<stri
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<{ folio: string; empleadoId: string } | null>(null);
+  const [success, setSuccess] = useState<{ folio: string; empleadoId: string; pdfUrl: string | null; pdfError?: string | undefined } | null>(null);
 
   // Estado del form (con defaults de config)
   const [f, setF] = useState({
@@ -80,7 +80,7 @@ export function AltaForm({ sedes, config }: { sedes: Sede[]; config: Record<stri
       if (!r.ok) {
         setError(r.error);
       } else {
-        setSuccess({ folio: r.folio, empleadoId: r.empleadoId });
+        setSuccess({ folio: r.folio, empleadoId: r.empleadoId, pdfUrl: r.pdfUrl, pdfError: r.pdfError });
         // limpiar nombre + rfc + domicilio (lo demás queda como defaults)
         setF((prev) => ({
           ...prev,
@@ -330,8 +330,23 @@ export function AltaForm({ sedes, config }: { sedes: Sede[]; config: Record<stri
       )}
       {success && (
         <div className="rounded-xl border border-[rgba(16,185,129,0.4)] bg-[rgba(16,185,129,0.1)] px-4 py-3 text-sm text-[#6EE7B7]">
-          ✓ Contrato <span className="font-mono">{success.folio}</span> creado y empleado dado de alta.
-          La generación del PDF formal del contrato viene en el siguiente release.
+          <p>
+            ✓ Contrato <span className="font-mono">{success.folio}</span> creado y empleado dado de alta.
+          </p>
+          {success.pdfUrl && (
+            <p className="mt-2">
+              📄 <a href={success.pdfUrl} target="_blank" rel="noopener" className="underline font-semibold">
+                Descargar PDF del contrato
+              </a>
+              <span className="text-muted-2 ml-2">(URL válida por 1 hora)</span>
+            </p>
+          )}
+          {success.pdfError && (
+            <p className="mt-2 text-[#FCD34D]">
+              ⚠ El empleado se creó pero hubo error generando el PDF: {success.pdfError}.
+              Puedes regenerarlo desde la lista de contratos.
+            </p>
+          )}
         </div>
       )}
 

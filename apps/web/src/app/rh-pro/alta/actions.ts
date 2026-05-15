@@ -1,10 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { renderToBuffer } from "@react-pdf/renderer";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { supabaseAdmin } from "@/lib/supabase-admin";
+import { ContratoDoc } from "@/lib/pdf/ContratoDoc";
 
 export type CrearResult =
-  | { ok: true; contratoId: string; empleadoId: string; folio: string }
+  | { ok: true; contratoId: string; empleadoId: string; folio: string; pdfUrl: string | null; pdfError?: string | undefined }
   | { ok: false; error: string };
 
 export interface ContratoInput {
@@ -133,7 +136,54 @@ export async function crearContratoAction(input: ContratoInput): Promise<CrearRe
     return { ok: false, error: `Contrato: ${cErr?.message ?? "no creado"}` };
   }
 
+  // 5) Generar PDF y subir a Storage (no bloqueante para el alta)
+  let pdfUrl: string | null = null;
+  let pdfError: string | undefined;
+  try {
+    const sedeNombre = await supabase.from("sedes").select("nombre").eq("id", input.sede_id).maybeSingle<{ nombre: string }>();
+    const buffer = await renderToBuffer(
+      ContratoDoc({
+        contratoId: folio as string,
+        sexo: input.sexo,
+        values: {
+          CONTRATO_ID: folio as string,
+          NOMBRE_TRABAJADOR: input.nombre_trabajador.toUpperCase().trim(),
+          RFC: input.rfc ?? "",
+          DOMICILIO_COMPLETO: input.domicilio_completo,
+          CP: input.cp ?? "",
+          SEDE: sedeNombre.data?.nombre ?? "",
+          PUESTO: input.puesto,
+          SUELDO_MENSUAL: input.sueldo_mensual.toLocaleString("es-MX", { minimumFractionDigits: 2 }),
+          SUELDO_MENSUAL_LETRA: input.sueldo_mensual_letra,
+          FECHA_INICIO: input.fecha_inicio_texto,
+          FECHA_FIN: input.fecha_fin_texto,
+          FECHA_FIRMA_TEXTO: input.fecha_firma_texto,
+          HORA_INICIO: input.hora_inicio,
+          HORA_FIN: input.hora_fin,
+          JORNADA: input.jornada_descripcion,
+          JORNADA_HORAS: String(input.jornada_horas),
+          DIA_DESCANSO: input.dia_descanso_texto,
+          PROYECTO_TEXTO: cfgMap.get("PROYECTO_DEFAULT") ?? "",
+          ACTA_REFERENCIA: cfgMap.get("ACTA_REFERENCIA") ?? "",
+          REPRESENTANTE_LEGAL: cfgMap.get("REPRESENTANTE_LEGAL") ?? "",
+        },
+      }),
+    );
+    const path = `${new Date().getFullYear()}/${(folio as string).replace(/[^a-zA-Z0-9-]/g, "_")}.pdf`;
+    const admin = supabaseAdmin();
+    const { error: upErr } = await admin.storage
+      .from("contratos-pdf")
+      .upload(path, new Uint8Array(buffer), { contentType: "application/pdf", upsert: true });
+    if (upErr) throw upErr;
+    await admin.from("contratos").update({ pdf_storage_path: path, status_pdf: "GENERADO" }).eq("id", contrato.id);
+    const { data: signed } = await admin.storage.from("contratos-pdf").createSignedUrl(path, 60 * 60);
+    pdfUrl = signed?.signedUrl ?? null;
+  } catch (e) {
+    pdfError = e instanceof Error ? e.message : String(e);
+    await supabase.from("contratos").update({ status_pdf: "ERROR", observaciones: `PDF: ${pdfError}` }).eq("id", contrato.id);
+  }
+
   revalidatePath("/rh-pro/alta");
   revalidatePath("/rh-pro");
-  return { ok: true, contratoId: contrato.id, empleadoId: empleado.id, folio: folio as string };
+  return { ok: true, contratoId: contrato.id, empleadoId: empleado.id, folio: folio as string, pdfUrl, pdfError };
 }

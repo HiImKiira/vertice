@@ -17,6 +17,7 @@ interface ContratoRow {
   sede_id: string;
   fecha_captura: string;
   status_pdf: string;
+  pdf_storage_path: string | null;
 }
 
 export default async function AltaPage() {
@@ -39,7 +40,7 @@ export default async function AltaPage() {
   // Últimos contratos (lista)
   const { data: ultRaw } = await supabase
     .from("contratos")
-    .select("id, contrato_id, nombre_trabajador, sexo, sede_id, fecha_captura, status_pdf")
+    .select("id, contrato_id, nombre_trabajador, sexo, sede_id, fecha_captura, status_pdf, pdf_storage_path")
     .order("fecha_captura", { ascending: false })
     .limit(20);
   const ultimos = (ultRaw ?? []) as ContratoRow[];
@@ -81,7 +82,7 @@ export default async function AltaPage() {
                     <th className="px-3 py-2 text-center">Sexo</th>
                     <th className="px-3 py-2 text-left">Sede</th>
                     <th className="px-3 py-2 text-center">Fecha</th>
-                    <th className="px-3 py-2 text-center">Estado PDF</th>
+                    <th className="px-3 py-2 text-center">PDF</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -107,7 +108,20 @@ export default async function AltaPage() {
                           {new Date(c.fecha_captura).toLocaleDateString("es-MX", { dateStyle: "medium" })}
                         </td>
                         <td className="px-3 py-2 text-center">
-                          <span className={`pill ${c.status_pdf === "GENERADO" ? "pill-green" : "pill-amber"}`}>{c.status_pdf}</span>
+                          {c.status_pdf === "GENERADO" && c.pdf_storage_path ? (
+                            <a
+                              href={`/api/contratos/${c.id}/pdf`}
+                              target="_blank"
+                              rel="noopener"
+                              className="inline-flex items-center gap-1 rounded-md bg-[rgba(16,185,129,0.18)] px-2 py-1 text-[10px] font-bold text-[#6EE7B7] transition hover:bg-[rgba(16,185,129,0.35)]"
+                            >
+                              📄 Descargar
+                            </a>
+                          ) : c.status_pdf === "ERROR" ? (
+                            <span className="pill pill-red">ERROR</span>
+                          ) : (
+                            <span className="pill pill-amber">PENDIENTE</span>
+                          )}
                         </td>
                       </tr>
                     );
