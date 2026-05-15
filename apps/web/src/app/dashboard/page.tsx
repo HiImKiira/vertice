@@ -94,6 +94,12 @@ export default async function DashboardPage() {
             >
               Capturar pase de lista →
             </a>
+            <a
+              href="/incidencias"
+              className="inline-flex items-center gap-2 rounded-lg border border-onyx/15 bg-cream-50 px-5 py-2.5 text-[11px] font-semibold uppercase tracking-tagline text-onyx/75 transition hover:bg-onyx hover:text-cream"
+            >
+              Incidencias →
+            </a>
           </div>
         </section>
 
