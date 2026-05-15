@@ -244,8 +244,13 @@
     width: 7px;
     height: 7px;
     border-radius: 50%;
-    background: var(--cyan);
-    box-shadow: 0 0 8px var(--cyan);
+    background: var(--gold);
+    box-shadow: 0 0 10px var(--gold);
+    animation: dotPulse 2.4s ease-in-out infinite;
+  }
+  @keyframes dotPulse {
+    0%, 100% { box-shadow: 0 0 6px var(--gold), 0 0 0 0 rgba(201, 169, 97, 0.4); }
+    50%      { box-shadow: 0 0 14px var(--gold-light), 0 0 0 6px rgba(201, 169, 97, 0); }
   }
 
   /* ─── CARD-ACTION (clickable card del legacy) ─── */
@@ -393,15 +398,59 @@
     to   { opacity: 1; transform: translateY(0); }
   }
   @keyframes glow {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
-    50%      { box-shadow: 0 0 20px 0 rgba(59, 130, 246, 0.25); }
+    0%, 100% { box-shadow: 0 0 0 0 rgba(201, 169, 97, 0); }
+    50%      { box-shadow: 0 0 20px 0 rgba(201, 169, 97, 0.35); }
+  }
+  @keyframes spinGold {
+    to { transform: rotate(360deg); }
+  }
+  @keyframes shimmer {
+    0%   { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
   }
   .animate-fade-up { animation: fadeUp 0.5s ease-out both; }
   .animate-fade-in { animation: fadeIn 0.4s ease-out both; }
   .animate-slide-up { animation: slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) both; }
   .animate-glow { animation: glow 2.5s ease-in-out infinite; }
+
   .delay-100 { animation-delay: 100ms; }
   .delay-200 { animation-delay: 200ms; }
   .delay-300 { animation-delay: 300ms; }
   .delay-400 { animation-delay: 400ms; }
+
+  /* Loader Vértice (gold spinner) */
+  .loader-gold {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 3px solid rgba(201, 169, 97, 0.18);
+    border-top-color: var(--gold);
+    border-right-color: var(--gold-light);
+    animation: spinGold 0.8s linear infinite;
+  }
+  .loader-gold-sm { width: 18px; height: 18px; border-width: 2px; }
+  .loader-gold-lg { width: 56px; height: 56px; border-width: 4px; }
+
+  /* Shimmer skeleton */
+  .skeleton-gold {
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.03) 0%,
+      rgba(201, 169, 97, 0.10) 50%,
+      rgba(255, 255, 255, 0.03) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.6s linear infinite;
+  }
+
+  /* Card hover glow gold */
+  .card-action:hover {
+    border-color: rgba(201, 169, 97, 0.35);
+    box-shadow: 0 12px 32px -12px rgba(201, 169, 97, 0.25), 0 0 0 1px rgba(201, 169, 97, 0.1);
+  }
+
+  /* Glow ring (decorativo, p.ej. hero) */
+  .ring-gold-glow {
+    box-shadow: 0 0 0 1px rgba(201, 169, 97, 0.35), 0 0 30px -8px rgba(201, 169, 97, 0.4);
+  }
 }
