@@ -1,13 +1,14 @@
-import { type SVGProps } from "react";
-
-type LogoProps = SVGProps<SVGSVGElement> & {
+interface LogoProps {
   /** Mostrar wordmark "VÉRTICE" + tagline. Si es `false`, solo el símbolo. */
   withWordmark?: boolean;
   /** Color del wordmark. Default usa `currentColor`. */
   wordmarkColor?: string;
-  /** Color del tagline (línea inferior). */
+  /** Color del tagline (línea inferior). Si no se especifica, hereda del wordmark con opacity. */
   taglineColor?: string;
-};
+  className?: string;
+  width?: number | string;
+  height?: number | string;
+}
 
 /**
  * Marca oficial de Vértice. Renderiza el símbolo facetado (V) y, opcionalmente,
@@ -18,7 +19,9 @@ export function Logo({
   withWordmark = true,
   wordmarkColor = "currentColor",
   taglineColor,
-  ...props
+  className,
+  width,
+  height,
 }: LogoProps) {
   return (
     <svg
@@ -26,7 +29,9 @@ export function Logo({
       viewBox={withWordmark ? "0 0 820 220" : "0 0 200 200"}
       role="img"
       aria-label="Vértice"
-      {...props}
+      className={className}
+      width={width}
+      height={height}
     >
       <defs>
         <linearGradient id="vL" x1="0" y1="0" x2="0" y2="1">

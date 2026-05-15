@@ -1,5 +1,20 @@
 import { Logo } from "@/components/Logo";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 import { ROL_LABEL } from "@vertice/shared/roles";
+
+export const dynamic = "force-dynamic";
+
+async function getHeartbeat() {
+  try {
+    const { count, error } = await supabaseAdmin()
+      .from("sedes")
+      .select("*", { count: "exact", head: true });
+    if (error) return { ok: false as const, error: error.message };
+    return { ok: true as const, sedes: count ?? 0 };
+  } catch (e) {
+    return { ok: false as const, error: e instanceof Error ? e.message : String(e) };
+  }
+}
 
 const modulos = [
   {
@@ -28,12 +43,19 @@ const modulos = [
   },
 ] as const;
 
-export default function Home() {
+export default async function Home() {
+  const heartbeat = await getHeartbeat();
   return (
     <main className="min-h-screen bg-cream text-onyx">
       <div className="mx-auto max-w-6xl px-6 py-16 lg:py-24">
-        <header className="mb-20 lg:mb-28">
-          <Logo className="h-20 w-auto" aria-label="Vértice" />
+        <header className="mb-20 flex items-center justify-between lg:mb-28">
+          <Logo className="h-20 w-auto" />
+          <a
+            href="/login"
+            className="rounded-lg bg-onyx px-5 py-2.5 text-[11px] font-semibold uppercase tracking-tagline text-cream transition hover:bg-onyx-900"
+          >
+            Iniciar sesión
+          </a>
         </header>
 
         <section className="mb-20 max-w-3xl">
@@ -76,10 +98,17 @@ export default function Home() {
           </div>
         </section>
 
-        <footer className="mt-24 border-t border-onyx/10 pt-8 text-xs text-onyx/40">
+        <footer className="mt-24 flex flex-wrap items-center justify-between gap-3 border-t border-onyx/10 pt-8 text-xs text-onyx/40">
           <p>
             © {new Date().getFullYear()} Vértice · Roles oficiales:{" "}
             {Object.values(ROL_LABEL).join(" · ")}
+          </p>
+          <p className="flex items-center gap-2 font-mono">
+            <span
+              className={`inline-block h-1.5 w-1.5 rounded-full ${heartbeat.ok ? "bg-emerald-500" : "bg-red-500"}`}
+              aria-hidden
+            />
+            {heartbeat.ok ? `Supabase OK · ${heartbeat.sedes} sedes` : `Supabase ERR: ${heartbeat.error}`}
           </p>
         </footer>
       </div>

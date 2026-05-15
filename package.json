@@ -21,9 +21,13 @@
     "supabase:start": "supabase start",
     "supabase:stop": "supabase stop",
     "supabase:reset": "supabase db reset",
-    "supabase:gen-types": "supabase gen types typescript --local --schema public > packages/shared/src/database.types.ts"
+    "supabase:gen-types": "supabase gen types typescript --local --schema public > packages/shared/src/database.types.ts",
+    "import:legacy": "node scripts/import-legacy.mjs",
+    "import:legacy:dry": "node scripts/import-legacy.mjs --dry-run"
   },
   "devDependencies": {
-    "typescript": "^5.6.0"
+    "@supabase/supabase-js": "^2.45.0",
+    "typescript": "^5.6.0",
+    "xlsx": "^0.18.5"
   }
 }

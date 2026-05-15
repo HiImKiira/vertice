@@ -157,7 +157,9 @@ create table fechas_liberadas (
   creado_en timestamptz not null default now()
 );
 
-create index fechas_liberadas_supervisor_idx on fechas_liberadas (supervisor_id, fecha) where expira_en > now();
+-- Índice no parcial: `now()` no es IMMUTABLE, no se permite en predicados.
+-- El filtro de expiración se aplica en la query (`fecha_liberada_para_usuario`).
+create index fechas_liberadas_supervisor_idx on fechas_liberadas (supervisor_id, fecha, expira_en);
 
 create table tickets_soporte (
   id uuid primary key default gen_random_uuid(),

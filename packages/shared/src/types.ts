@@ -11,18 +11,28 @@ export type DiaSemana = "LUN" | "MAR" | "MIE" | "JUE" | "VIE" | "SAB" | "DOM";
 export interface Sede {
   id: UUID;
   codigo: string;
+  abrev: string;
   nombre: string;
   direccion: string | null;
+  ultimo_folio: number;
   creado_en: ISODateTime;
 }
 
 export interface Usuario {
   id: UUID;
   email: string;
+  username: string;
   nombre: string;
   rol: Rol;
-  sede_id: UUID | null;
-  jornada: Jornada | null;
+  activo: boolean;
+  creado_en: ISODateTime;
+}
+
+export interface AsignacionSupervisor {
+  id: UUID;
+  usuario_id: UUID;
+  sede_id: UUID;
+  jornada: Jornada;
   activo: boolean;
   creado_en: ISODateTime;
 }
@@ -35,9 +45,13 @@ export interface Empleado {
   jornada: Jornada;
   dia_descanso: DiaSemana;
   salario_diario: number;
+  segmento_original: string | null;
+  status_trabajador: string | null;
   fecha_alta: ISODate;
   fecha_baja: ISODate | null;
   motivo_baja: string | null;
+  baja_capturado_por: UUID | null;
+  baja_ts: ISODateTime | null;
   activo: boolean;
   foto_url: string | null;
   creado_en: ISODateTime;

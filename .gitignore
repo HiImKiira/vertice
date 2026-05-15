@@ -61,3 +61,7 @@ coverage/
 .cache/
 .turbo/
 .vercel/
+
+# Datos legacy / credenciales (NUNCA commitear)
+legacy-data/
+*.credentials.csv
