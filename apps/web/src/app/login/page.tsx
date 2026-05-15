@@ -1,9 +1,11 @@
+import { Suspense } from "react";
 import { Logo } from "@/components/Logo";
 import { LoginForm } from "./LoginForm";
 
 export const metadata = {
   title: "Entrar",
 };
+export const dynamic = "force-dynamic";
 
 export default function LoginPage() {
   return (
@@ -18,7 +20,9 @@ export default function LoginPage() {
           <p className="mb-6 text-sm text-onyx/55">
             Sistema interno · acceso autorizado únicamente.
           </p>
-          <LoginForm />
+          <Suspense fallback={<div className="text-sm text-onyx/40">Cargando...</div>}>
+            <LoginForm />
+          </Suspense>
         </div>
 
         <p className="mt-6 text-center text-[10px] uppercase tracking-tagline text-onyx/40">

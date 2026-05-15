@@ -65,3 +65,6 @@ coverage/
 # Datos legacy / credenciales (NUNCA commitear)
 legacy-data/
 *.credentials.csv
+
+# Vercel
+.vercel/
