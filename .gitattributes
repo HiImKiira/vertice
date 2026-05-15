@@ -1,0 +1,17 @@
+# Auto-detect line endings; enforce LF for text inside repo
+* text=auto eol=lf
+
+# Binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.ttf binary
+*.otf binary
+*.woff binary
+*.woff2 binary
+
+# Linguist hints
+*.svg linguist-detectable=false
+brand/** linguist-vendored
