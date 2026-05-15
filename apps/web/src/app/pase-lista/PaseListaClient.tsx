@@ -196,7 +196,7 @@ export function PaseListaClient(props: Props) {
       {/* ============ HERO HEADER ============ */}
       <section className="mb-6 grid gap-5 sm:grid-cols-[auto_1fr] sm:items-start">
         <div className="flex items-baseline gap-3">
-          <span className="font-serif text-6xl text-gradient-blue sm:text-7xl">{fechaInfo.dia}</span>
+          <span className="font-serif text-6xl text-gradient-gold sm:text-7xl">{fechaInfo.dia}</span>
           <div>
             <p className="font-serif text-xl capitalize sm:text-2xl">{fechaInfo.nombreDia}</p>
             <p className="text-xs uppercase tracking-tagline text-ink-muted">{fechaInfo.mesAnio}</p>
@@ -207,8 +207,8 @@ export function PaseListaClient(props: Props) {
             Supervisor Pro · Pase de lista
           </p>
           <h1 className="font-serif text-3xl leading-none sm:text-4xl">
-            {sedeActual?.abrev ?? "—"} <span className="text-gradient-blue serif-italic">·</span>{" "}
-            <span className="text-gradient-blue">{props.jornada}</span>
+            {sedeActual?.abrev ?? "—"} <span className="text-gradient-gold serif-italic">·</span>{" "}
+            <span className="text-gradient-gold">{props.jornada}</span>
           </h1>
           <p className="max-w-md text-xs text-ink-muted sm:text-right">
             {sedeActual?.nombre ?? "Sin sede seleccionada"} · {stats.total} empleado{stats.total === 1 ? "" : "s"}
@@ -285,7 +285,7 @@ export function PaseListaClient(props: Props) {
         <section className="mb-6 surface-glow rounded-2xl p-4 sm:p-5">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="font-serif text-lg italic">
-              <span className="text-gradient-blue">Captura por ID</span>
+              <span className="text-gradient-gold">Captura por ID</span>
             </h2>
             <span className="font-mono text-[10px] text-ink-dim">Bulk-mode estilo legacy</span>
           </div>
@@ -448,7 +448,7 @@ export function PaseListaClient(props: Props) {
               <div>
                 <p className="pill pill-blue mb-2">Revisión final</p>
                 <h2 className="font-serif text-2xl">
-                  Revisar <span className="text-gradient-blue serif-italic">pase</span>
+                  Revisar <span className="text-gradient-gold serif-italic">pase</span>
                 </h2>
                 <p className="mt-1 text-xs text-ink-muted">
                   {sedeActual?.nombre} · {props.jornada} · {props.fecha} · {cambiosCount} cambio{cambiosCount === 1 ? "" : "s"}

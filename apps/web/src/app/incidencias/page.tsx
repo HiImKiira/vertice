@@ -135,7 +135,7 @@ export default async function IncidenciasPage({ searchParams }: PageProps) {
           <div>
             <p className="pill pill-gold mb-2 inline-flex">Incidencias</p>
             <h1 className="font-serif text-3xl sm:text-4xl">
-              Calendario <span className="text-gradient-blue serif-italic">mensual</span>
+              Calendario <span className="text-gradient-gold serif-italic">mensual</span>
             </h1>
           </div>
           <nav className="flex gap-2 text-xs">

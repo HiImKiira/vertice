@@ -89,7 +89,7 @@ export default async function DashboardPage() {
         <section className="mb-10">
           <p className="pill pill-gold mb-3 inline-flex">Dashboard · {ROL_LABEL[perfil?.rol ?? "USER"]}</p>
           <h1 className="font-serif text-5xl leading-[1.05] text-balance sm:text-6xl">
-            Hola, <span className="text-gradient-blue serif-italic">{perfil?.nombre?.split(" ")[0] ?? "—"}</span>.
+            Hola, <span className="text-gradient-gold serif-italic">{perfil?.nombre?.split(" ")[0] ?? "—"}</span>.
           </h1>
           <p className="mt-4 max-w-2xl text-base text-ink-muted">
             Tu perfil está autenticado contra Supabase. Las asignaciones que ves abajo vienen filtradas por

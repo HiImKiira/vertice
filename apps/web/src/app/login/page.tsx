@@ -14,7 +14,7 @@ export default function LoginPage() {
         <div className="mb-10 flex flex-col items-center gap-3">
           <Logo className="h-16 w-auto" withWordmark={false} />
           <h1 className="font-serif text-3xl">
-            Vér<span className="text-gradient-blue serif-italic">tice</span>
+            Vér<span className="text-gradient-gold serif-italic">tice</span>
           </h1>
           <p className="text-[10px] uppercase tracking-ultra text-ink-muted">Sistema de Recursos Humanos</p>
         </div>
