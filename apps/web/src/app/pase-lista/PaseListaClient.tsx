@@ -53,11 +53,19 @@ function formatLongDate(iso: string): { dia: number; nombreDia: string; mesAnio:
 
 function classifyCode(cod: string | null | undefined): "asist" | "falta" | "incid" | "pend" {
   if (!cod) return "pend";
-  if (cod === "A" || cod === "AF" || cod === "DT") return "asist";
+  if (cod === "A" || cod === "AF") return "asist";
   if (cod === "F") return "falta";
   if (cod === "SN") return "pend";
+  // DT (doble turno), I (incapacidad), INH, FER, PCG, PSG, DS → I (incidencia)
   return "incid";
 }
+
+const CLS_BADGE: Record<"asist" | "falta" | "incid" | "pend", { letter: string; bg: string; ring: string; text: string }> = {
+  asist: { letter: "A", bg: "rgba(34,197,94,0.18)",  ring: "rgba(34,197,94,0.45)",  text: "#86EFAC" },
+  falta: { letter: "F", bg: "rgba(239,68,68,0.18)",  ring: "rgba(239,68,68,0.5)",   text: "#FCA5A5" },
+  incid: { letter: "I", bg: "rgba(245,158,11,0.18)", ring: "rgba(245,158,11,0.45)", text: "#FCD34D" },
+  pend:  { letter: "·", bg: "rgba(255,255,255,0.03)", ring: "rgba(255,255,255,0.08)", text: "#71717a" },
+};
 
 export function PaseListaClient(props: Props) {
   const router = useRouter();
@@ -348,10 +356,23 @@ export function PaseListaClient(props: Props) {
               placeholder="Ej: 92, 45, 21..."
               className="min-w-0 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2.5 font-mono text-sm text-text placeholder:text-muted-2 focus:border-blue-400 focus:outline-none disabled:opacity-50"
               disabled={!props.canEdit || operacionEnCurso}
-              inputMode="numeric"
+              inputMode="text"
+              pattern="[0-9, ]*"
               autoComplete="off"
             />
             <div className="flex gap-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  if (!props.canEdit || operacionEnCurso) return;
+                  setBulkIDs((s) => (s.trim().endsWith(",") || !s.trim() ? s : s + ", "));
+                }}
+                disabled={!props.canEdit || operacionEnCurso || !bulkIDs.trim()}
+                className="rounded-lg bg-blue-500/15 px-3 py-2.5 font-mono text-sm font-bold text-blue-300 transition hover:bg-blue-500/30 disabled:opacity-40"
+                title="Agregar coma separadora"
+              >
+                ,
+              </button>
               <button
                 type="button"
                 onClick={aplicarBulkIDs}
@@ -369,6 +390,37 @@ export function PaseListaClient(props: Props) {
                 ✕
               </button>
             </div>
+          </div>
+
+          {/* Numpad on-screen — funciona consistente en móvil/PC/tablet */}
+          <div className="mt-2 grid grid-cols-6 gap-1.5 sm:grid-cols-12">
+            {["1","2","3","4","5","6","7","8","9","0",",","⌫"].map((k) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => {
+                  if (!props.canEdit || operacionEnCurso) return;
+                  if (k === "⌫") {
+                    setBulkIDs((s) => s.slice(0, -1));
+                  } else if (k === ",") {
+                    setBulkIDs((s) => (s.trim().endsWith(",") || !s.trim() ? s : s + ", "));
+                  } else {
+                    setBulkIDs((s) => s + k);
+                  }
+                }}
+                disabled={!props.canEdit || operacionEnCurso}
+                className={`rounded-lg border py-2.5 font-mono text-sm font-bold transition disabled:opacity-40 ${
+                  k === ","
+                    ? "border-blue-400/30 bg-blue-500/10 text-blue-200 hover:bg-blue-500/25"
+                    : k === "⌫"
+                      ? "border-red-400/30 bg-red-500/10 text-red-200 hover:bg-red-500/25"
+                      : "border-white/10 bg-white/[0.03] text-text hover:border-white/30 hover:bg-white/[0.08]"
+                }`}
+                aria-label={k === "⌫" ? "Borrar último" : k === "," ? "Coma separadora" : `Tecla ${k}`}
+              >
+                {k}
+              </button>
+            ))}
           </div>
 
           {bulkFeedback && (
@@ -415,6 +467,8 @@ export function PaseListaClient(props: Props) {
             const current = getCurrent(emp.id);
             const isPendingChange = !!pendientes[emp.id];
             const spec = current ? CODIGO_SPEC[current] : null;
+            const cls = classifyCode(current);
+            const badge = CLS_BADGE[cls];
             return (
               <li
                 key={emp.id}
@@ -423,6 +477,13 @@ export function PaseListaClient(props: Props) {
                 }`}
               >
                 <span className="shrink-0 font-mono text-[10px] text-muted-2 sm:text-xs">#{emp.numero_empleado}</span>
+                <span
+                  className="shrink-0 inline-flex h-7 w-7 items-center justify-center rounded-full font-mono text-xs font-bold sm:h-8 sm:w-8 sm:text-sm"
+                  style={{ background: badge.bg, boxShadow: `inset 0 0 0 1px ${badge.ring}`, color: badge.text }}
+                  title={cls === "asist" ? "Asistencia" : cls === "falta" ? "Falta" : cls === "incid" ? `Incidencia${spec ? ` (${spec.nombre})` : ""}` : "Sin marcar"}
+                >
+                  {badge.letter}
+                </span>
                 <p className="min-w-0 flex-1 truncate text-sm font-medium text-text sm:text-base">{emp.nombre}</p>
                 {current ? (
                   <span
