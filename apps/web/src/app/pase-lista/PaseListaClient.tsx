@@ -5,6 +5,7 @@ import { VortexLoader } from "@/components/VortexLoader";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CODIGO_SPEC, CODIGOS, type CodigoAsistencia } from "@vertice/shared/codes";
 import { guardarPaseListaAction, type GuardarResult } from "./actions";
+import { liberarFechaQuickAction } from "../soporte/actions";
 
 export interface SedeShape {
   id: string;
@@ -36,6 +37,7 @@ interface Props {
   canEdit: boolean;
   graceMsg: string;
   isAdmin: boolean;
+  puedeLiberar: boolean;
 }
 
 const MESES_ES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
@@ -262,6 +264,55 @@ export function PaseListaClient(props: Props) {
             {props.canEdit ? "Período de gracia hasta " : ""}
             <span className="font-mono">{props.graceMsg}</span>
           </p>
+          {props.puedeLiberar && !props.canEdit && (
+            <button
+              type="button"
+              onClick={() => {
+                if (!confirm(`¿Liberar ${props.fecha} por 6 horas? Pasado ese tiempo se bloquea de nuevo.`)) return;
+                setBusyAction("liberar");
+                startTransition(async () => {
+                  const r = await liberarFechaQuickAction(props.fecha, 6);
+                  setBusyAction(null);
+                  if (!r.ok) alert(`Error: ${r.error}`);
+                  else router.refresh();
+                });
+              }}
+              disabled={operacionEnCurso}
+              className="shrink-0 rounded-md border border-amber-400/40 bg-amber-500/15 px-2.5 py-1 text-[10px] font-semibold text-amber-200 transition hover:bg-amber-500/30 disabled:opacity-40"
+              title="Solo SUPERADMIN/SOPORTE: libera esta fecha 6h"
+            >
+              🔓 Liberar 6h
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Botón master para SUPERADMIN/SOPORTE — siempre visible */}
+      {props.puedeLiberar && props.canEdit && (
+        <div className="mb-4 flex items-center gap-2 rounded-xl border border-emerald-400/20 bg-emerald-500/[0.04] px-3 py-2 text-[11px] text-emerald-200 sm:text-xs">
+          <span className="text-sm">🛟</span>
+          <p className="min-w-0 flex-1">
+            <span className="font-semibold">Recursos Humanos · </span>
+            Captura libre activa. Para que otros supervisores capturen{" "}
+            <span className="font-mono">{props.fecha}</span>:
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              if (!confirm(`¿Liberar ${props.fecha} por 6 horas para todos los supervisores?`)) return;
+              setBusyAction("liberar");
+              startTransition(async () => {
+                const r = await liberarFechaQuickAction(props.fecha, 6);
+                setBusyAction(null);
+                if (!r.ok) alert(`Error: ${r.error}`);
+                else { setBulkFeedback("Fecha liberada 6h."); router.refresh(); }
+              });
+            }}
+            disabled={operacionEnCurso}
+            className="shrink-0 rounded-md border border-emerald-400/40 bg-emerald-500/15 px-2.5 py-1 text-[10px] font-semibold text-emerald-200 transition hover:bg-emerald-500/30 disabled:opacity-40"
+          >
+            🔓 Liberar 6h
+          </button>
         </div>
       )}
 

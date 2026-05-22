@@ -159,3 +159,96 @@ export async function cerrarTicketAction(ticketId: string): Promise<TicketResult
 }
 
 void nextFolio;
+
+/**
+ * Libera la fecha solicitada de un ticket por N horas (default 6).
+ * - Llama al RPC liberar_fecha (security definer, valida rol)
+ * - Inserta un mensaje SISTEMA en el thread
+ * - Marca el ticket como RESPONDIDO
+ */
+export async function liberarFechaDesdeTicketAction(
+  ticketId: string,
+  horas: number = 6,
+): Promise<TicketResult> {
+  const auth = await getProfile();
+  if (!auth.sb) return { ok: false, error: auth.error! };
+
+  const esSoporte = ["ADMIN", "SUPERADMIN", "CEO", "SOPORTE"].includes(auth.rol!);
+  if (!esSoporte) return { ok: false, error: "Solo soporte puede liberar fechas." };
+
+  // Traer ticket
+  const { data: ticket, error: tErr } = await auth.sb
+    .from("tickets_soporte")
+    .select("id, fecha_solicitada, folio")
+    .eq("id", ticketId)
+    .maybeSingle<{ id: string; fecha_solicitada: string | null; folio: string }>();
+  if (tErr) return { ok: false, error: `Ticket: ${tErr.message}` };
+  if (!ticket) return { ok: false, error: "Ticket no encontrado." };
+  if (!ticket.fecha_solicitada) {
+    return { ok: false, error: "Este ticket no tiene fecha solicitada. Usa el botón de Pase de Lista." };
+  }
+
+  // RPC liberar_fecha
+  const { data: expiraRaw, error: lErr } = await auth.sb.rpc("liberar_fecha", {
+    p_fecha: ticket.fecha_solicitada,
+    p_horas: horas,
+    p_motivo: `Liberada desde ticket ${ticket.folio} por ${horas} hrs`,
+  });
+  if (lErr) return { ok: false, error: `Liberar: ${lErr.message}` };
+
+  const expira = expiraRaw as string | null;
+  const expiraTxt = expira
+    ? new Date(expira).toLocaleString("es-MX", { dateStyle: "short", timeStyle: "short" })
+    : "sin expira";
+
+  // Mensaje SISTEMA en el thread
+  const msg = `🔓 Fecha ${ticket.fecha_solicitada} liberada por ${horas} hora${horas === 1 ? "" : "s"} (expira ${expiraTxt}). Captura tu pase ahora antes de que se bloquee.`;
+  await auth.sb.from("mensajes_soporte").insert({
+    ticket_id: ticketId,
+    remitente_id: auth.userId,
+    origen: "SISTEMA",
+    mensaje: msg,
+    leido_user: false,
+    leido_soporte: true,
+  });
+
+  // Actualizar ticket
+  const admin = supabaseAdmin();
+  await admin
+    .from("tickets_soporte")
+    .update({
+      ultimo_mensaje: msg.slice(0, 120),
+      ultimo_ts: new Date().toISOString(),
+      estado: "RESPONDIDO",
+      unread_user: 1,
+    })
+    .eq("id", ticketId);
+
+  revalidatePath("/soporte");
+  revalidatePath(`/soporte/${ticketId}`);
+  return { ok: true };
+}
+
+/**
+ * Libera la fecha de hoy (o p_fecha) por N horas — usado desde el botón
+ * "Liberar fecha" del pase de lista. SUPERADMIN/SOPORTE únicamente.
+ */
+export async function liberarFechaQuickAction(
+  fecha: string,
+  horas: number = 6,
+): Promise<TicketResult> {
+  const auth = await getProfile();
+  if (!auth.sb) return { ok: false, error: auth.error! };
+  const esSoporte = ["ADMIN", "SUPERADMIN", "CEO", "SOPORTE"].includes(auth.rol!);
+  if (!esSoporte) return { ok: false, error: "Solo soporte puede liberar fechas." };
+
+  const { error } = await auth.sb.rpc("liberar_fecha", {
+    p_fecha: fecha,
+    p_horas: horas,
+    p_motivo: `Liberación rápida de ${horas} hrs desde pase-lista`,
+  });
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/pase-lista");
+  return { ok: true };
+}

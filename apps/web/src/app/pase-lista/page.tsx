@@ -51,7 +51,8 @@ export default async function PaseListaPage({ searchParams }: PageProps) {
   }
   const asignaciones = [...sedeMap.values()];
 
-  const isAdmin = profile.rol === "ADMIN" || profile.rol === "SUPERADMIN" || profile.rol === "CEO";
+  const isAdmin = profile.rol === "ADMIN" || profile.rol === "SUPERADMIN" || profile.rol === "CEO" || profile.rol === "SOPORTE";
+  const puedeLiberar = profile.rol === "SUPERADMIN" || profile.rol === "SOPORTE";
 
   // Si admin sin asignaciones, traerle todas las sedes activas
   if (isAdmin && !asignaciones.length) {
@@ -103,17 +104,19 @@ export default async function PaseListaPage({ searchParams }: PageProps) {
   const { data: ventana } = await supabase.rpc("evaluar_ventana_gracia", { p_fecha: fecha });
   const ventanaRow = (ventana as Array<{ resultado: string; expira: string | null }>)?.[0];
   const canEdit = ventanaRow ? ["OK", "LIBERADA", "SUPER"].includes(ventanaRow.resultado) : false;
-  const graceMsg = ventanaRow?.expira
-    ? new Date(ventanaRow.expira).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" })
-    : ventanaRow?.resultado === "LIBERADA"
-      ? "Fecha liberada por Superadmin"
-      : ventanaRow?.resultado === "SUPER"
-        ? "Acceso superadmin"
-        : ventanaRow?.resultado === "GRACIA_VENCIDA"
-          ? "Gracia vencida — solicita liberación"
-          : ventanaRow?.resultado === "FUTURO"
-            ? "Fecha futura no permitida"
-            : "";
+  const graceMsg = ventanaRow?.resultado === "LIBERADA" && ventanaRow.expira
+    ? `Liberada hasta ${new Date(ventanaRow.expira).toLocaleString("es-MX", { dateStyle: "short", timeStyle: "short" })}`
+    : ventanaRow?.expira
+      ? new Date(ventanaRow.expira).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" })
+      : ventanaRow?.resultado === "LIBERADA"
+        ? "Fecha liberada por RH"
+        : ventanaRow?.resultado === "SUPER"
+          ? "Acceso RH"
+          : ventanaRow?.resultado === "GRACIA_VENCIDA"
+            ? "Gracia vencida — solicita liberación"
+            : ventanaRow?.resultado === "FUTURO"
+              ? "Fecha futura no permitida"
+              : "";
 
   return (
     <main className="min-h-screen overflow-x-hidden text-text">
@@ -131,6 +134,7 @@ export default async function PaseListaPage({ searchParams }: PageProps) {
           canEdit={canEdit}
           graceMsg={graceMsg}
           isAdmin={isAdmin}
+          puedeLiberar={puedeLiberar}
         />
       </div>
     </main>

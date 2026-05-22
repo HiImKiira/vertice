@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { enviarMensajeAction, cerrarTicketAction } from "../actions";
+import { enviarMensajeAction, cerrarTicketAction, liberarFechaDesdeTicketAction } from "../actions";
 
 export interface TicketDetail {
   id: string;
@@ -18,6 +18,8 @@ export interface TicketDetail {
   usuarios?: { nombre: string; username: string; rol: string } | { nombre: string; username: string; rol: string }[] | null;
   sedes?: { abrev: string; nombre: string } | { abrev: string; nombre: string }[] | null;
 }
+
+const HORAS_DEFAULT = 6;
 
 export interface Mensaje {
   id: number;
@@ -82,6 +84,16 @@ export function TicketThread({
     });
   }
 
+  function liberarFecha() {
+    if (!ticket.fecha_solicitada) return;
+    if (!confirm(`¿Liberar ${ticket.fecha_solicitada} por ${HORAS_DEFAULT} horas? Pasado ese tiempo se bloquea de nuevo.`)) return;
+    startTransition(async () => {
+      const r = await liberarFechaDesdeTicketAction(ticket.id, HORAS_DEFAULT);
+      if (!r.ok) setError(r.error);
+      else router.refresh();
+    });
+  }
+
   return (
     <>
       {/* Mensajes */}
@@ -93,19 +105,34 @@ export function TicketThread({
             {mensajes.map((m) => {
               const mio = m.remitente_id === currentUserId;
               const fromSoporte = m.origen === "SOPORTE";
+              const fromSistema = m.origen === "SISTEMA";
               const author = Array.isArray(m.usuarios) ? m.usuarios[0] : m.usuarios;
+              // Anonimizamos al equipo de soporte: siempre se ve "Recursos Humanos",
+              // nunca el nombre real del agente. Si tú eres soporte y leíste tu propio
+              // mensaje, sigue siendo "Recursos Humanos" para consistencia.
+              const displayName = fromSoporte
+                ? "Recursos Humanos"
+                : fromSistema
+                  ? "Sistema"
+                  : author?.nombre ?? "Usuario";
               return (
-                <li key={m.id} className={`flex ${mio ? "justify-end" : "justify-start"}`}>
+                <li key={m.id} className={`flex ${
+                  fromSistema ? "justify-center" : mio ? "justify-end" : "justify-start"
+                }`}>
                   <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${
-                    mio
-                      ? "bg-[rgba(59,130,246,0.15)] border border-[rgba(59,130,246,0.4)] text-text"
+                    fromSistema
+                      ? "bg-[rgba(245,158,11,0.10)] border border-[rgba(245,158,11,0.35)] text-text"
                       : fromSoporte
                         ? "bg-[rgba(139,92,246,0.10)] border border-[rgba(139,92,246,0.35)] text-text"
-                        : "bg-[color:var(--surface)] border border-[color:var(--border)] text-text"
+                        : mio
+                          ? "bg-[rgba(59,130,246,0.15)] border border-[rgba(59,130,246,0.4)] text-text"
+                          : "bg-[color:var(--surface)] border border-[color:var(--border)] text-text"
                   }`}>
                     <p className="mb-1 text-[10px] uppercase tracking-tagline text-muted">
-                      {fromSoporte ? "🛟 Soporte" : "👤 Usuario"}
-                      {author && <span className="ml-1 normal-case">· {author.nombre}</span>}
+                      {fromSistema ? "⚙ Sistema" : fromSoporte ? "🛟 Recursos Humanos" : "👤 Usuario"}
+                      {!fromSoporte && !fromSistema && displayName && (
+                        <span className="ml-1 normal-case">· {displayName}</span>
+                      )}
                       <span className="ml-2 font-mono normal-case opacity-60">
                         {new Date(m.creado_en).toLocaleString("es-MX", { dateStyle: "short", timeStyle: "short" })}
                       </span>
@@ -155,7 +182,18 @@ export function TicketThread({
             <span className="text-[10px] text-muted-2">
               {esSoporte ? "Ctrl/Cmd + Enter para enviar" : ""}
             </span>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
+              {esSoporte && ticket.fecha_solicitada && (
+                <button
+                  type="button"
+                  onClick={liberarFecha}
+                  disabled={isPending}
+                  className="rounded-md border border-amber-400/40 bg-amber-500/15 px-3 py-1.5 text-xs font-semibold text-amber-200 transition hover:bg-amber-500/25 disabled:opacity-40"
+                  title={`Libera ${ticket.fecha_solicitada} por ${HORAS_DEFAULT} horas, después se bloquea automáticamente`}
+                >
+                  🔓 Liberar fecha {HORAS_DEFAULT}h
+                </button>
+              )}
               {esSoporte && (
                 <button type="button" onClick={cerrar} disabled={isPending} className="btn btn-danger btn-sm">
                   ✓ Cerrar ticket
