@@ -48,7 +48,7 @@ export default async function SoportePage() {
   const sinResponder = abiertos.filter((t) => esSoporte ? t.unread_soporte > 0 : t.unread_user > 0);
 
   return (
-    <main className="min-h-screen text-text">
+    <main className="min-h-screen overflow-x-hidden text-text">
       <Topbar user={profile} />
       <div className="relative z-10 mx-auto max-w-[1280px] px-4 py-8 sm:px-6 sm:py-10">
         <header className="mb-8 flex flex-wrap items-end justify-between gap-3 animate-fade-up">

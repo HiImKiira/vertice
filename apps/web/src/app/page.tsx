@@ -41,7 +41,7 @@ async function getHeartbeat() {
 export default async function Home() {
   const heartbeat = await getHeartbeat();
   return (
-    <main className="min-h-screen text-text">
+    <main className="min-h-screen overflow-x-hidden text-text">
       <div className="mx-auto max-w-6xl px-6 py-16 lg:py-24">
         <header className="mb-20 flex items-center justify-between lg:mb-28">
           <Logo className="h-16 w-auto" withWordmark={false} />

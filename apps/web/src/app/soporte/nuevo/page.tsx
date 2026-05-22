@@ -9,7 +9,7 @@ export const metadata = { title: "Nuevo ticket · Soporte" };
 export default async function NuevoTicketPage() {
   const { profile } = await requireUser();
   return (
-    <main className="min-h-screen text-text">
+    <main className="min-h-screen overflow-x-hidden text-text">
       <Topbar user={profile} />
       <div className="relative z-10 mx-auto max-w-xl px-4 py-8 sm:px-6 sm:py-10">
         <Link href="/soporte" className="text-xs text-muted hover:text-text">← Tickets</Link>

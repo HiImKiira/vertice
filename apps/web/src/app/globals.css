@@ -50,7 +50,12 @@
     font-family: "DM Sans", ui-sans-serif, system-ui, "Segoe UI", sans-serif;
     font-feature-settings: "ss01";
     -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+    max-width: 100vw;
   }
+  * { box-sizing: border-box; }
+  /* Evita que imágenes/SVGs se desborden */
+  img, svg { max-width: 100%; }
 
   body {
     background-image:

@@ -48,7 +48,7 @@ export default async function TicketPage({ params }: PageProps) {
   const sede = Array.isArray(ticket.sedes) ? ticket.sedes[0] : ticket.sedes;
 
   return (
-    <main className="min-h-screen text-text">
+    <main className="min-h-screen overflow-x-hidden text-text">
       <Topbar user={profile} />
       <div className="relative z-10 mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
         <Link href="/soporte" className="text-xs text-muted hover:text-text">← Tickets</Link>

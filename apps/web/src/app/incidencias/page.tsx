@@ -109,7 +109,7 @@ export default async function IncidenciasPage({ searchParams }: PageProps) {
   }
 
   return (
-    <main className="min-h-screen text-text">
+    <main className="min-h-screen overflow-x-hidden text-text">
       <header className="border-b border-white/5 bg-[color:var(--surface)]/60 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6 sm:py-4">
           <a href="/dashboard" className="flex items-center gap-3">

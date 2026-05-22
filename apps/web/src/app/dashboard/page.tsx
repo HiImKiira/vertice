@@ -35,7 +35,7 @@ function modulosFor(rol: string): Modulo[] {
       iconBg: "rgba(16,185,129,0.12)",
       iconBorder: "rgba(16,185,129,0.3)",
       title: "Pase de lista",
-      sub: "Captura asistencia diaria por sede y jornada con quick actions y bulk-by-ID.",
+      sub: "Captura asistencia diaria por sede y jornada.",
       badge: { label: "Todos", cls: "pill" },
     },
     {
@@ -44,7 +44,34 @@ function modulosFor(rol: string): Modulo[] {
       iconBg: "rgba(245,158,11,0.12)",
       iconBorder: "rgba(245,158,11,0.3)",
       title: "Incidencias",
-      sub: "Calendario mensual de PCG, PSG, Incapacidad, Feriado, Doble turno y más.",
+      sub: "Calendario de incidencias formales del mes.",
+      badge: { label: "Todos", cls: "pill" },
+    },
+    {
+      href: "/eventuales",
+      icon: "🔄",
+      iconBg: "rgba(139,92,246,0.12)",
+      iconBorder: "rgba(139,92,246,0.3)",
+      title: "Eventuales",
+      sub: "Turnos eventuales: alguien cubre un turno extra (interno o externo).",
+      badge: { label: "Todos", cls: "pill" },
+    },
+    {
+      href: "/descansos",
+      icon: "🛌",
+      iconBg: "rgba(96,165,250,0.12)",
+      iconBorder: "rgba(96,165,250,0.3)",
+      title: "Descansos",
+      sub: "Cambios temporales de día de descanso (CDTs).",
+      badge: { label: "Todos", cls: "pill" },
+    },
+    {
+      href: "/soporte",
+      icon: "💬",
+      iconBg: "rgba(59,130,246,0.12)",
+      iconBorder: "rgba(59,130,246,0.3)",
+      title: "Soporte",
+      sub: "Tickets de desbloqueo, dudas, urgencias y sugerencias.",
       badge: { label: "Todos", cls: "pill" },
     },
     {
@@ -53,43 +80,41 @@ function modulosFor(rol: string): Modulo[] {
       iconBg: "rgba(139,92,246,0.12)",
       iconBorder: "rgba(139,92,246,0.3)",
       title: "RH Pro",
-      sub: "Gestión de personal, exportación quincenal y asignación de supervisores.",
-      badge: { label: "ADMIN / SUPERADMIN", cls: "pill pill-blue" },
+      sub: "Altas, bajas, asignaciones, exportación quincenal.",
+      badge: { label: "ADMIN+", cls: "pill pill-violet" },
     },
     {
       href: "/rh-pro/empleados",
       icon: "📅",
       iconBg: "rgba(6,182,212,0.12)",
       iconBorder: "rgba(6,182,212,0.3)",
-      title: "Captura rápida (sedes chicas)",
-      sub: "Vista calendario mes × empleado para marcar varios con clicks. Ideal para sedes de 1–5 personas.",
-      badge: { label: "ADMIN / SUPERADMIN", cls: "pill pill-cyan" },
+      title: "Captura rápida",
+      sub: "Calendario mes × empleado para sedes chicas. Click cycle A→F→DS.",
+      badge: { label: "ADMIN+", cls: "pill pill-cyan" },
     },
     {
-      href: "/soporte",
-      icon: "💬",
-      iconBg: "rgba(59,130,246,0.12)",
-      iconBorder: "rgba(59,130,246,0.3)",
-      title: "Soporte",
-      sub: "Tickets de desbloqueo, urgencias, dudas y sugerencias. Chat en tiempo real.",
-      badge: { label: "Todos", cls: "pill" },
+      href: "/rh-pro/contratos",
+      icon: "📄",
+      iconBg: "rgba(16,185,129,0.12)",
+      iconBorder: "rgba(16,185,129,0.3)",
+      title: "Contratos",
+      sub: "Lista de contratos generados, editar y regenerar PDFs.",
+      badge: { label: "ADMIN+", cls: "pill pill-green" },
     },
     {
       href: "/reportes",
-      icon: "📄",
-      iconBg: "rgba(6,182,212,0.12)",
-      iconBorder: "rgba(6,182,212,0.3)",
+      icon: "📊",
+      iconBg: "rgba(201,169,97,0.12)",
+      iconBorder: "rgba(201,169,97,0.3)",
       title: "Reportes PDF",
-      sub: "Genera reportes históricos por sede o trabajador en formato PDF operativo.",
-      badge: { label: "ADMIN / SUPERADMIN", cls: "pill pill-cyan" },
+      sub: "Nómina quincenal y matriz de asistencias en PDF.",
+      badge: { label: "ADMIN+", cls: "pill pill-gold" },
     },
   ];
 
   const adminLike = ["ADMIN", "SUPERADMIN", "CEO", "SOPORTE"].includes(rol);
-  return all.filter((m) => {
-    if (m.href === "/rh-pro" || m.href === "/rh-pro/empleados" || m.href === "/reportes") return adminLike;
-    return true;
-  });
+  const adminOnly = new Set(["/rh-pro", "/rh-pro/empleados", "/rh-pro/contratos", "/reportes"]);
+  return all.filter((m) => (adminOnly.has(m.href) ? adminLike : true));
 }
 
 export default async function DashboardPage() {
@@ -117,19 +142,19 @@ export default async function DashboardPage() {
   const showSedes = !isAdminLike(profile.rol);
 
   return (
-    <main className="min-h-screen text-text">
+    <main className="min-h-screen overflow-x-hidden text-text">
       <Topbar user={profile} />
 
-      <div className="relative z-10 mx-auto max-w-[1280px] px-4 py-8 sm:px-6 sm:py-12">
-        <section className="mb-10 animate-fade-up">
+      <div className="relative z-10 mx-auto max-w-[1280px] px-4 py-6 sm:px-6 sm:py-10">
+        <section className="mb-8 animate-fade-up sm:mb-10">
           <p className={`role-badge role-${profile.rol} mb-3`}>{profile.rol}</p>
-          <h1 className="font-display text-4xl leading-[1.1] sm:text-5xl">
+          <h1 className="font-display text-3xl leading-[1.1] sm:text-5xl">
             Hola, <span className="text-gradient-blue serif-italic">{profile.nombre?.split(" ")[0] ?? "—"}</span>.
           </h1>
-          <p className="mt-3 max-w-2xl text-[15px] text-muted">
+          <p className="mt-2 max-w-2xl text-sm text-muted sm:text-[15px]">
             {isAdminLike(profile.rol)
-              ? "Panel central de operación. Captura, incidencias, RH y reportes. RLS aplicada por rol."
-              : "Desde aquí puedes capturar el pase de lista de tus sedes asignadas y abrir tickets a RH."}
+              ? "Centro de operación: pase de lista, incidencias, RH y reportes."
+              : "Captura el pase de lista de tus sedes asignadas y manda tickets a RH."}
           </p>
         </section>
 
