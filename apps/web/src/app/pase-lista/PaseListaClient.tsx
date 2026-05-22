@@ -27,6 +27,13 @@ export interface Empleado {
   jornada: string;
 }
 
+export interface MarcaMeta {
+  nombre: string;
+  username: string;
+  rol: string;
+  ts: string | null;
+}
+
 interface Props {
   fecha: string;
   sedeId: string;
@@ -35,6 +42,7 @@ interface Props {
   empleados: Empleado[];
   marcasExistentes: Record<string, string>;
   marcasAnteriores: Record<string, string>;
+  marcasMeta: Record<string, MarcaMeta>;
   canEdit: boolean;
   graceMsg: string;
   isAdmin: boolean;
@@ -530,6 +538,7 @@ export function PaseListaClient(props: Props) {
             const badge = CLS_BADGE[cls];
             const isExpanded = expandedRow === emp.id;
             const disabledRow = !props.canEdit || operacionEnCurso;
+            const meta = !isPendingChange ? props.marcasMeta[emp.id] : undefined;
             return (
               <li
                 key={emp.id}
@@ -546,7 +555,18 @@ export function PaseListaClient(props: Props) {
                   >
                     {badge.letter}
                   </span>
-                  <p className="min-w-0 flex-1 truncate text-sm font-medium text-text sm:text-base">{emp.nombre}</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-text sm:text-base">{emp.nombre}</p>
+                    {meta && (
+                      <p className="truncate text-[10px] text-muted-2" title={meta.ts ? new Date(meta.ts).toLocaleString("es-MX") : ""}>
+                        por <span className="font-mono">@{meta.username}</span>
+                        {meta.ts && <> · {new Date(meta.ts).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })}</>}
+                      </p>
+                    )}
+                    {isPendingChange && (
+                      <p className="text-[10px] text-blue-300/70">cambio pendiente — sin guardar</p>
+                    )}
+                  </div>
                   {/* Botones rápidos A/F/I */}
                   <div className="flex shrink-0 items-center gap-1">
                     <RowCodeBtn label="A" active={current === "A"} color="emerald" onClick={() => setMarca(emp.id, "A")} disabled={disabledRow} />

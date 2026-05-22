@@ -72,8 +72,9 @@ export default async function PaseListaPage({ searchParams }: PageProps) {
 
   // Empleados activos
   let empleados: Empleado[] = [];
-  let marcasExistentes: Record<string, string> = {};
-  let marcasAnteriores: Record<string, string> = {};
+  const marcasExistentes: Record<string, string> = {};
+  const marcasAnteriores: Record<string, string> = {};
+  const marcasMeta: Record<string, { nombre: string; username: string; rol: string; ts: string | null }> = {};
 
   if (sedeId) {
     const { data: emps } = await supabase
@@ -88,11 +89,30 @@ export default async function PaseListaPage({ searchParams }: PageProps) {
     if (empleados.length) {
       const ids = empleados.map((e) => e.id);
       const [{ data: actuales }, { data: anteriores }] = await Promise.all([
-        supabase.from("asistencias").select("empleado_id, codigo").eq("fecha", fecha).in("empleado_id", ids),
+        supabase
+          .from("asistencias")
+          .select("empleado_id, codigo, capturado_por, actualizado_en, usuarios:capturado_por ( nombre, username, rol )")
+          .eq("fecha", fecha)
+          .in("empleado_id", ids),
         supabase.from("asistencias").select("empleado_id, codigo").eq("fecha", previousDay(fecha)).in("empleado_id", ids),
       ]);
       for (const m of actuales ?? []) {
-        marcasExistentes[(m as { empleado_id: string }).empleado_id] = (m as { codigo: string }).codigo;
+        const row = m as {
+          empleado_id: string;
+          codigo: string;
+          actualizado_en: string | null;
+          usuarios?: { nombre: string; username: string; rol: string } | { nombre: string; username: string; rol: string }[] | null;
+        };
+        marcasExistentes[row.empleado_id] = row.codigo;
+        const u = Array.isArray(row.usuarios) ? row.usuarios[0] : row.usuarios;
+        if (u) {
+          marcasMeta[row.empleado_id] = {
+            nombre: u.nombre,
+            username: u.username,
+            rol: u.rol,
+            ts: row.actualizado_en,
+          };
+        }
       }
       for (const m of anteriores ?? []) {
         marcasAnteriores[(m as { empleado_id: string }).empleado_id] = (m as { codigo: string }).codigo;
@@ -131,6 +151,7 @@ export default async function PaseListaPage({ searchParams }: PageProps) {
           empleados={empleados}
           marcasExistentes={marcasExistentes}
           marcasAnteriores={marcasAnteriores}
+          marcasMeta={marcasMeta}
           canEdit={canEdit}
           graceMsg={graceMsg}
           isAdmin={isAdmin}
