@@ -2,16 +2,10 @@ import Link from "next/link";
 import { requireUser, requireAdminLike } from "@/lib/session";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Topbar } from "@/components/Topbar";
+import { AsignacionesEditor, type SupervisorRow } from "./AsignacionesEditor";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "RH Pro" };
-
-interface SupervisorAsign {
-  usuario_id: string;
-  usuario: { username: string; nombre: string; rol: string };
-  sede: { abrev: string; nombre: string };
-  jornada: string;
-}
 
 export default async function RHProPage() {
   const { profile } = await requireUser();
@@ -26,28 +20,43 @@ export default async function RHProPage() {
     supabase.from("asignaciones_supervisor").select("id", { count: "exact", head: true }).eq("activo", true),
   ]);
 
-  // Lista de supervisores con sus asignaciones (vista vw_supervisores_con_asignaciones)
-  const { data: superRaw } = await supabase
-    .from("asignaciones_supervisor")
-    .select("usuario_id, jornada, usuarios(username, nombre, rol), sedes(abrev, nombre)")
+  // TODOS los usuarios (activos) — para que aparezcan en el editor aunque no tengan asignaciones
+  const { data: usuariosRaw } = await supabase
+    .from("usuarios")
+    .select("id, username, nombre, rol")
     .eq("activo", true)
-    .order("usuario_id");
-  const supervisoresMap = new Map<string, { username: string; nombre: string; rol: string; asignaciones: { abrev: string; nombre: string; jornada: string }[] }>();
-  for (const r of (superRaw ?? []) as unknown as Array<{
-    usuario_id: string;
+    .order("nombre");
+
+  // Asignaciones activas (con sede join) para colgarlas a cada usuario
+  const { data: asignRaw } = await supabase
+    .from("asignaciones_supervisor")
+    .select("id, jornada, usuario_id, sedes(id, abrev, nombre)")
+    .eq("activo", true);
+
+  const asignPorUsuario = new Map<string, SupervisorRow["asignaciones"]>();
+  for (const a of (asignRaw ?? []) as unknown as Array<{
+    id: string;
     jornada: string;
-    usuarios: { username: string; nombre: string; rol: string } | { username: string; nombre: string; rol: string }[] | null;
-    sedes: { abrev: string; nombre: string } | { abrev: string; nombre: string }[] | null;
+    usuario_id: string;
+    sedes: { id: string; abrev: string; nombre: string } | { id: string; abrev: string; nombre: string }[] | null;
   }>) {
-    const u = Array.isArray(r.usuarios) ? r.usuarios[0] : r.usuarios;
-    const s = Array.isArray(r.sedes) ? r.sedes[0] : r.sedes;
-    if (!u || !s) continue;
-    if (!supervisoresMap.has(r.usuario_id)) {
-      supervisoresMap.set(r.usuario_id, { username: u.username, nombre: u.nombre, rol: u.rol, asignaciones: [] });
-    }
-    supervisoresMap.get(r.usuario_id)!.asignaciones.push({ abrev: s.abrev, nombre: s.nombre, jornada: r.jornada });
+    const sede = Array.isArray(a.sedes) ? a.sedes[0] : a.sedes;
+    if (!sede) continue;
+    if (!asignPorUsuario.has(a.usuario_id)) asignPorUsuario.set(a.usuario_id, []);
+    asignPorUsuario.get(a.usuario_id)!.push({ id: a.id, jornada: a.jornada, sede });
   }
-  const supervisores = [...supervisoresMap.values()].sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+  const supervisores: SupervisorRow[] = ((usuariosRaw ?? []) as Array<{ id: string; username: string; nombre: string; rol: string }>).map((u) => ({
+    usuario_id: u.id,
+    username: u.username,
+    nombre: u.nombre,
+    rol: u.rol,
+    asignaciones: asignPorUsuario.get(u.id) ?? [],
+  }));
+
+  // Sedes para el dropdown de "agregar"
+  const { data: sedesRaw } = await supabase.from("sedes").select("id, abrev, nombre").order("nombre");
+  const sedesParaEditor = (sedesRaw ?? []) as { id: string; abrev: string; nombre: string }[];
 
   return (
     <main className="min-h-screen text-text">
@@ -61,6 +70,7 @@ export default async function RHProPage() {
             <p className="mt-1 text-sm text-muted">Altas, bajas, incidencias y seguimiento de supervisores.</p>
             <div className="mt-3 flex flex-wrap gap-2">
               <Link href="/rh-pro/contratos" className="btn btn-ghost btn-sm">📋 Ver todos los contratos</Link>
+              <Link href="/descansos" className="btn btn-ghost btn-sm">🛌 Cambios de descanso</Link>
             </div>
           </div>
           <div className="flex flex-wrap gap-3">
@@ -167,63 +177,21 @@ export default async function RHProPage() {
 
         {/* ─── ASIGNACIÓN DE SUPERVISORES ─── */}
         <section className="animate-fade-up delay-300">
-          <div className="section-label">RH Pro · Asignación de sede y jornada</div>
+          <div className="section-label">Asignación de sede y jornada a supervisores</div>
           <div className="surface-glow p-5 sm:p-6">
             <div className="mb-4 flex items-start gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[color:rgba(16,185,129,0.3)] bg-[color:rgba(16,185,129,0.15)] text-lg">👤</div>
               <div>
-                <h2 className="font-display text-base">Asignar sede y jornada a supervisores</h2>
-                <p className="text-xs text-muted">Define qué jornada de qué sede ve cada supervisor al tomar pase.</p>
+                <h2 className="font-display text-base">Editor de asignaciones</h2>
+                <p className="text-xs text-muted">
+                  Define qué jornada de qué sede ve cada supervisor al tomar pase.
+                  Click <span className="font-mono text-[#FCA5A5]">×</span> en una asignación para quitarla.
+                  Una asignación = sede × jornada × supervisor (la combinación es única).
+                </p>
               </div>
             </div>
 
-            <div className="overflow-x-auto rounded-lg border border-[color:var(--border)]">
-              <table className="w-full text-sm">
-                <thead className="bg-[color:var(--surface)] text-[10px] uppercase tracking-tagline text-muted">
-                  <tr>
-                    <th className="px-3 py-2 text-left">Supervisor</th>
-                    <th className="px-3 py-2 text-left">Sedes asignadas</th>
-                    <th className="px-3 py-2 text-right">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {supervisores.length === 0 ? (
-                    <tr>
-                      <td colSpan={3} className="px-3 py-6 text-center text-muted">Aún no hay asignaciones activas.</td>
-                    </tr>
-                  ) : (
-                    supervisores.map((s) => (
-                      <tr key={s.username} className="border-t border-[color:var(--border)] hover:bg-white/[0.02]">
-                        <td className="px-3 py-2.5 align-top">
-                          <p className="font-medium">{s.nombre}</p>
-                          <p className="flex items-center gap-1.5 text-xs text-muted">
-                            <span>@{s.username}</span>
-                            <span className={`role-badge role-${s.rol}`}>{s.rol}</span>
-                          </p>
-                        </td>
-                        <td className="px-3 py-2.5">
-                          <div className="flex flex-wrap gap-1.5">
-                            {s.asignaciones.map((a, i) => (
-                              <span key={i} className="pill pill-green text-[10px]">
-                                <span className="font-bold">{a.jornada}</span>
-                                <span className="opacity-60">@</span>
-                                <span>{a.abrev}</span>
-                              </span>
-                            ))}
-                          </div>
-                        </td>
-                        <td className="px-3 py-2.5 text-right align-top font-mono text-xs text-muted">
-                          {s.asignaciones.length}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-            <p className="mt-3 text-xs text-muted-2">
-              Edición de asignaciones próximamente · por ahora se gestiona desde Supabase Studio.
-            </p>
+            <AsignacionesEditor supervisores={supervisores} sedes={sedesParaEditor} />
           </div>
         </section>
 
