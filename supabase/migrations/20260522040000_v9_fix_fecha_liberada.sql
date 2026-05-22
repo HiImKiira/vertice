@@ -10,6 +10,21 @@
 -- no expirada". p_usuario se ignora (lo dejamos como parámetro por
 -- compatibilidad con las RLS que ya lo usan).
 
+-- ─────────────────────────────────────────────────────────────────────
+-- 0) Dependencias de v7 y v6 (idempotentes, por si no se aplicaron)
+-- ─────────────────────────────────────────────────────────────────────
+alter table fechas_liberadas add column if not exists expira_en timestamptz;
+
+create or replace function es_soporte_o_admin()
+returns boolean
+language sql stable
+as $$
+  select rol_actual() in ('ADMIN', 'CEO', 'SUPERADMIN', 'SOPORTE');
+$$;
+
+-- ─────────────────────────────────────────────────────────────────────
+-- 1) Fix de fecha_liberada_para_usuario
+-- ─────────────────────────────────────────────────────────────────────
 create or replace function fecha_liberada_para_usuario(p_fecha date, p_usuario uuid)
 returns boolean
 language sql stable
