@@ -119,3 +119,7 @@ create policy "fechas_lib_admin_write" on fechas_liberadas for all to authentica
 
 comment on function liberar_fecha is
   'Libera una fecha. p_horas=null para indefinido, o entero para liberar N horas. Auto-detecta el usuario.';
+
+-- Forzar a PostgREST a refrescar su schema cache (importante para que el
+-- cliente reconozca el nuevo RPC sin esperar el ciclo de auto-reload).
+notify pgrst, 'reload schema';

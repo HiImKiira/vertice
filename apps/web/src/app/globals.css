@@ -52,10 +52,21 @@
     -webkit-font-smoothing: antialiased;
     overflow-x: hidden;
     max-width: 100vw;
+    /* Bloquea pinch-zoom y double-tap-zoom en móvil (iOS/Android) */
+    touch-action: pan-x pan-y;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
   }
   * { box-sizing: border-box; }
   /* Evita que imágenes/SVGs se desborden */
   img, svg { max-width: 100%; }
+  /* iOS auto-amplifica al enfocar inputs <16px. Forzamos 16px mínimo en móvil. */
+  input, select, textarea {
+    font-size: 16px;
+  }
+  @media (min-width: 768px) {
+    input, select, textarea { font-size: inherit; }
+  }
 
   body {
     background-image:
