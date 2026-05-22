@@ -20,7 +20,7 @@ async function getProfile() {
   if (!user) return { sb: null, error: "Sin sesión.", userId: null, rol: null };
   const { data: perfil } = await supabase
     .from("usuarios")
-    .select("rol, sede_id:id, nombre, username")
+    .select("rol, nombre, username")
     .eq("id", user.id)
     .single<{ rol: string; nombre: string; username: string }>();
   if (!perfil) return { sb: null, error: "Perfil no encontrado.", userId: null, rol: null };

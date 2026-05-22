@@ -4,7 +4,6 @@ import { requireUser } from "@/lib/session";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Topbar } from "@/components/Topbar";
 import { TicketThread, type Mensaje, type TicketDetail } from "./TicketThread";
-import { marcarLeidoAction } from "../actions";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Ticket · Soporte" };
@@ -17,7 +16,7 @@ export default async function TicketPage({ params }: PageProps) {
   const supabase = await createSupabaseServerClient();
   const esSoporte = ["ADMIN", "SUPERADMIN", "CEO", "SOPORTE"].includes(profile.rol);
 
-  const { data: t } = await supabase
+  const { data: t, error: tErr } = await supabase
     .from("tickets_soporte")
     .select(`
       id, folio, tipo, prioridad, estado, fecha_solicitada,
@@ -27,6 +26,10 @@ export default async function TicketPage({ params }: PageProps) {
     `)
     .eq("id", id)
     .maybeSingle();
+  if (tErr) {
+    console.error("[soporte/[id]] ticket query error:", tErr);
+    notFound();
+  }
   if (!t) notFound();
   const ticket = t as unknown as TicketDetail;
 
@@ -34,15 +37,19 @@ export default async function TicketPage({ params }: PageProps) {
   if (!esSoporte && ticket.supervisor_id !== userId) notFound();
 
   // Mensajes del thread
-  const { data: msgsRaw } = await supabase
+  const { data: msgsRaw, error: mErr } = await supabase
     .from("mensajes_soporte")
     .select("id, ticket_id, remitente_id, origen, mensaje, creado_en, usuarios:remitente_id ( nombre, username )")
     .eq("ticket_id", id)
     .order("creado_en", { ascending: true });
+  if (mErr) console.error("[soporte/[id]] mensajes query error:", mErr);
   const mensajes = (msgsRaw ?? []) as unknown as Mensaje[];
 
-  // Marcar como leído al abrir
-  await marcarLeidoAction(id);
+  // Marcar como leído (inline, sin server action — evita revalidatePath durante render)
+  {
+    const patch = esSoporte ? { unread_soporte: 0 } : { unread_user: 0 };
+    await supabase.from("tickets_soporte").update(patch).eq("id", id);
+  }
 
   const sup = Array.isArray(ticket.usuarios) ? ticket.usuarios[0] : ticket.usuarios;
   const sede = Array.isArray(ticket.sedes) ? ticket.sedes[0] : ticket.sedes;
