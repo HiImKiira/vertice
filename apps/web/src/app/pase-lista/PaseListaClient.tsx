@@ -64,6 +64,8 @@ export function PaseListaClient(props: Props) {
   const [pendientes, setPendientes] = useState<Record<string, CodigoAsistencia>>({});
   const [resultado, setResultado] = useState<GuardarResult | null>(null);
   const [isPending, startTransition] = useTransition();
+  // Estados granulares de pending para feedback por acción
+  const [busyAction, setBusyAction] = useState<string | null>(null);
   const [bulkCode, setBulkCode] = useState<CodigoAsistencia>("A");
   const [bulkIDs, setBulkIDs] = useState<string>("");
   const [showReview, setShowReview] = useState(false);
@@ -72,33 +74,35 @@ export function PaseListaClient(props: Props) {
   const fechaInfo = formatLongDate(props.fecha);
 
   function updateUrl(next: { sede?: string; jornada?: string; fecha?: string }) {
+    if (isPending || busyAction) return;
     const usp = new URLSearchParams(params.toString());
     if (next.sede !== undefined) usp.set("sede", next.sede);
     if (next.jornada !== undefined) usp.set("jornada", next.jornada);
     if (next.fecha !== undefined) usp.set("fecha", next.fecha);
+    setBusyAction("nav");
     router.push(`/pase-lista?${usp.toString()}`);
+    // Liberamos al siguiente tick (Next maneja navegación)
+    setTimeout(() => setBusyAction(null), 800);
   }
 
   function getCurrent(id: string): CodigoAsistencia | null {
     return (pendientes[id] ?? (props.marcasExistentes[id] as CodigoAsistencia | undefined) ?? null);
   }
 
-  function setOne(id: string, codigo: CodigoAsistencia) {
-    setPendientes((p) => ({ ...p, [id]: codigo }));
-    setResultado(null);
-  }
-
-  // === Quick actions ===
+  // === Quick actions con feedback ===
   function todosComo(codigo: CodigoAsistencia) {
+    if (!props.canEdit) return;
+    const cuantos = props.empleados.length;
+    if (!confirm(`¿Marcar a los ${cuantos} empleados como ${codigo}? Después puedes ajustar individualmente.`)) return;
     const newPendientes: Record<string, CodigoAsistencia> = { ...pendientes };
-    for (const emp of props.empleados) {
-      newPendientes[emp.id] = codigo;
-    }
+    for (const emp of props.empleados) newPendientes[emp.id] = codigo;
     setPendientes(newPendientes);
     setResultado(null);
+    setBulkFeedback(`${cuantos} marcados como ${codigo}.`);
   }
 
   function pendientesComoA() {
+    if (!props.canEdit) return;
     const newPendientes: Record<string, CodigoAsistencia> = { ...pendientes };
     let n = 0;
     for (const emp of props.empleados) {
@@ -108,12 +112,17 @@ export function PaseListaClient(props: Props) {
         n++;
       }
     }
+    if (n === 0) {
+      setBulkFeedback("No hay empleados pendientes.");
+      return;
+    }
     setPendientes(newPendientes);
     setResultado(null);
-    setBulkFeedback(`${n} empleado${n === 1 ? "" : "s"} pendiente${n === 1 ? "" : "s"} marcados como A.`);
+    setBulkFeedback(`${n} pendiente${n === 1 ? "" : "s"} → A.`);
   }
 
   function copiarPaseAnterior() {
+    if (!props.canEdit) return;
     const newPendientes: Record<string, CodigoAsistencia> = { ...pendientes };
     let n = 0;
     for (const emp of props.empleados) {
@@ -123,12 +132,17 @@ export function PaseListaClient(props: Props) {
         n++;
       }
     }
+    if (n === 0) {
+      setBulkFeedback("Sin marcas del día anterior para copiar.");
+      return;
+    }
     setPendientes(newPendientes);
     setResultado(null);
-    setBulkFeedback(`${n} marca${n === 1 ? "" : "s"} copiada${n === 1 ? "" : "s"} del día anterior.`);
+    setBulkFeedback(`${n} copiada${n === 1 ? "" : "s"} del día anterior.`);
   }
 
   function aplicarBulkIDs() {
+    if (!props.canEdit) return;
     const tokens = bulkIDs.split(/[,\s]+/).map((s) => s.trim()).filter(Boolean);
     if (!tokens.length) {
       setBulkFeedback("Escribe IDs separados por coma o espacio.");
@@ -168,10 +182,12 @@ export function PaseListaClient(props: Props) {
   }, [props.empleados, pendientes, props.marcasExistentes]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const cambiosCount = Object.keys(pendientes).length;
+  const operacionEnCurso = isPending || busyAction !== null;
 
   function commitGuardar() {
-    if (!cambiosCount) return;
+    if (!cambiosCount || operacionEnCurso) return;
     const marcas = Object.entries(pendientes).map(([empleado_id, codigo]) => ({ empleado_id, codigo }));
+    setBusyAction("save");
     startTransition(async () => {
       const r = await guardarPaseListaAction({
         fecha: props.fecha,
@@ -180,6 +196,7 @@ export function PaseListaClient(props: Props) {
         marcas,
       });
       setResultado(r);
+      setBusyAction(null);
       if (r.ok) {
         setPendientes({});
         setShowReview(false);
@@ -192,47 +209,48 @@ export function PaseListaClient(props: Props) {
   const jornadasDeSede = props.asignaciones.find((a) => a.sede.id === props.sedeId)?.jornadas ?? [];
 
   return (
-    <>
+    <div className="overflow-x-hidden">
       {/* ============ HERO HEADER ============ */}
-      <section className="mb-6 grid gap-5 sm:grid-cols-[auto_1fr] sm:items-start">
-        <div className="flex items-baseline gap-3">
-          <span className="font-serif text-6xl text-gradient-blue sm:text-7xl">{fechaInfo.dia}</span>
-          <div>
-            <p className="font-serif text-xl capitalize sm:text-2xl">{fechaInfo.nombreDia}</p>
-            <p className="text-xs uppercase tracking-tagline text-muted">{fechaInfo.mesAnio}</p>
+      <section className="mb-5 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex items-baseline gap-3 min-w-0">
+          <span className="font-serif text-5xl leading-none text-gradient-blue sm:text-7xl">{fechaInfo.dia}</span>
+          <div className="min-w-0">
+            <p className="font-serif text-lg capitalize leading-tight sm:text-2xl">{fechaInfo.nombreDia}</p>
+            <p className="text-[10px] uppercase tracking-tagline text-muted sm:text-xs">{fechaInfo.mesAnio}</p>
           </div>
         </div>
-        <div className="flex flex-col items-start gap-2 sm:items-end">
-          <p className="text-[10px] font-semibold uppercase tracking-ultra text-[#67E8F9]">
-            Supervisor Pro · Pase de lista
+        <div className="min-w-0 sm:text-right">
+          <p className="text-[9px] font-semibold uppercase tracking-ultra text-[#67E8F9] sm:text-[10px]">
+            Supervisor Pro
           </p>
-          <h1 className="font-serif text-3xl leading-none sm:text-4xl">
-            {sedeActual?.abrev ?? "—"} <span className="text-gradient-blue serif-italic">·</span>{" "}
+          <h1 className="truncate font-serif text-2xl leading-none sm:text-3xl">
+            {sedeActual?.abrev ?? "—"}
+            <span className="mx-1 text-gradient-blue serif-italic">·</span>
             <span className="text-gradient-blue">{props.jornada}</span>
           </h1>
-          <p className="max-w-md text-xs text-muted sm:text-right">
-            {sedeActual?.nombre ?? "Sin sede seleccionada"} · {stats.total} empleado{stats.total === 1 ? "" : "s"}
+          <p className="mt-1 truncate text-[11px] text-muted sm:text-xs">
+            {sedeActual?.nombre ?? "—"} · {stats.total} empleado{stats.total === 1 ? "" : "s"}
           </p>
         </div>
       </section>
 
       {/* ============ Ventana de gracia banner ============ */}
       {props.graceMsg && (
-        <div className={`mb-5 flex items-center gap-3 rounded-xl border px-4 py-2.5 text-xs ${
+        <div className={`mb-4 flex items-start gap-2 rounded-xl border px-3 py-2 text-[11px] sm:gap-3 sm:px-4 sm:py-2.5 sm:text-xs ${
           props.canEdit
             ? "border-amber-400/30 bg-amber-400/[0.06] text-amber-200"
             : "border-red-400/40 bg-red-500/[0.08] text-red-300"
         }`}>
-          <span className="text-lg">{props.canEdit ? "⏳" : "⚠"}</span>
-          <p>
+          <span className="text-base sm:text-lg">{props.canEdit ? "⏳" : "⚠"}</span>
+          <p className="min-w-0 flex-1 break-words">
             {props.canEdit ? "Período de gracia hasta " : ""}
             <span className="font-mono">{props.graceMsg}</span>
           </p>
         </div>
       )}
 
-      {/* ============ STATS RINGS ============ */}
-      <section className="mb-6 grid grid-cols-4 gap-2 sm:gap-3">
+      {/* ============ STATS RINGS (2x2 mobile, 4x1 desktop) ============ */}
+      <section className="mb-5 grid grid-cols-2 gap-2 sm:mb-6 sm:grid-cols-4 sm:gap-3">
         <StatRing label="Asist." value={stats.asist} total={stats.total} color="#22c55e" />
         <StatRing label="Faltas" value={stats.falta} total={stats.total} color="#ef4444" />
         <StatRing label="Incid." value={stats.incid} total={stats.total} color="#f59e0b" />
@@ -240,55 +258,61 @@ export function PaseListaClient(props: Props) {
       </section>
 
       {/* ============ Selectores ============ */}
-      <section className="mb-6 grid gap-3 surface-glow rounded-2xl p-4 sm:grid-cols-3 sm:p-5">
-        <label className="block">
-          <span className="mb-1 block text-[10px] font-semibold uppercase tracking-tagline text-muted">Sede</span>
-          <select
-            value={props.sedeId}
-            onChange={(e) => updateUrl({ sede: e.target.value, jornada: "" })}
-            className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2.5 text-sm text-text focus:border-blue-400 focus:outline-none"
-          >
-            {props.asignaciones.map((a) => (
-              <option key={a.sede.id} value={a.sede.id} className="bg-[color:var(--surface)]">
-                {a.sede.abrev} · {a.sede.nombre}
-              </option>
-            ))}
-          </select>
-        </label>
+      <section className="mb-5 surface-glow rounded-2xl p-3 sm:mb-6 sm:p-5">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <label className="block min-w-0">
+            <span className="mb-1 block text-[10px] font-semibold uppercase tracking-tagline text-muted">Sede</span>
+            <select
+              value={props.sedeId}
+              onChange={(e) => updateUrl({ sede: e.target.value, jornada: "" })}
+              disabled={operacionEnCurso}
+              className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2.5 text-sm text-text focus:border-blue-400 focus:outline-none disabled:opacity-50"
+            >
+              {props.asignaciones.map((a) => (
+                <option key={a.sede.id} value={a.sede.id} className="bg-[color:var(--surface)]">
+                  {a.sede.abrev} · {a.sede.nombre}
+                </option>
+              ))}
+            </select>
+          </label>
 
-        <label className="block">
-          <span className="mb-1 block text-[10px] font-semibold uppercase tracking-tagline text-muted">Jornada</span>
-          <select
-            value={props.jornada}
-            onChange={(e) => updateUrl({ jornada: e.target.value })}
-            className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2.5 text-sm text-text focus:border-blue-400 focus:outline-none"
-          >
-            {(jornadasDeSede.length ? jornadasDeSede : ["MATUTINO", "VESPERTINO", "NOCTURNO"]).map((j) => (
-              <option key={j} value={j} className="bg-[color:var(--surface)]">{j}</option>
-            ))}
-          </select>
-        </label>
+          <label className="block min-w-0">
+            <span className="mb-1 block text-[10px] font-semibold uppercase tracking-tagline text-muted">Jornada</span>
+            <select
+              value={props.jornada}
+              onChange={(e) => updateUrl({ jornada: e.target.value })}
+              disabled={operacionEnCurso}
+              className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2.5 text-sm text-text focus:border-blue-400 focus:outline-none disabled:opacity-50"
+            >
+              {(jornadasDeSede.length ? jornadasDeSede : ["MATUTINO", "VESPERTINO", "NOCTURNO"]).map((j) => (
+                <option key={j} value={j} className="bg-[color:var(--surface)]">{j}</option>
+              ))}
+            </select>
+          </label>
 
-        <label className="block">
-          <span className="mb-1 block text-[10px] font-semibold uppercase tracking-tagline text-muted">Fecha</span>
-          <input
-            type="date"
-            value={props.fecha}
-            onChange={(e) => updateUrl({ fecha: e.target.value })}
-            className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2.5 text-sm text-text focus:border-blue-400 focus:outline-none"
-          />
-        </label>
+          <label className="block min-w-0">
+            <span className="mb-1 block text-[10px] font-semibold uppercase tracking-tagline text-muted">Fecha</span>
+            <input
+              type="date"
+              value={props.fecha}
+              onChange={(e) => updateUrl({ fecha: e.target.value })}
+              disabled={operacionEnCurso}
+              className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2.5 text-sm text-text focus:border-blue-400 focus:outline-none disabled:opacity-50"
+            />
+          </label>
+        </div>
       </section>
 
       {/* ============ CAPTURA POR ID + QUICK ACTIONS ============ */}
       {props.empleados.length > 0 && (
-        <section className="mb-6 surface-glow rounded-2xl p-4 sm:p-5">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="font-serif text-lg italic">
+        <section className="mb-5 surface-glow rounded-2xl p-3 sm:mb-6 sm:p-5">
+          <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="font-serif text-base italic sm:text-lg">
               <span className="text-gradient-cyan">Captura por ID</span>
             </h2>
-            <span className="font-mono text-[10px] text-muted-2">Bulk-mode estilo legacy</span>
+            <span className="font-mono text-[10px] text-muted-2">Bulk-mode</span>
           </div>
+
           <div className="mb-3 flex flex-wrap gap-1.5">
             {CODIGOS.filter((c) => c !== "SN").map((cod) => {
               const active = bulkCode === cod;
@@ -297,8 +321,9 @@ export function PaseListaClient(props: Props) {
                 <button
                   key={cod}
                   type="button"
-                  onClick={() => setBulkCode(cod)}
-                  className={`chip-code ${active ? "chip-code-active" : ""}`}
+                  onClick={() => !operacionEnCurso && setBulkCode(cod)}
+                  disabled={operacionEnCurso}
+                  className={`chip-code ${active ? "chip-code-active" : ""} disabled:opacity-40`}
                   style={active ? { background: spec.color } : undefined}
                   title={spec.nombre}
                 >
@@ -307,7 +332,8 @@ export function PaseListaClient(props: Props) {
               );
             })}
           </div>
-          <div className="flex flex-wrap gap-2 sm:flex-nowrap">
+
+          <div className="grid grid-cols-[1fr_auto] gap-2">
             <input
               type="text"
               value={bulkIDs}
@@ -318,28 +344,34 @@ export function PaseListaClient(props: Props) {
                   aplicarBulkIDs();
                 }
               }}
-              placeholder="Ej: 92, 45, 21 o uno por uno..."
-              className="min-w-0 flex-1 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2.5 font-mono text-sm text-text placeholder:text-muted-2 focus:border-blue-400 focus:outline-none"
-              disabled={!props.canEdit}
+              placeholder="Ej: 92, 45, 21..."
+              className="min-w-0 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2.5 font-mono text-sm text-text placeholder:text-muted-2 focus:border-blue-400 focus:outline-none disabled:opacity-50"
+              disabled={!props.canEdit || operacionEnCurso}
+              inputMode="numeric"
+              autoComplete="off"
             />
-            <button
-              type="button"
-              onClick={aplicarBulkIDs}
-              disabled={!props.canEdit || !bulkIDs.trim()}
-              className="rounded-lg bg-emerald-500/20 px-4 py-2.5 text-sm font-semibold text-emerald-300 transition hover:bg-emerald-500/30 disabled:opacity-40"
-            >
-              ✓ Aplicar
-            </button>
-            <button
-              type="button"
-              onClick={() => setBulkIDs("")}
-              className="rounded-lg bg-red-500/10 px-3 py-2.5 text-sm font-semibold text-red-300 transition hover:bg-red-500/20"
-            >
-              ✕
-            </button>
+            <div className="flex gap-1.5">
+              <button
+                type="button"
+                onClick={aplicarBulkIDs}
+                disabled={!props.canEdit || !bulkIDs.trim() || operacionEnCurso}
+                className="rounded-lg bg-emerald-500/20 px-3 py-2.5 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-500/30 disabled:opacity-40 sm:px-4 sm:text-sm"
+              >
+                ✓
+              </button>
+              <button
+                type="button"
+                onClick={() => setBulkIDs("")}
+                disabled={operacionEnCurso}
+                className="rounded-lg bg-red-500/10 px-3 py-2.5 text-sm font-semibold text-red-300 transition hover:bg-red-500/20 disabled:opacity-40"
+              >
+                ✕
+              </button>
+            </div>
           </div>
+
           {bulkFeedback && (
-            <p className="mt-2 rounded-md border border-blue-400/30 bg-blue-500/10 px-3 py-1.5 text-xs text-blue-200">
+            <p className="mt-2 break-words rounded-md border border-blue-400/30 bg-blue-500/10 px-3 py-1.5 text-xs text-blue-200">
               {bulkFeedback}
             </p>
           )}
@@ -351,21 +383,21 @@ export function PaseListaClient(props: Props) {
               title="Copiar pase anterior"
               hint="Rellena desde la última jornada"
               onClick={copiarPaseAnterior}
-              disabled={!props.canEdit}
+              disabled={!props.canEdit || operacionEnCurso}
             />
             <QuickAction
               icon="✓"
               title="Pendientes como A"
               hint="Solo los no marcados"
               onClick={pendientesComoA}
-              disabled={!props.canEdit}
+              disabled={!props.canEdit || operacionEnCurso}
             />
             <QuickAction
               icon="•"
               title="Todos A"
               hint="Marca a todos como Asistencia"
               onClick={() => todosComo("A")}
-              disabled={!props.canEdit}
+              disabled={!props.canEdit || operacionEnCurso}
             />
           </div>
         </section>
@@ -373,7 +405,7 @@ export function PaseListaClient(props: Props) {
 
       {/* ============ LISTA DE EMPLEADOS ============ */}
       {!props.empleados.length ? (
-        <div className="rounded-2xl border border-dashed border-white/10 bg-[color:var(--surface)]/40 p-10 text-center text-sm text-muted">
+        <div className="rounded-2xl border border-dashed border-white/10 bg-[color:var(--surface)]/40 p-8 text-center text-sm text-muted">
           No hay empleados activos para esta combinación sede × jornada.
         </div>
       ) : (
@@ -385,22 +417,22 @@ export function PaseListaClient(props: Props) {
             return (
               <li
                 key={emp.id}
-                className={`flex items-center gap-3 rounded-xl border bg-[color:var(--surface)]/60 px-3 py-2.5 transition sm:px-4 sm:py-3 ${
+                className={`flex min-w-0 items-center gap-2 rounded-xl border bg-[color:var(--surface)]/60 px-3 py-2 transition sm:gap-3 sm:px-4 sm:py-2.5 ${
                   isPendingChange ? "border-blue-400/40 ring-1 ring-blue-400/20" : "border-white/5"
                 }`}
               >
-                <span className="font-mono text-[10px] text-muted-2 sm:text-xs">#{emp.numero_empleado}</span>
+                <span className="shrink-0 font-mono text-[10px] text-muted-2 sm:text-xs">#{emp.numero_empleado}</span>
                 <p className="min-w-0 flex-1 truncate text-sm font-medium text-text sm:text-base">{emp.nombre}</p>
                 {current ? (
                   <span
-                    className="rounded-full px-2.5 py-1 font-mono text-[10px] font-bold uppercase text-white"
+                    className="shrink-0 rounded-full px-2.5 py-1 font-mono text-[10px] font-bold uppercase text-white"
                     style={{ background: spec?.color }}
                     title={spec?.nombre}
                   >
                     {current}
                   </span>
                 ) : (
-                  <span className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 font-mono text-[10px] uppercase text-muted-2">
+                  <span className="shrink-0 rounded-full border border-white/10 bg-white/[0.03] px-2 py-1 font-mono text-[9px] uppercase text-muted-2 sm:px-2.5 sm:text-[10px]">
                     Sin marcar
                   </span>
                 )}
@@ -412,23 +444,23 @@ export function PaseListaClient(props: Props) {
 
       {/* ============ Save bar sticky ============ */}
       {props.empleados.length > 0 && (
-        <div className="sticky bottom-0 mt-8 -mx-4 border-t border-white/10 bg-[color:var(--bg)]/95 px-4 py-4 backdrop-blur sm:-mx-6 sm:px-6">
-          <div className="mx-auto flex max-w-6xl items-center justify-between gap-3">
-            <div className="text-xs text-muted">
+        <div className="sticky bottom-0 mt-6 -mx-4 border-t border-white/10 bg-[color:var(--bg)]/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6 sm:py-4">
+          <div className="mx-auto flex max-w-[1280px] items-center justify-between gap-2 sm:gap-3">
+            <div className="min-w-0 flex-1 text-[11px] text-muted sm:text-xs">
               {resultado?.ok && (
                 <span className="text-emerald-300">
-                  ✓ {resultado.saved} marca{resultado.saved === 1 ? "" : "s"} guardada{resultado.saved === 1 ? "" : "s"}
+                  ✓ {resultado.saved} marca{resultado.saved === 1 ? "" : "s"}
                 </span>
               )}
-              {resultado && !resultado.ok && <span className="text-red-300">⚠ {resultado.error}</span>}
-              {!resultado && cambiosCount > 0 && <span>{cambiosCount} cambio{cambiosCount === 1 ? "" : "s"} sin guardar</span>}
+              {resultado && !resultado.ok && <span className="block truncate text-red-300">⚠ {resultado.error}</span>}
+              {!resultado && cambiosCount > 0 && <span className="font-mono text-[#FCD34D]">{cambiosCount} sin guardar</span>}
               {!resultado && !cambiosCount && <span>{stats.asist}/{stats.total} capturados</span>}
             </div>
             <button
               type="button"
               onClick={() => setShowReview(true)}
-              disabled={!props.canEdit || !cambiosCount || isPending}
-              className="btn-primary"
+              disabled={!props.canEdit || !cambiosCount || operacionEnCurso}
+              className="btn btn-primary shrink-0 whitespace-nowrap"
             >
               Revisar y guardar →
             </button>
@@ -438,26 +470,29 @@ export function PaseListaClient(props: Props) {
 
       {/* ============ MODAL DE REVISIÓN FINAL ============ */}
       {showReview && (
-        <div className="fixed inset-0 z-50 flex items-end bg-[color:var(--bg)]/70 backdrop-blur-sm sm:items-center sm:justify-center"
-             onClick={() => setShowReview(false)}>
+        <div
+          className="fixed inset-0 z-50 flex items-end bg-[color:var(--bg)]/70 backdrop-blur-sm sm:items-center sm:justify-center"
+          onClick={() => !operacionEnCurso && setShowReview(false)}
+        >
           <div
             className="max-h-[90vh] w-full overflow-y-auto rounded-t-3xl bg-[color:var(--surface)] p-5 shadow-2xl sm:max-w-2xl sm:rounded-3xl sm:p-7"
             onClick={(e) => e.stopPropagation()}
           >
-            <header className="mb-4 flex items-start justify-between">
-              <div>
+            <header className="mb-4 flex items-start justify-between gap-2">
+              <div className="min-w-0">
                 <p className="pill pill-blue mb-2">Revisión final</p>
                 <h2 className="font-serif text-2xl">
                   Revisar <span className="text-gradient-blue serif-italic">pase</span>
                 </h2>
-                <p className="mt-1 text-xs text-muted">
+                <p className="mt-1 truncate text-xs text-muted">
                   {sedeActual?.nombre} · {props.jornada} · {props.fecha} · {cambiosCount} cambio{cambiosCount === 1 ? "" : "s"}
                 </p>
               </div>
               <button
                 type="button"
-                onClick={() => setShowReview(false)}
-                className="rounded-md p-1.5 text-muted-2 hover:bg-white/5"
+                onClick={() => !operacionEnCurso && setShowReview(false)}
+                disabled={operacionEnCurso}
+                className="shrink-0 rounded-md p-1.5 text-muted-2 hover:bg-white/5 disabled:opacity-40"
               >
                 ✕
               </button>
@@ -474,10 +509,10 @@ export function PaseListaClient(props: Props) {
                 if (!emp) return null;
                 return (
                   <li key={id} className="flex items-center gap-3 rounded-lg px-2 py-1.5">
-                    <span className="font-mono text-[10px] text-muted-2">#{emp.numero_empleado}</span>
-                    <span className="flex-1 truncate">{emp.nombre}</span>
+                    <span className="shrink-0 font-mono text-[10px] text-muted-2">#{emp.numero_empleado}</span>
+                    <span className="min-w-0 flex-1 truncate">{emp.nombre}</span>
                     <span
-                      className="rounded-full px-2 py-0.5 font-mono text-[10px] font-bold text-white"
+                      className="shrink-0 rounded-full px-2 py-0.5 font-mono text-[10px] font-bold text-white"
                       style={{ background: spec.color }}
                     >
                       {cod}
@@ -488,20 +523,18 @@ export function PaseListaClient(props: Props) {
             </ul>
 
             <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setShowReview(false)}
-                className="btn-ghost"
-              >
+              <button type="button" onClick={() => setShowReview(false)} disabled={operacionEnCurso} className="btn btn-ghost">
                 ← Corregir
               </button>
-              <button
-                type="button"
-                onClick={commitGuardar}
-                disabled={isPending}
-                className="btn-primary"
-              >
-                {isPending ? "Guardando..." : "💾 Guardar definitivo"}
+              <button type="button" onClick={commitGuardar} disabled={operacionEnCurso} className="btn btn-primary">
+                {operacionEnCurso ? (
+                  <>
+                    <span className="loader-vortex-sm" />
+                    Guardando...
+                  </>
+                ) : (
+                  <>💾 Guardar definitivo</>
+                )}
               </button>
             </div>
             {resultado && !resultado.ok && (
@@ -512,7 +545,19 @@ export function PaseListaClient(props: Props) {
           </div>
         </div>
       )}
-    </>
+
+      {/* Overlay full-screen para acciones largas */}
+      {operacionEnCurso && (
+        <div className="overlay-loader">
+          <div className="loader-vortex-lg" />
+          <p className="overlay-loader-text">
+            {busyAction === "save" ? `Guardando ${cambiosCount} marca${cambiosCount === 1 ? "" : "s"}...` : "Cargando..."}
+          </p>
+          <p className="text-xs text-muted-2">No cierres ni recargues la pantalla</p>
+        </div>
+      )}
+
+    </div>
   );
 }
 
@@ -521,8 +566,8 @@ function StatRing({ label, value, total, color }: { label: string; value: number
   const circumference = 2 * Math.PI * 22;
   const offset = circumference - (pct / 100) * circumference;
   return (
-    <div className="flex flex-col items-center justify-center rounded-2xl border border-white/5 bg-[color:var(--surface)]/60 p-3 sm:p-4">
-      <div className="relative h-14 w-14 sm:h-16 sm:w-16">
+    <div className="flex flex-col items-center justify-center rounded-2xl border border-white/5 bg-[color:var(--surface)]/60 p-2 sm:p-4">
+      <div className="relative h-12 w-12 sm:h-16 sm:w-16">
         <svg className="h-full w-full -rotate-90" viewBox="0 0 50 50">
           <circle cx="25" cy="25" r="22" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="4" />
           <circle
@@ -533,11 +578,11 @@ function StatRing({ label, value, total, color }: { label: string; value: number
             style={{ transition: "stroke-dashoffset 0.4s ease" }}
           />
         </svg>
-        <span className="absolute inset-0 flex items-center justify-center text-base font-bold text-text sm:text-lg">
+        <span className="absolute inset-0 flex items-center justify-center text-sm font-bold text-text sm:text-lg">
           {value}
         </span>
       </div>
-      <p className="mt-1.5 text-[10px] font-semibold uppercase tracking-tagline text-muted">{label}</p>
+      <p className="mt-1 text-[9px] font-semibold uppercase tracking-tagline text-muted sm:mt-1.5 sm:text-[10px]">{label}</p>
     </div>
   );
 }
@@ -554,13 +599,13 @@ function QuickAction({ icon, title, hint, onClick, disabled }: {
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="flex items-start gap-3 rounded-xl border border-white/5 bg-white/[0.02] p-3 text-left transition hover:border-blue-400/30 hover:bg-blue-500/[0.06] disabled:opacity-40"
+      className="flex min-w-0 items-start gap-3 rounded-xl border border-white/5 bg-white/[0.02] p-3 text-left transition hover:border-blue-400/30 hover:bg-blue-500/[0.06] disabled:cursor-not-allowed disabled:opacity-40"
     >
       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-500/20 text-base text-blue-300">
         {icon}
       </span>
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold text-text">{title}</p>
+        <p className="truncate text-sm font-semibold text-text">{title}</p>
         <p className="truncate text-[11px] text-muted">{hint}</p>
       </div>
     </button>

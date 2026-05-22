@@ -23,10 +23,11 @@ interface NavItem {
 const NAV: NavItem[] = [
   { href: "/pase-lista",  icon: "📋", label: "Pase de lista" },
   { href: "/incidencias", icon: "🧾", label: "Incidencias" },
+  { href: "/eventuales",  icon: "🔄", label: "Eventuales" },
+  { href: "/descansos",   icon: "🛌", label: "Descansos" },
   { href: "/rh-pro",      icon: "👥", label: "RH Pro",       roles: ["ADMIN", "SUPERADMIN", "CEO", "SOPORTE"] },
   { href: "/soporte",     icon: "💬", label: "Soporte" },
   { href: "/reportes",    icon: "📄", label: "Reportes PDF", roles: ["ADMIN", "SUPERADMIN", "CEO"] },
-  { href: "/ceo",         icon: "📺", label: "CEO LIVE",     roles: ["CEO", "SUPERADMIN", "ADMIN"] },
 ];
 
 interface SignOutButtonProps { compact?: boolean }
