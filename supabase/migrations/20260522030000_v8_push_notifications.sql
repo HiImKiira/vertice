@@ -8,6 +8,16 @@
 -- Cron en pg_cron: cada hora chequea quiet-hours y dispara HTTP a Vercel.
 
 -- ─────────────────────────────────────────────────────────────────────
+-- 0) Dependencia: es_soporte_o_admin() (de v6, idempotente por si falta)
+-- ─────────────────────────────────────────────────────────────────────
+create or replace function es_soporte_o_admin()
+returns boolean
+language sql stable
+as $$
+  select rol_actual() in ('ADMIN', 'CEO', 'SUPERADMIN', 'SOPORTE');
+$$;
+
+-- ─────────────────────────────────────────────────────────────────────
 -- 1) push_subscriptions
 -- ─────────────────────────────────────────────────────────────────────
 create table if not exists push_subscriptions (
