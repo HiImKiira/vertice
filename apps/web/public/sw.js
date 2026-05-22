@@ -1,0 +1,78 @@
+/**
+ * Service Worker mínimo para Vortex.
+ *
+ * Estrategia: network-first con fallback al cache.
+ * - Permite que el browser muestre el prompt "Instalar app" en Android.
+ * - Habilita el shell offline básico (logo, ícons).
+ * - NO cachea respuestas autenticadas ni server actions.
+ *
+ * Para forzar el refresh del SW en producción: cambiar CACHE_VERSION.
+ */
+const CACHE_VERSION = "vortex-v1";
+const SHELL_CACHE = `${CACHE_VERSION}-shell`;
+const SHELL_FILES = [
+  "/manifest.webmanifest",
+  "/favicon.svg",
+  "/favicon-16.png",
+  "/favicon-32.png",
+  "/apple-touch-icon.png",
+  "/icons/icon-192.png",
+  "/icons/icon-512.png",
+];
+
+self.addEventListener("install", (event) => {
+  self.skipWaiting();
+  event.waitUntil(
+    caches.open(SHELL_CACHE).then((cache) => cache.addAll(SHELL_FILES).catch(() => {})),
+  );
+});
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(
+        keys.filter((k) => !k.startsWith(CACHE_VERSION)).map((k) => caches.delete(k)),
+      ),
+    ).then(() => self.clients.claim()),
+  );
+});
+
+self.addEventListener("fetch", (event) => {
+  const req = event.request;
+  // Solo GET y mismo origen
+  if (req.method !== "GET") return;
+  const url = new URL(req.url);
+  if (url.origin !== self.location.origin) return;
+  // No cachear rutas dinámicas / auth / API
+  if (
+    url.pathname.startsWith("/api/") ||
+    url.pathname.startsWith("/_next/data/") ||
+    url.pathname.startsWith("/auth/") ||
+    url.pathname.includes("/login")
+  ) {
+    return;
+  }
+
+  // Network-first para HTML, cache-first para assets estáticos
+  const isAsset = /\.(svg|png|jpg|jpeg|gif|webp|ico|css|js|woff2?)$/i.test(url.pathname)
+    || url.pathname.startsWith("/icons/");
+
+  if (isAsset) {
+    event.respondWith(
+      caches.match(req).then((cached) =>
+        cached
+          ?? fetch(req).then((res) => {
+            const copy = res.clone();
+            caches.open(SHELL_CACHE).then((c) => c.put(req, copy)).catch(() => {});
+            return res;
+          }).catch(() => cached),
+      ),
+    );
+    return;
+  }
+
+  // HTML / dynamic: network-first
+  event.respondWith(
+    fetch(req).catch(() => caches.match(req)),
+  );
+});
