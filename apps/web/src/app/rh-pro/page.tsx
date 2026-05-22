@@ -104,9 +104,11 @@ export default async function RHProPage() {
             <h1 className="font-display text-3xl sm:text-4xl">RH Pro · Gestión de Personal</h1>
             <p className="mt-1 text-sm text-muted">Altas, bajas, incidencias y seguimiento de supervisores.</p>
             <div className="mt-3 flex flex-wrap gap-2">
-              <Link href="/rh-pro/sedes" className="btn btn-ghost btn-sm">🏢 Sedes activas</Link>
-              <Link href="/rh-pro/contratos" className="btn btn-ghost btn-sm">📋 Ver todos los contratos</Link>
-              <Link href="/descansos" className="btn btn-ghost btn-sm">🛌 Cambios de descanso</Link>
+              <Link href="/rh-pro/sedes" className="btn btn-ghost btn-sm">Sedes activas</Link>
+              <Link href="/rh-pro/liberaciones" className="btn btn-ghost btn-sm">Liberar fechas</Link>
+              <Link href="/rh-pro/contratos" className="btn btn-ghost btn-sm">Contratos</Link>
+              <Link href="/descansos" className="btn btn-ghost btn-sm">Cambios de descanso</Link>
+              <Link href="/reportes" className="btn btn-ghost btn-sm">Reportes PDF</Link>
             </div>
           </div>
           <div className="flex flex-wrap gap-3">
@@ -135,6 +137,16 @@ export default async function RHProPage() {
               sub="Alta, edición, activar/desactivar sedes. Solo se ven en captura las activas."
               badge="ADMIN / SUPERADMIN"
               badgeCls="pill pill-violet"
+            />
+            <ActionCard
+              href="/rh-pro/liberaciones"
+              icon="🔓"
+              iconBg="rgba(16,185,129,0.12)"
+              iconBorder="rgba(16,185,129,0.3)"
+              title="Liberar fechas"
+              sub="Abre fechas globales para que los supervisores capturen fuera de la ventana de gracia. Expira automática."
+              badge="ADMIN / SUPERADMIN / SOPORTE"
+              badgeCls="pill pill-green"
             />
             <ActionCard
               href="/rh-pro/empleados"
@@ -177,52 +189,6 @@ export default async function RHProPage() {
               badgeCls="pill"
               disabled
             />
-          </div>
-        </section>
-
-        {/* ─── EXPORTACIÓN QUINCENAL ─── */}
-        <section className="mb-10 animate-fade-up delay-200">
-          <div className="section-label">Exportación quincenal</div>
-          <div className="surface-glow p-5 sm:p-6">
-            <div className="mb-5 flex items-start gap-3">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[color:var(--border2)] bg-[color:var(--surface)] text-xl">📤</div>
-              <div>
-                <h2 className="font-display text-lg">Centro de exportación quincenal</h2>
-                <p className="text-sm text-muted">
-                  Genera reportes de asistencia con formato operativo. Las celdas vacías se muestran como{" "}
-                  <span className="rounded bg-white/10 px-1.5 py-0.5 font-mono text-[10px] font-bold">S/N</span>.
-                </p>
-              </div>
-            </div>
-            <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <div className="field">
-                <label>Sede</label>
-                <select disabled>
-                  <option>Próximamente</option>
-                </select>
-              </div>
-              <div className="field">
-                <label>Mes / Año</label>
-                <input type="month" disabled />
-              </div>
-              <div className="field">
-                <label>Quincena</label>
-                <select disabled>
-                  <option>Q1 · 1 al 15</option>
-                  <option>Q2 · 16 al fin de mes</option>
-                </select>
-              </div>
-              <div className="field">
-                <label>Fecha base</label>
-                <input type="text" value="—" disabled readOnly />
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <button type="button" className="btn btn-primary" disabled>📊 Quincena operativa</button>
-              <button type="button" className="btn btn-success" disabled>💰 Nómina estimada</button>
-              <button type="button" className="btn btn-violet" disabled>↺ Sede activa</button>
-            </div>
-            <div className="mt-3"><span className="pill pill-blue">ADMIN / SUPERADMIN · próximamente</span></div>
           </div>
         </section>
 

@@ -11,19 +11,27 @@ export function AnnouncementPanel() {
   const [pending, start] = useTransition();
   const [result, setResult] = useState<string | null>(null);
 
+  async function parseJsonSafe(res: Response): Promise<Record<string, unknown>> {
+    const ct = res.headers.get("content-type") ?? "";
+    if (!ct.includes("application/json")) {
+      const txt = await res.text().catch(() => "");
+      return { error: `Respuesta no-JSON (HTTP ${res.status}): ${txt.slice(0, 200)}` };
+    }
+    try {
+      return await res.json();
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : "JSON inválido" };
+    }
+  }
+
   async function enviarRecordatorio() {
     if (!confirm("¿Disparar recordatorio de captura ahora a todos los supervisores pendientes?")) return;
     start(async () => {
-      const res = await fetch("/api/cron/notify-pendientes", {
-        method: "POST",
-        headers: {
-          "x-cron-secret": "MANUAL_TRIGGER", // el endpoint pedirá el secret real
-        },
-      });
-      if (res.status === 401) {
-        // Llamamos al endpoint con el secret correcto vía la API de anuncio
-        // Hack: hacemos un announce broadcast con el mensaje de captura
-        const r2 = await fetch("/api/push/announce", {
+      try {
+        // El endpoint del cron requiere CRON_SECRET. Desde el cliente no lo
+        // tenemos, así que mandamos el recordatorio vía /announce (que sí
+        // valida sesión + rol admin).
+        const res = await fetch("/api/push/announce", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -32,12 +40,15 @@ export function AnnouncementPanel() {
             urlDestino: "/pase-lista",
           }),
         });
-        const j = await r2.json();
-        setResult(r2.ok ? `Enviado a ${j.enviados}, fallidos ${j.fallidos}` : `Error: ${j.error}`);
-        return;
+        const j = await parseJsonSafe(res);
+        if (res.ok) {
+          setResult(`Recordatorio enviado a ${j.enviados ?? 0} dispositivos, ${j.fallidos ?? 0} fallidos`);
+        } else {
+          setResult(`Error: ${j.error ?? `HTTP ${res.status}`}`);
+        }
+      } catch (e) {
+        setResult(`Error de red: ${e instanceof Error ? e.message : "desconocido"}`);
       }
-      const j = await res.json();
-      setResult(res.ok ? `Recordatorio disparado: ${j.enviados ?? 0} enviados` : `Error: ${j.error}`);
     });
   }
 
@@ -47,22 +58,26 @@ export function AnnouncementPanel() {
       return;
     }
     start(async () => {
-      const res = await fetch("/api/push/announce", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          titulo: titulo.trim(),
-          cuerpo: cuerpo.trim(),
-          urlDestino: urlDestino.trim() || "/dashboard",
-        }),
-      });
-      const j = await res.json();
-      if (res.ok) {
-        setResult(`✓ Enviado a ${j.enviados} dispositivos, ${j.fallidos} fallidos`);
-        setTitulo("");
-        setCuerpo("");
-      } else {
-        setResult(`Error: ${j.error}`);
+      try {
+        const res = await fetch("/api/push/announce", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            titulo: titulo.trim(),
+            cuerpo: cuerpo.trim(),
+            urlDestino: urlDestino.trim() || "/dashboard",
+          }),
+        });
+        const j = await parseJsonSafe(res);
+        if (res.ok) {
+          setResult(`✓ Enviado a ${j.enviados ?? 0} dispositivos, ${j.fallidos ?? 0} fallidos`);
+          setTitulo("");
+          setCuerpo("");
+        } else {
+          setResult(`Error: ${j.error ?? `HTTP ${res.status}`}`);
+        }
+      } catch (e) {
+        setResult(`Error de red: ${e instanceof Error ? e.message : "desconocido"}`);
       }
     });
   }

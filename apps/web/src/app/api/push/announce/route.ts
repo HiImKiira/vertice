@@ -14,49 +14,66 @@ interface AnnounceBody {
 }
 
 export async function POST(req: Request) {
-  const supabase = await createSupabaseServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ ok: false, error: "Sin sesión" }, { status: 401 });
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ ok: false, error: "Sin sesión" }, { status: 401 });
 
-  const { data: perfil } = await supabase
-    .from("usuarios")
-    .select("rol")
-    .eq("id", user.id)
-    .single<{ rol: string }>();
-  if (!perfil || !["ADMIN", "SUPERADMIN", "CEO", "SOPORTE"].includes(perfil.rol)) {
-    return NextResponse.json({ ok: false, error: "Solo soporte/admin" }, { status: 403 });
+    const { data: perfil } = await supabase
+      .from("usuarios")
+      .select("rol")
+      .eq("id", user.id)
+      .single<{ rol: string }>();
+    if (!perfil || !["ADMIN", "SUPERADMIN", "CEO", "SOPORTE"].includes(perfil.rol)) {
+      return NextResponse.json({ ok: false, error: "Solo soporte/admin" }, { status: 403 });
+    }
+
+    const body = (await req.json().catch(() => null)) as AnnounceBody | null;
+    if (!body?.titulo?.trim() || !body?.cuerpo?.trim()) {
+      return NextResponse.json({ ok: false, error: "Título y cuerpo requeridos" }, { status: 400 });
+    }
+
+    const destinatarios = body.destinatarios && body.destinatarios.length > 0 ? body.destinatarios : null;
+
+    let result: { enviados: number; fallidos: number; detalles: Array<{ usuario_id: string; ok: boolean; razon?: string }> };
+    try {
+      result = await sendPush(
+        {
+          title: body.titulo.trim(),
+          body: body.cuerpo.trim(),
+          url: body.urlDestino?.trim() || "/dashboard",
+          tag: "announcement",
+          icon: "/icons/icon-192.png",
+        },
+        destinatarios,
+        "announcement",
+      );
+    } catch (pushErr) {
+      console.error("[announce] sendPush threw:", pushErr);
+      const msg = pushErr instanceof Error ? pushErr.message : "Error desconocido al enviar push";
+      return NextResponse.json({ ok: false, error: msg, enviados: 0, fallidos: 0 }, { status: 500 });
+    }
+
+    // Log del anuncio (best-effort, no bloquea la respuesta)
+    try {
+      const admin = supabaseAdmin();
+      await admin.from("announcements").insert({
+        creado_por: user.id,
+        titulo: body.titulo.trim(),
+        cuerpo: body.cuerpo.trim(),
+        url_destino: body.urlDestino?.trim() || null,
+        destinatarios,
+        enviados: result.enviados,
+        fallidos: result.fallidos,
+      });
+    } catch (e) {
+      console.error("[announce] log failed:", e);
+    }
+
+    return NextResponse.json({ ok: true, ...result });
+  } catch (e) {
+    console.error("[announce] unhandled:", e);
+    const msg = e instanceof Error ? e.message : "Error interno";
+    return NextResponse.json({ ok: false, error: msg }, { status: 500 });
   }
-
-  const body = (await req.json()) as AnnounceBody;
-  if (!body?.titulo?.trim() || !body?.cuerpo?.trim()) {
-    return NextResponse.json({ ok: false, error: "Título y cuerpo requeridos" }, { status: 400 });
-  }
-
-  const destinatarios = body.destinatarios && body.destinatarios.length > 0 ? body.destinatarios : null;
-
-  const result = await sendPush(
-    {
-      title: body.titulo.trim(),
-      body: body.cuerpo.trim(),
-      url: body.urlDestino?.trim() || "/dashboard",
-      tag: "announcement",
-      icon: "/icons/icon-192.png",
-    },
-    destinatarios,
-    "announcement",
-  );
-
-  // Log del anuncio
-  const admin = supabaseAdmin();
-  await admin.from("announcements").insert({
-    creado_por: user.id,
-    titulo: body.titulo.trim(),
-    cuerpo: body.cuerpo.trim(),
-    url_destino: body.urlDestino?.trim() || null,
-    destinatarios,
-    enviados: result.enviados,
-    fallidos: result.fallidos,
-  });
-
-  return NextResponse.json({ ok: true, ...result });
 }
