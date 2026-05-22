@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { VortexLoader } from "@/components/VortexLoader";
 import { useRouter } from "next/navigation";
 import { sueldoEnLetra } from "@vertice/shared/numbers";
 import { actualizarContratoAction } from "./actions";
@@ -276,7 +277,7 @@ export function EditContratoForm({ contrato }: { contrato: ContratoFullRow }) {
 
       {isPending && (
         <div className="overlay-loader">
-          <div className="loader-vortex-lg" />
+          <VortexLoader size={64} />
           <p className="overlay-loader-text">Actualizando contrato{regenerarPdf ? " y regenerando PDF" : ""}...</p>
         </div>
       )}

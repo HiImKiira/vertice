@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { VortexLoader } from "@/components/VortexLoader";
 import { useRouter } from "next/navigation";
 import { agregarAsignacionAction, eliminarAsignacionAction } from "./asignaciones-actions";
 
@@ -164,7 +165,7 @@ export function AsignacionesEditor({ supervisores, sedes }: { supervisores: Supe
 
       {isPending && (
         <div className="overlay-loader">
-          <div className="loader-vortex-lg" />
+          <VortexLoader size={64} />
           <p className="overlay-loader-text">Actualizando asignaciones...</p>
         </div>
       )}

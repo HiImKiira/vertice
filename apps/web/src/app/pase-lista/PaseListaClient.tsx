@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { VortexLoader } from "@/components/VortexLoader";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CODIGO_SPEC, CODIGOS, type CodigoAsistencia } from "@vertice/shared/codes";
 import { guardarPaseListaAction, type GuardarResult } from "./actions";
@@ -549,7 +550,7 @@ export function PaseListaClient(props: Props) {
       {/* Overlay full-screen para acciones largas */}
       {operacionEnCurso && (
         <div className="overlay-loader">
-          <div className="loader-vortex-lg" />
+          <VortexLoader size={64} />
           <p className="overlay-loader-text">
             {busyAction === "save" ? `Guardando ${cambiosCount} marca${cambiosCount === 1 ? "" : "s"}...` : "Cargando..."}
           </p>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition, useEffect } from "react";
+import { VortexLoader } from "@/components/VortexLoader";
 import { useRouter } from "next/navigation";
 import { sueldoEnLetra } from "@vertice/shared/numbers";
 import { crearContratoAction, type ContratoInput } from "./actions";
@@ -398,7 +399,7 @@ export function AltaForm({ sedes, config }: { sedes: Sede[]; config: Record<stri
       {/* Overlay loader */}
       {isPending && (
         <div className="overlay-loader">
-          <div className="loader-vortex-lg" />
+          <VortexLoader size={64} />
           <p className="overlay-loader-text">Generando folio y creando empleado...</p>
         </div>
       )}

@@ -464,13 +464,13 @@
     position: fixed;
     inset: 0;
     z-index: 200;
-    background: rgba(5, 11, 24, 0.75);
-    backdrop-filter: blur(8px);
+    background: rgba(5, 11, 24, 0.82);
+    backdrop-filter: blur(10px);
     display: flex;
     align-items: center;
     justify-content: center;
     flex-direction: column;
-    gap: 16px;
+    gap: 18px;
     animation: fadeIn 0.2s ease-out;
   }
   .overlay-loader-text {
@@ -478,6 +478,53 @@
     font-family: 'Syne', sans-serif;
     font-size: 14px;
     letter-spacing: 0.5px;
+  }
+
+  /* ===== VORTEX LOADER ===== */
+  .vortex-loader-svg {
+    animation: vortexFloat 3.2s ease-in-out infinite;
+    will-change: transform;
+  }
+  @keyframes vortexFloat {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50%      { transform: translateY(-6px) scale(1.04); }
+  }
+  .vortex-face {
+    transform-origin: 100px 100px;
+  }
+  .vortex-face-left {
+    animation: vortexPulseL 1.8s ease-in-out infinite;
+  }
+  .vortex-face-right {
+    animation: vortexPulseR 1.8s ease-in-out infinite;
+  }
+  @keyframes vortexPulseL {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.35; }
+  }
+  @keyframes vortexPulseR {
+    0%, 100% { opacity: 0.35; }
+    50%      { opacity: 1; }
+  }
+  .vortex-seam {
+    animation: vortexSeam 1.8s ease-in-out infinite;
+  }
+  @keyframes vortexSeam {
+    0%, 100% { opacity: 0.4; stroke-width: 1.6; }
+    50%      { opacity: 1; stroke-width: 2.8; }
+  }
+  .vortex-loader-ring {
+    position: absolute;
+    inset: -8%;
+    border-radius: 50%;
+    border: 1.5px solid rgba(59, 130, 246, 0.35);
+    animation: vortexRing 2.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    pointer-events: none;
+  }
+  @keyframes vortexRing {
+    0%   { transform: scale(0.85); opacity: 0; border-color: rgba(59, 130, 246, 0.8); }
+    50%  { opacity: 0.6; }
+    100% { transform: scale(1.18); opacity: 0; border-color: rgba(59, 130, 246, 0.1); }
   }
 
   /* Flash animation cuando se guarda */

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { VortexLoader } from "@/components/VortexLoader";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CODIGO_SPEC, type CodigoAsistencia } from "@vertice/shared/codes";
 import { guardarMarcasBulkAction, type BulkResult } from "./actions";
@@ -425,7 +426,7 @@ export function CalendarioQuickMark(props: Props) {
       {/* Overlay loader full-screen mientras guarda */}
       {isPending && (
         <div className="overlay-loader">
-          <div className="loader-vortex-lg" />
+          <VortexLoader size={64} />
           <p className="overlay-loader-text">Guardando {cambiosCount} marca{cambiosCount === 1 ? "" : "s"}...</p>
         </div>
       )}

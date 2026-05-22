@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { VortexLoader } from "@/components/VortexLoader";
 import { useRouter, useSearchParams } from "next/navigation";
 import { crearTurnoEventualAction, eliminarTurnoEventualAction } from "./actions";
 
@@ -413,7 +414,7 @@ export function EventualesClient(props: Props) {
 
       {isPending && (
         <div className="overlay-loader">
-          <div className="loader-vortex-lg" />
+          <VortexLoader size={64} />
           <p className="overlay-loader-text">Procesando turno eventual...</p>
         </div>
       )}
