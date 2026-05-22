@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/session";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Topbar } from "@/components/Topbar";
+import { Icon } from "@/components/Icon";
 import { TicketThread, type Mensaje, type TicketDetail } from "./TicketThread";
 
 export const dynamic = "force-dynamic";
@@ -19,10 +20,10 @@ export default async function TicketPage({ params }: PageProps) {
   const { data: t, error: tErr } = await supabase
     .from("tickets_soporte")
     .select(`
-      id, folio, tipo, prioridad, estado, fecha_solicitada,
+      id, folio, tipo, prioridad, estado, fecha_solicitada, sede_id, jornada,
       ultimo_ts, apertura_ts, cierre_ts, supervisor_id,
       usuarios:supervisor_id ( nombre, username, rol ),
-      sedes ( abrev, nombre )
+      sedes ( id, abrev, nombre )
     `)
     .eq("id", id)
     .maybeSingle();
@@ -58,7 +59,9 @@ export default async function TicketPage({ params }: PageProps) {
     <main className="min-h-screen overflow-x-hidden text-text">
       <Topbar user={profile} />
       <div className="relative z-10 mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
-        <Link href="/soporte" className="text-xs text-muted hover:text-text">← Tickets</Link>
+        <Link href="/soporte" className="inline-flex items-center gap-1 text-xs text-muted hover:text-text">
+          <Icon name="arrow-left" size={12} /> Tickets
+        </Link>
 
         <header className="mt-2 mb-6 animate-fade-up">
           <div className="flex flex-wrap items-center gap-2">
@@ -82,6 +85,31 @@ export default async function TicketPage({ params }: PageProps) {
               <> · fecha solicitada: <span className="font-mono text-[#FCD34D]">{ticket.fecha_solicitada}</span></>
             )}
           </p>
+
+          {/* Botón "Ir a capturar" — visible cuando el ticket apunta a fecha+sede */}
+          {ticket.fecha_solicitada && ticket.sede_id && ticket.estado !== "CERRADO" && (
+            <div className="mt-4 flex items-stretch gap-2 rounded-xl border border-emerald-400/30 bg-emerald-500/[0.08] p-3 sm:items-center">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-300">
+                <Icon name="calendar" size={18} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-semibold text-emerald-200">
+                  {ticket.supervisor_id === userId ? "Captura tu pase ahora" : "Acceso rápido a captura"}
+                </p>
+                <p className="text-[10px] text-emerald-200/70">
+                  Sede <span className="font-mono">{sede?.abrev ?? "—"}</span>
+                  {ticket.jornada && <> · jornada <span className="font-mono">{ticket.jornada}</span></>}
+                  {" · "}fecha <span className="font-mono">{ticket.fecha_solicitada}</span>
+                </p>
+              </div>
+              <Link
+                href={`/pase-lista?fecha=${ticket.fecha_solicitada}&sede=${ticket.sede_id}${ticket.jornada ? `&jornada=${ticket.jornada}` : ""}`}
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-emerald-500/30 px-3 py-2 text-xs font-semibold text-emerald-100 transition hover:bg-emerald-500/50"
+              >
+                Ir a capturar <Icon name="arrow-right" size={14} />
+              </Link>
+            </div>
+          )}
         </header>
 
         <TicketThread

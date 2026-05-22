@@ -2,6 +2,7 @@
 
 import { useState, useTransition, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { Icon } from "@/components/Icon";
 import { enviarMensajeAction, cerrarTicketAction, liberarFechaDesdeTicketAction } from "../actions";
 
 export interface TicketDetail {
@@ -11,12 +12,14 @@ export interface TicketDetail {
   prioridad: string;
   estado: string;
   fecha_solicitada: string | null;
+  sede_id: string | null;
+  jornada: string | null;
   ultimo_ts: string;
   apertura_ts: string;
   cierre_ts: string | null;
   supervisor_id: string;
   usuarios?: { nombre: string; username: string; rol: string } | { nombre: string; username: string; rol: string }[] | null;
-  sedes?: { abrev: string; nombre: string } | { abrev: string; nombre: string }[] | null;
+  sedes?: { id: string; abrev: string; nombre: string } | { id: string; abrev: string; nombre: string }[] | null;
 }
 
 const HORAS_DEFAULT = 6;
@@ -128,8 +131,14 @@ export function TicketThread({
                           ? "bg-[rgba(59,130,246,0.15)] border border-[rgba(59,130,246,0.4)] text-text"
                           : "bg-[color:var(--surface)] border border-[color:var(--border)] text-text"
                   }`}>
-                    <p className="mb-1 text-[10px] uppercase tracking-tagline text-muted">
-                      {fromSistema ? "⚙ Sistema" : fromSoporte ? "🛟 Recursos Humanos" : "👤 Usuario"}
+                    <p className="mb-1 flex items-center gap-1 text-[10px] uppercase tracking-tagline text-muted">
+                      {fromSistema ? (
+                        <><Icon name="settings" size={11} /> Sistema</>
+                      ) : fromSoporte ? (
+                        <><Icon name="life-buoy" size={11} /> Recursos Humanos</>
+                      ) : (
+                        <><Icon name="user" size={11} /> Usuario</>
+                      )}
                       {!fromSoporte && !fromSistema && displayName && (
                         <span className="ml-1 normal-case">· {displayName}</span>
                       )}
@@ -188,24 +197,25 @@ export function TicketThread({
                   type="button"
                   onClick={liberarFecha}
                   disabled={isPending}
-                  className="rounded-md border border-amber-400/40 bg-amber-500/15 px-3 py-1.5 text-xs font-semibold text-amber-200 transition hover:bg-amber-500/25 disabled:opacity-40"
+                  className="inline-flex items-center gap-1.5 rounded-md border border-amber-400/40 bg-amber-500/15 px-3 py-1.5 text-xs font-semibold text-amber-200 transition hover:bg-amber-500/25 disabled:opacity-40"
                   title={`Libera ${ticket.fecha_solicitada} por ${HORAS_DEFAULT} horas, después se bloquea automáticamente`}
                 >
-                  🔓 Liberar fecha {HORAS_DEFAULT}h
+                  <Icon name="lock-open" size={14} />
+                  Liberar fecha {HORAS_DEFAULT}h
                 </button>
               )}
               {esSoporte && (
-                <button type="button" onClick={cerrar} disabled={isPending} className="btn btn-danger btn-sm">
-                  ✓ Cerrar ticket
+                <button type="button" onClick={cerrar} disabled={isPending} className="btn btn-danger btn-sm inline-flex items-center gap-1.5">
+                  <Icon name="check" size={14} /> Cerrar ticket
                 </button>
               )}
               <button
                 type="button"
                 onClick={enviar}
                 disabled={isPending || !draft.trim()}
-                className="btn btn-primary"
+                className="btn btn-primary inline-flex items-center gap-1.5"
               >
-                {isPending ? (<><span className="loader-vortex-sm" />Enviando...</>) : "📨 Enviar"}
+                {isPending ? (<><span className="loader-vortex-sm" />Enviando...</>) : (<><Icon name="send" size={14} /> Enviar</>)}
               </button>
             </div>
           </div>

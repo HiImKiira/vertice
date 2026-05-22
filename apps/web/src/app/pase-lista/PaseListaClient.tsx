@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { VortexLoader } from "@/components/VortexLoader";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CODIGO_SPEC, CODIGOS, type CodigoAsistencia } from "@vertice/shared/codes";
+import { Icon } from "@/components/Icon";
 import { guardarPaseListaAction, type GuardarResult } from "./actions";
 import { liberarFechaQuickAction } from "../soporte/actions";
 
@@ -259,7 +260,7 @@ export function PaseListaClient(props: Props) {
             ? "border-amber-400/30 bg-amber-400/[0.06] text-amber-200"
             : "border-red-400/40 bg-red-500/[0.08] text-red-300"
         }`}>
-          <span className="text-base sm:text-lg">{props.canEdit ? "⏳" : "⚠"}</span>
+          <Icon name={props.canEdit ? "clock" : "alert-triangle"} size={18} className="shrink-0 mt-0.5" />
           <p className="min-w-0 flex-1 break-words">
             {props.canEdit ? "Período de gracia hasta " : ""}
             <span className="font-mono">{props.graceMsg}</span>
@@ -278,10 +279,10 @@ export function PaseListaClient(props: Props) {
                 });
               }}
               disabled={operacionEnCurso}
-              className="shrink-0 rounded-md border border-amber-400/40 bg-amber-500/15 px-2.5 py-1 text-[10px] font-semibold text-amber-200 transition hover:bg-amber-500/30 disabled:opacity-40"
+              className="shrink-0 inline-flex items-center gap-1 rounded-md border border-amber-400/40 bg-amber-500/15 px-2.5 py-1 text-[10px] font-semibold text-amber-200 transition hover:bg-amber-500/30 disabled:opacity-40"
               title="Solo SUPERADMIN/SOPORTE: libera esta fecha 6h"
             >
-              🔓 Liberar 6h
+              <Icon name="lock-open" size={12} /> Liberar 6h
             </button>
           )}
         </div>
@@ -290,7 +291,7 @@ export function PaseListaClient(props: Props) {
       {/* Botón master para SUPERADMIN/SOPORTE — siempre visible */}
       {props.puedeLiberar && props.canEdit && (
         <div className="mb-4 flex items-center gap-2 rounded-xl border border-emerald-400/20 bg-emerald-500/[0.04] px-3 py-2 text-[11px] text-emerald-200 sm:text-xs">
-          <span className="text-sm">🛟</span>
+          <Icon name="life-buoy" size={16} className="shrink-0" />
           <p className="min-w-0 flex-1">
             <span className="font-semibold">Recursos Humanos · </span>
             Captura libre activa. Para que otros supervisores capturen{" "}
@@ -309,9 +310,9 @@ export function PaseListaClient(props: Props) {
               });
             }}
             disabled={operacionEnCurso}
-            className="shrink-0 rounded-md border border-emerald-400/40 bg-emerald-500/15 px-2.5 py-1 text-[10px] font-semibold text-emerald-200 transition hover:bg-emerald-500/30 disabled:opacity-40"
+            className="shrink-0 inline-flex items-center gap-1 rounded-md border border-emerald-400/40 bg-emerald-500/15 px-2.5 py-1 text-[10px] font-semibold text-emerald-200 transition hover:bg-emerald-500/30 disabled:opacity-40"
           >
-            🔓 Liberar 6h
+            <Icon name="lock-open" size={12} /> Liberar 6h
           </button>
         </div>
       )}
