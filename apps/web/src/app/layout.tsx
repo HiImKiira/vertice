@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import type { Metadata, Viewport } from "next";
 import { ParticlesBg } from "@/components/ParticlesBg";
 import { NavigationLoader } from "@/components/NavigationLoader";
+import { ZoomBlocker } from "@/components/ZoomBlocker";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -29,6 +30,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="es">
       <body>
+        <ZoomBlocker />
         <ParticlesBg />
         <Suspense fallback={null}>
           <NavigationLoader />

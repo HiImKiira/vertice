@@ -188,18 +188,30 @@ export async function liberarFechaDesdeTicketAction(
     return { ok: false, error: "Este ticket no tiene fecha solicitada. Usa el botón de Pase de Lista." };
   }
 
-  // RPC liberar_fecha
-  const { data: expiraRaw, error: lErr } = await auth.sb.rpc("liberar_fecha", {
-    p_fecha: ticket.fecha_solicitada,
-    p_horas: horas,
-    p_motivo: `Liberada desde ticket ${ticket.folio} por ${horas} hrs`,
-  });
+  // Liberar fecha — insert directo a la tabla (independiente del cache de PostgREST)
+  const expira = new Date(Date.now() + horas * 3600 * 1000).toISOString();
+  const admin0 = supabaseAdmin();
+  const basePayload = {
+    fecha: ticket.fecha_solicitada,
+    liberado_por: auth.userId,
+    motivo: `Liberada desde ticket ${ticket.folio} por ${horas} hrs`,
+    activo: true,
+  };
+  // Intento 1: con expira_en (v7 aplicada)
+  let lErr = (await admin0.from("fechas_liberadas").upsert(
+    { ...basePayload, expira_en: expira },
+    { onConflict: "fecha" },
+  )).error;
+  // Fallback: sin expira_en (v7 no aplicada todavía — degrada a liberación indefinida)
+  if (lErr && /expira_en/i.test(lErr.message)) {
+    lErr = (await admin0.from("fechas_liberadas").upsert(
+      basePayload,
+      { onConflict: "fecha" },
+    )).error;
+  }
   if (lErr) return { ok: false, error: `Liberar: ${lErr.message}` };
 
-  const expira = expiraRaw as string | null;
-  const expiraTxt = expira
-    ? new Date(expira).toLocaleString("es-MX", { dateStyle: "short", timeStyle: "short" })
-    : "sin expira";
+  const expiraTxt = new Date(expira).toLocaleString("es-MX", { dateStyle: "short", timeStyle: "short" });
 
   // Mensaje SISTEMA en el thread
   const msg = `🔓 Fecha ${ticket.fecha_solicitada} liberada por ${horas} hora${horas === 1 ? "" : "s"} (expira ${expiraTxt}). Captura tu pase ahora antes de que se bloquee.`;
@@ -242,11 +254,21 @@ export async function liberarFechaQuickAction(
   const esSoporte = ["ADMIN", "SUPERADMIN", "CEO", "SOPORTE"].includes(auth.rol!);
   if (!esSoporte) return { ok: false, error: "Solo soporte puede liberar fechas." };
 
-  const { error } = await auth.sb.rpc("liberar_fecha", {
-    p_fecha: fecha,
-    p_horas: horas,
-    p_motivo: `Liberación rápida de ${horas} hrs desde pase-lista`,
-  });
+  const expira = new Date(Date.now() + horas * 3600 * 1000).toISOString();
+  const admin = supabaseAdmin();
+  const basePayload = {
+    fecha,
+    liberado_por: auth.userId,
+    motivo: `Liberación rápida de ${horas} hrs desde pase-lista`,
+    activo: true,
+  };
+  let error = (await admin.from("fechas_liberadas").upsert(
+    { ...basePayload, expira_en: expira },
+    { onConflict: "fecha" },
+  )).error;
+  if (error && /expira_en/i.test(error.message)) {
+    error = (await admin.from("fechas_liberadas").upsert(basePayload, { onConflict: "fecha" })).error;
+  }
   if (error) return { ok: false, error: error.message };
 
   revalidatePath("/pase-lista");
