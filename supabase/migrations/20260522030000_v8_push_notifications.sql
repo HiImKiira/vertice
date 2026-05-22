@@ -161,7 +161,10 @@ begin
   end if;
 end$$;
 
--- Cada 3 horas — el endpoint hace su propio quiet-hours check
+-- Cada 3 horas — el endpoint hace su propio quiet-hours check.
+-- El secret va embebido directamente porque ALTER DATABASE requiere superuser
+-- (no disponible en Supabase). Si cambias CRON_SECRET en Vercel, vuelve a
+-- correr este bloque con el valor nuevo.
 select cron.schedule(
   'vortex_notify_pendientes',
   '0 */3 * * *',
@@ -170,7 +173,7 @@ select cron.schedule(
       url := 'https://vertice-rosy.vercel.app/api/cron/notify-pendientes',
       headers := jsonb_build_object(
         'Content-Type', 'application/json',
-        'x-cron-secret', current_setting('app.cron_secret', true)
+        'x-cron-secret', 'vortex_cron_a8e3f9c2b1d7e4a6f8c0b3d5e7a9c1b3'
       )
     );
   $cron$
