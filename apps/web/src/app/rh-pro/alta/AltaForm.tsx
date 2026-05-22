@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { sueldoEnLetra } from "@vertice/shared/numbers";
 import { crearContratoAction, type ContratoInput } from "./actions";
 
 interface Sede { id: string; codigo: string; abrev: string; nombre: string; ultimo_folio: number }
@@ -23,6 +24,7 @@ export function AltaForm({ sedes, config }: { sedes: Sede[]; config: Record<stri
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<{ folio: string; empleadoId: string; pdfUrl: string | null; pdfError?: string | undefined } | null>(null);
+  const [autoLetra, setAutoLetra] = useState(true);
 
   // Estado del form (con defaults de config)
   const [f, setF] = useState({
@@ -49,6 +51,14 @@ export function AltaForm({ sedes, config }: { sedes: Sede[]; config: Record<stri
     dia_descanso_texto: config.DIA_DESCANSO_DEFAULT ?? "Domingo",
     observaciones: "",
   });
+
+  // Auto-genera el sueldo en letra cuando cambia el monto numérico (si auto activo)
+  useEffect(() => {
+    if (!autoLetra) return;
+    if (!f.sueldo_mensual || f.sueldo_mensual <= 0) return;
+    const letra = sueldoEnLetra(f.sueldo_mensual);
+    setF((prev) => (prev.sueldo_mensual_letra === letra ? prev : { ...prev, sueldo_mensual_letra: letra }));
+  }, [f.sueldo_mensual, autoLetra]);
 
   const sedeActual = useMemo(() => sedes.find((s) => s.id === f.sede_id), [sedes, f.sede_id]);
   const folioPreview = sedeActual
@@ -251,13 +261,29 @@ export function AltaForm({ sedes, config }: { sedes: Sede[]; config: Record<stri
             />
           </div>
           <div className="field sm:col-span-3">
-            <label>Sueldo mensual en letra (para el contrato) *</label>
+            <div className="flex items-baseline justify-between">
+              <label>Sueldo mensual en letra (para el contrato) *</label>
+              <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-tagline text-muted">
+                <input
+                  type="checkbox"
+                  checked={autoLetra}
+                  onChange={(e) => setAutoLetra(e.target.checked)}
+                  className="accent-[color:var(--blue)]"
+                />
+                Auto
+              </label>
+            </div>
             <input
               type="text"
               value={f.sueldo_mensual_letra}
-              onChange={(e) => set("sueldo_mensual_letra", e.target.value.toUpperCase())}
+              onChange={(e) => { set("sueldo_mensual_letra", e.target.value.toUpperCase()); setAutoLetra(false); }}
               placeholder="NUEVE MIL CUATROCIENTOS CINCUENTA Y UN PESOS 20/100 MONEDA NACIONAL"
             />
+            {autoLetra && (
+              <p className="mt-1 text-[10px] text-muted-2">
+                ↻ Auto-generado desde el monto. Edita aquí para sobreescribir manualmente.
+              </p>
+            )}
           </div>
         </div>
       </section>

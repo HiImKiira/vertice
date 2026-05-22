@@ -59,6 +59,9 @@ export default async function RHProPage() {
             <p className={`role-badge role-${profile.rol} mb-2`}>{profile.rol}</p>
             <h1 className="font-display text-3xl sm:text-4xl">RH Pro · Gestión de Personal</h1>
             <p className="mt-1 text-sm text-muted">Altas, bajas, incidencias y seguimiento de supervisores.</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Link href="/rh-pro/contratos" className="btn btn-ghost btn-sm">📋 Ver todos los contratos</Link>
+            </div>
           </div>
           <div className="flex flex-wrap gap-3">
             <KPI label="Empleados" value={String(totalEmp ?? 0)} color="blue" />
@@ -98,10 +101,9 @@ export default async function RHProPage() {
               iconBg="rgba(239,68,68,0.12)"
               iconBorder="rgba(239,68,68,0.3)"
               title="Baja de empleado"
-              sub="Marca como BAJA. Deja de aparecer en pase de lista."
+              sub="Marca como BAJA con motivo + fecha. Deja de aparecer en pase de lista, conserva su historial."
               badge="ADMIN / SUPERADMIN"
               badgeCls="pill pill-red"
-              disabled
             />
             <ActionCard
               href="/rh-pro/escanear"

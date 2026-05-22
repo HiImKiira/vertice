@@ -9,7 +9,8 @@
     ".": "./src/index.ts",
     "./codes": "./src/codes.ts",
     "./roles": "./src/roles.ts",
-    "./types": "./src/types.ts"
+    "./types": "./src/types.ts",
+    "./numbers": "./src/numbers.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
