@@ -33,72 +33,58 @@ function detectPlatform(): "ios" | "android" | "desktop" {
   return "desktop";
 }
 
-async function subscribeThisDevice(): Promise<{ ok: boolean; error?: string }> {
+/**
+ * Suscribe el dispositivo. IMPORTANTE: iOS Safari exige que
+ * Notification.requestPermission() se llame SINCRÓNICAMENTE dentro del
+ * click handler (no en setTimeout, useTransition, etc). Por eso esa parte
+ * vive en handleSuscribir directamente; aquí solo recibimos la decisión.
+ */
+async function completeSubscription(
+  log: (s: string) => void,
+): Promise<{ ok: boolean; error?: string }> {
   try {
-    if (!("serviceWorker" in navigator)) return { ok: false, error: "El navegador no soporta service workers." };
-    if (!("PushManager" in window)) return { ok: false, error: "El navegador no soporta push notifications." };
-    if (!("Notification" in window)) return { ok: false, error: "El navegador no soporta notificaciones." };
-    if (!VAPID_PUBLIC_KEY) return { ok: false, error: "VAPID_PUBLIC_KEY no configurada en cliente. Avisa a soporte." };
+    if (!VAPID_PUBLIC_KEY) return { ok: false, error: "VAPID_PUBLIC_KEY no configurada en cliente." };
 
-    let perm: NotificationPermission;
-    try {
-      perm = await Notification.requestPermission();
-    } catch (e) {
-      return { ok: false, error: `requestPermission falló: ${(e as Error).message}` };
-    }
-    if (perm !== "granted") {
-      return { ok: false, error: perm === "denied"
-        ? "Permiso denegado. Ve a Ajustes del navegador → Notificaciones → permitir Vortex."
-        : "Permiso no concedido." };
-    }
-
-    // 1) Asegurar SW registrado
+    log("Registrando service worker...");
     let reg: ServiceWorkerRegistration | undefined;
     try {
       reg = await navigator.serviceWorker.getRegistration("/");
       if (!reg) reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
     } catch (e) {
-      return { ok: false, error: `No se pudo registrar el service worker: ${(e as Error).message}` };
+      return { ok: false, error: `Service worker register: ${(e as Error).message}` };
     }
     try {
       await navigator.serviceWorker.ready;
     } catch (e) {
-      return { ok: false, error: `Service worker no listo: ${(e as Error).message}` };
+      return { ok: false, error: `Service worker ready: ${(e as Error).message}` };
     }
-    if (!reg) return { ok: false, error: "Service worker no disponible tras el registro." };
+    if (!reg) return { ok: false, error: "Service worker no disponible." };
 
-    // 2) Obtener o crear subscription
+    log("Generando subscription...");
     let sub: PushSubscription | null;
     try {
       sub = await reg.pushManager.getSubscription();
     } catch (e) {
-      return { ok: false, error: `getSubscription falló: ${(e as Error).message}` };
+      return { ok: false, error: `getSubscription: ${(e as Error).message}` };
     }
     if (!sub) {
       try {
         const keyBytes = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
-        // Crear ArrayBuffer limpio que no sea SharedArrayBuffer
         const buf = new ArrayBuffer(keyBytes.byteLength);
         new Uint8Array(buf).set(keyBytes);
-        sub = await reg.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: buf,
-        });
+        sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: buf });
       } catch (e) {
-        const err = e as Error;
-        const detail = err?.message ?? String(e);
-        // Errores típicos: NotAllowedError, InvalidStateError, AbortError
-        return { ok: false, error: `pushManager.subscribe falló: ${detail}` };
+        return { ok: false, error: `pushManager.subscribe: ${(e as Error).message ?? String(e)}` };
       }
     }
     if (!sub) return { ok: false, error: "No se pudo obtener subscription del navegador." };
 
     const j = sub.toJSON();
-    if (!j.endpoint || !j.keys || !j.keys.p256dh || !j.keys.auth) {
-      return { ok: false, error: "Subscription del navegador incompleta (falta endpoint o keys)." };
+    if (!j.endpoint || !j.keys?.p256dh || !j.keys?.auth) {
+      return { ok: false, error: "Subscription incompleta (falta endpoint o keys)." };
     }
 
-    // 3) Enviar al servidor
+    log("Guardando en servidor...");
     try {
       const res = await fetch("/api/push/subscribe", {
         method: "POST",
@@ -111,12 +97,11 @@ async function subscribeThisDevice(): Promise<{ ok: boolean; error?: string }> {
       }
       return { ok: true };
     } catch (e) {
-      return { ok: false, error: `Fetch /api/push/subscribe falló: ${(e as Error).message}` };
+      return { ok: false, error: `Fetch subscribe: ${(e as Error).message}` };
     }
   } catch (e) {
-    // Catch-all defensivo: nunca debería propagar a React
-    console.error("[PushControls] subscribeThisDevice unhandled:", e);
-    return { ok: false, error: e instanceof Error ? e.message : "Error desconocido al suscribir" };
+    console.error("[PushControls] completeSubscription unhandled:", e);
+    return { ok: false, error: e instanceof Error ? e.message : "Error desconocido" };
   }
 }
 
@@ -141,8 +126,10 @@ export function PushControls({ compact = false }: { compact?: boolean }) {
   const [phase, setPhase] = useState<Phase>("loading");
   const [status, setStatus] = useState<StatusResp | null>(null);
   const [pending, start] = useTransition();
+  const [running, setRunning] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [platform, setPlatform] = useState<"ios" | "android" | "desktop">("desktop");
+  const busy = pending || running;
 
   async function recompute() {
     try {
@@ -202,48 +189,86 @@ export function PushControls({ compact = false }: { compact?: boolean }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function handleSuscribir() {
-    setMsg(null);
-    start(async () => {
-      try {
-        const r = await subscribeThisDevice();
-        if (r.ok) {
-          setMsg("Listo. Este dispositivo ya recibe notificaciones.");
-          await recompute();
-        } else {
-          setMsg(r.error ?? "Error al suscribir.");
-        }
-      } catch (e) {
-        // Catch-all final: nunca propagar a React
-        console.error("[PushControls] handleSuscribir caught:", e);
-        setMsg(`Error inesperado: ${e instanceof Error ? e.message : "desconocido"}`);
+  /**
+   * Click handler. iOS Safari exige que Notification.requestPermission()
+   * se llame sincronamente desde el user gesture. Por eso NO usamos
+   * useTransition aquí — ejecutamos la primera parte inline.
+   */
+  async function handleSuscribir() {
+    setRunning(true);
+    try {
+      setMsg("Solicitando permiso...");
+      console.log("[PushControls] click Activar — pidiendo permiso");
+
+      if (!("Notification" in window)) {
+        setMsg("Tu navegador no soporta notificaciones.");
+        return;
       }
-    });
+      if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+        setMsg("Tu navegador no soporta service workers o push.");
+        return;
+      }
+
+      let perm: NotificationPermission;
+      try {
+        perm = await Notification.requestPermission();
+      } catch (e) {
+        setMsg(`No se pudo pedir el permiso: ${(e as Error).message}`);
+        return;
+      }
+      console.log("[PushControls] permiso →", perm);
+
+      if (perm === "denied") {
+        setMsg("Permiso DENEGADO. Activa en: ajustes del navegador → permisos del sitio → notificaciones → Permitir.");
+        await recompute();
+        return;
+      }
+      if (perm !== "granted") {
+        setMsg(`Permiso quedó en "${perm}". Vuelve a intentar y acepta el prompt.`);
+        await recompute();
+        return;
+      }
+
+      // Permiso OK → resto en background
+      const r = await completeSubscription(setMsg);
+      if (r.ok) {
+        setMsg("Listo. Notificaciones activas en este dispositivo.");
+        await recompute();
+      } else {
+        setMsg(r.error ?? "Error al suscribir.");
+      }
+    } catch (e) {
+      console.error("[PushControls] handleSuscribir caught:", e);
+      setMsg(`Error inesperado: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setRunning(false);
+    }
   }
 
   async function handleTest() {
-    setMsg(null);
-    start(async () => {
-      try {
-        const res = await fetch("/api/push/test", { method: "POST" });
-        const ct = res.headers.get("content-type") ?? "";
-        let j: { enviados?: number; fallidos?: number; error?: string };
-        if (ct.includes("application/json")) {
-          j = await res.json().catch(() => ({ error: "Respuesta inválida" }));
-        } else {
-          const txt = await res.text().catch(() => "");
-          j = { error: `Respuesta no-JSON: ${txt.slice(0, 100)}` };
-        }
-        if (res.ok) {
-          setMsg(`Push de prueba enviado a ${j.enviados ?? 0} dispositivo${j.enviados === 1 ? "" : "s"}. Revisa tu barra de notificaciones.`);
-        } else {
-          setMsg(`Error: ${j.error}`);
-        }
-      } catch (e) {
-        console.error("[PushControls] handleTest caught:", e);
-        setMsg(`Error de red: ${e instanceof Error ? e.message : "desconocido"}`);
+    setRunning(true);
+    setMsg("Enviando push de prueba...");
+    try {
+      const res = await fetch("/api/push/test", { method: "POST" });
+      const ct = res.headers.get("content-type") ?? "";
+      let j: { enviados?: number; fallidos?: number; error?: string };
+      if (ct.includes("application/json")) {
+        j = await res.json().catch(() => ({ error: "Respuesta inválida" }));
+      } else {
+        const txt = await res.text().catch(() => "");
+        j = { error: `Respuesta no-JSON: ${txt.slice(0, 100)}` };
       }
-    });
+      if (res.ok) {
+        setMsg(`Push de prueba enviado a ${j.enviados ?? 0} dispositivo${j.enviados === 1 ? "" : "s"}. Revisa tu barra de notificaciones.`);
+      } else {
+        setMsg(`Error: ${j.error}`);
+      }
+    } catch (e) {
+      console.error("[PushControls] handleTest caught:", e);
+      setMsg(`Error de red: ${e instanceof Error ? e.message : "desconocido"}`);
+    } finally {
+      setRunning(false);
+    }
   }
 
   // ────────────────────────────────────────────────────────────────────
@@ -302,10 +327,10 @@ export function PushControls({ compact = false }: { compact?: boolean }) {
         <button
           type="button"
           onClick={handleSuscribir}
-          disabled={pending}
+          disabled={busy}
           className="shrink-0 rounded-md bg-blue-500/80 px-2.5 py-1 text-[10px] font-semibold text-white hover:bg-blue-500 disabled:opacity-40"
         >
-          {pending ? "..." : "Activar"}
+          {busy ? "..." : "Activar"}
         </button>
       </div>
     );
@@ -345,18 +370,18 @@ export function PushControls({ compact = false }: { compact?: boolean }) {
           <button
             type="button"
             onClick={handleSuscribir}
-            disabled={pending}
+            disabled={busy}
             className="inline-flex items-center gap-1.5 rounded-md bg-blue-500/80 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-500 disabled:opacity-40"
           >
             <Icon name="check" size={14} />
-            {pending ? "Suscribiendo..." : "Suscribir este dispositivo"}
+            {busy ? "Suscribiendo..." : "Suscribir este dispositivo"}
           </button>
         )}
         {yaSuscrito && (
           <button
             type="button"
             onClick={handleTest}
-            disabled={pending}
+            disabled={busy}
             className="inline-flex items-center gap-1.5 rounded-md border border-blue-400/40 bg-blue-500/15 px-3 py-1.5 text-xs font-semibold text-blue-200 hover:bg-blue-500/30 disabled:opacity-40"
           >
             <Icon name="send" size={14} />
@@ -366,7 +391,7 @@ export function PushControls({ compact = false }: { compact?: boolean }) {
         <button
           type="button"
           onClick={() => { recompute(); }}
-          disabled={pending}
+          disabled={busy}
           className="inline-flex items-center gap-1.5 rounded-md border border-white/10 px-3 py-1.5 text-xs text-muted hover:text-text disabled:opacity-40"
         >
           <Icon name="refresh" size={12} /> Refrescar
