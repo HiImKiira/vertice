@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireUser } from "@/lib/session";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Topbar } from "@/components/Topbar";
+import { AnnouncementPanel } from "./AnnouncementPanel";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Soporte" };
@@ -68,6 +69,9 @@ export default async function SoportePage() {
             + Nuevo ticket
           </Link>
         </header>
+
+        {/* Panel de notificaciones push (solo soporte/admin) */}
+        {esSoporte && <AnnouncementPanel />}
 
         {/* KPIs */}
         <div className="mb-6 grid gap-2 sm:grid-cols-3 animate-fade-up delay-100">

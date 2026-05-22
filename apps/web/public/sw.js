@@ -8,7 +8,7 @@
  *
  * Para forzar el refresh del SW en producción: cambiar CACHE_VERSION.
  */
-const CACHE_VERSION = "vortex-v1";
+const CACHE_VERSION = "vortex-v2";
 const SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const SHELL_FILES = [
   "/manifest.webmanifest",
@@ -74,5 +74,48 @@ self.addEventListener("fetch", (event) => {
   // HTML / dynamic: network-first
   event.respondWith(
     fetch(req).catch(() => caches.match(req)),
+  );
+});
+
+// ─────────────────────────────────────────────────────────────────────
+// Push notifications
+// ─────────────────────────────────────────────────────────────────────
+self.addEventListener("push", (event) => {
+  let payload = { title: "Vortex", body: "Hay novedades.", url: "/dashboard", tag: "vortex" };
+  if (event.data) {
+    try {
+      payload = { ...payload, ...event.data.json() };
+    } catch {
+      payload.body = event.data.text();
+    }
+  }
+  const options = {
+    body: payload.body,
+    icon: payload.icon || "/icons/icon-192.png",
+    badge: "/icons/icon-192.png",
+    tag: payload.tag,
+    data: { url: payload.url, ...(payload.data || {}) },
+    vibrate: [200, 100, 200],
+    requireInteraction: false,
+  };
+  event.waitUntil(self.registration.showNotification(payload.title, options));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || "/dashboard";
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+      // Si ya hay una ventana abierta, enfócala y navega
+      for (const client of clients) {
+        if ("focus" in client) {
+          client.focus();
+          if ("navigate" in client) client.navigate(url);
+          return;
+        }
+      }
+      // Si no, abre una nueva
+      return self.clients.openWindow(url);
+    }),
   );
 });
