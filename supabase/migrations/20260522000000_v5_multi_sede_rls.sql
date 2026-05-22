@@ -9,17 +9,11 @@ returns setof uuid
 language sql stable security definer
 set search_path = public
 as $$
-  -- 1) Sedes asignadas activamente vía asignaciones_supervisor (multi-sede)
+  -- Sedes asignadas activamente vía asignaciones_supervisor (multi-sede)
   select sede_id
   from asignaciones_supervisor
   where usuario_id = auth.uid()
-    and activo = true
-  union
-  -- 2) Compatibilidad: sede directa en usuarios.sede_id (modelo viejo)
-  select sede_id
-  from usuarios
-  where id = auth.uid()
-    and sede_id is not null;
+    and activo = true;
 $$;
 
 -- EMPLEADOS
