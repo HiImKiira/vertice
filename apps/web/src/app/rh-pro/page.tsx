@@ -12,13 +12,48 @@ export default async function RHProPage() {
   requireAdminLike(profile.rol);
   const supabase = await createSupabaseServerClient();
 
-  // Resumen de operación
-  const [{ count: totalEmp }, { count: totalActivos }, { count: totalSedes }, { count: totalAsign }] = await Promise.all([
+  // Quincena actual (Mérida = UTC-6)
+  const ahora = new Date();
+  ahora.setHours(ahora.getHours() - 6);
+  const ymd = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const day = ahora.getDate();
+  const y = ahora.getFullYear();
+  const m = ahora.getMonth();
+  const qStart = day <= 15 ? new Date(y, m, 1) : new Date(y, m, 16);
+  const qEnd = day <= 15 ? new Date(y, m, 15) : new Date(y, m + 1, 0);
+  const qStartIso = ymd(qStart);
+  const qEndIso = ymd(qEnd);
+  const qLabel = day <= 15 ? "Q1" : "Q2";
+
+  // Resumen de operación + asistencias de la quincena
+  const [
+    { count: totalEmp },
+    { count: totalActivos },
+    { count: totalSedes },
+    { count: totalAsign },
+    { count: totalSedesActivas },
+    { count: asistQuincena },
+  ] = await Promise.all([
     supabase.from("empleados").select("id", { count: "exact", head: true }),
     supabase.from("empleados").select("id", { count: "exact", head: true }).is("fecha_baja", null),
     supabase.from("sedes").select("id", { count: "exact", head: true }),
     supabase.from("asignaciones_supervisor").select("id", { count: "exact", head: true }).eq("activo", true),
+    supabase.from("sedes").select("id", { count: "exact", head: true }).or("activa.is.null,activa.eq.true"),
+    supabase
+      .from("asistencias")
+      .select("id", { count: "exact", head: true })
+      .gte("fecha", qStartIso)
+      .lte("fecha", qEndIso),
   ]);
+
+  // Asistencias esperadas: empleados_activos × días transcurridos de la quincena
+  const diasTrans = Math.min(
+    Math.floor((ahora.getTime() - qStart.getTime()) / 86_400_000) + 1,
+    Math.floor((qEnd.getTime() - qStart.getTime()) / 86_400_000) + 1,
+  );
+  const esperadas = (totalActivos ?? 0) * Math.max(1, diasTrans);
+  const pctQuincena = esperadas > 0 ? Math.round(((asistQuincena ?? 0) / esperadas) * 100) : 0;
 
   // TODOS los usuarios (activos) — para que aparezcan en el editor aunque no tengan asignaciones
   const { data: usuariosRaw } = await supabase
@@ -69,15 +104,21 @@ export default async function RHProPage() {
             <h1 className="font-display text-3xl sm:text-4xl">RH Pro · Gestión de Personal</h1>
             <p className="mt-1 text-sm text-muted">Altas, bajas, incidencias y seguimiento de supervisores.</p>
             <div className="mt-3 flex flex-wrap gap-2">
+              <Link href="/rh-pro/sedes" className="btn btn-ghost btn-sm">🏢 Sedes activas</Link>
               <Link href="/rh-pro/contratos" className="btn btn-ghost btn-sm">📋 Ver todos los contratos</Link>
               <Link href="/descansos" className="btn btn-ghost btn-sm">🛌 Cambios de descanso</Link>
             </div>
           </div>
           <div className="flex flex-wrap gap-3">
-            <KPI label="Empleados" value={String(totalEmp ?? 0)} color="blue" />
-            <KPI label="Activos" value={String(totalActivos ?? 0)} color="green" />
-            <KPI label="Sedes" value={String(totalSedes ?? 0)} color="violet" />
+            <KPI label="Activos" value={String(totalActivos ?? 0)} sub={`/${totalEmp ?? 0}`} color="green" />
+            <KPI label="Sedes activas" value={String(totalSedesActivas ?? 0)} sub={`/${totalSedes ?? 0}`} color="violet" />
             <KPI label="Asignaciones" value={String(totalAsign ?? 0)} color="amber" />
+            <KPI
+              label={`${qLabel} · ${qStartIso.slice(5)}↔${qEndIso.slice(5)}`}
+              value={String(asistQuincena ?? 0)}
+              sub={`${pctQuincena}%`}
+              color="blue"
+            />
           </div>
         </header>
 
@@ -85,6 +126,16 @@ export default async function RHProPage() {
         <section className="mb-10 animate-fade-up delay-100">
           <div className="section-label">Operaciones de personal</div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <ActionCard
+              href="/rh-pro/sedes"
+              icon="🏢"
+              iconBg="rgba(139,92,246,0.12)"
+              iconBorder="rgba(139,92,246,0.3)"
+              title="Sedes activas"
+              sub="Alta, edición, activar/desactivar sedes. Solo se ven en captura las activas."
+              badge="ADMIN / SUPERADMIN"
+              badgeCls="pill pill-violet"
+            />
             <ActionCard
               href="/rh-pro/empleados"
               icon="📅"
@@ -203,7 +254,7 @@ export default async function RHProPage() {
   );
 }
 
-function KPI({ label, value, color }: { label: string; value: string; color: "blue" | "green" | "violet" | "amber" }) {
+function KPI({ label, value, sub, color }: { label: string; value: string; sub?: string; color: "blue" | "green" | "violet" | "amber" }) {
   const cls = {
     blue:   "border-[rgba(59,130,246,0.35)] bg-[rgba(59,130,246,0.08)] text-[#93C5FD]",
     green:  "border-[rgba(16,185,129,0.35)] bg-[rgba(16,185,129,0.08)] text-[#6EE7B7]",
@@ -212,7 +263,10 @@ function KPI({ label, value, color }: { label: string; value: string; color: "bl
   }[color];
   return (
     <div className={`rounded-xl border px-4 py-2.5 ${cls}`}>
-      <div className="font-display text-xl leading-none">{value}</div>
+      <div className="font-display text-xl leading-none">
+        {value}
+        {sub && <span className="ml-1 text-xs opacity-70">{sub}</span>}
+      </div>
       <div className="mt-1 text-[10px] uppercase tracking-tagline opacity-70">{label}</div>
     </div>
   );

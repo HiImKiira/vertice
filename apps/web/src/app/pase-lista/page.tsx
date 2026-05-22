@@ -53,9 +53,13 @@ export default async function PaseListaPage({ searchParams }: PageProps) {
 
   const isAdmin = profile.rol === "ADMIN" || profile.rol === "SUPERADMIN" || profile.rol === "CEO";
 
-  // Si admin sin asignaciones, traerle todas las sedes
+  // Si admin sin asignaciones, traerle todas las sedes activas
   if (isAdmin && !asignaciones.length) {
-    const { data } = await supabase.from("sedes").select("id, codigo, abrev, nombre").order("nombre");
+    const { data } = await supabase
+      .from("sedes")
+      .select("id, codigo, abrev, nombre")
+      .or("activa.is.null,activa.eq.true")
+      .order("nombre");
     for (const s of (data ?? []) as SedeShape[]) {
       asignaciones.push({ sede: s, jornadas: ["MATUTINO", "VESPERTINO", "NOCTURNO"] });
     }

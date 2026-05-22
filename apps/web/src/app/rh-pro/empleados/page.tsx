@@ -35,10 +35,11 @@ export default async function RHEmpleadosPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const mes = params.mes?.match(/^\d{4}-\d{2}$/) ? params.mes : currentYearMonth();
 
-  // Todas las sedes con conteo de empleados activos
+  // Todas las sedes ACTIVAS con conteo de empleados activos
   const { data: sedesRaw } = await supabase
     .from("sedes")
     .select("id, codigo, abrev, nombre")
+    .or("activa.is.null,activa.eq.true")
     .order("nombre");
   const sedes = (sedesRaw ?? []) as SedeShape[];
 

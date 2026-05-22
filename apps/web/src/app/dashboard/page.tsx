@@ -102,6 +102,15 @@ function modulosFor(rol: string): Modulo[] {
       badge: { label: "ADMIN+", cls: "pill pill-green" },
     },
     {
+      href: "/rh-pro/sedes",
+      icon: "🏢",
+      iconBg: "rgba(139,92,246,0.12)",
+      iconBorder: "rgba(139,92,246,0.3)",
+      title: "Sedes activas",
+      sub: "Da de alta, edita, activa o elimina sedes.",
+      badge: { label: "ADMIN+", cls: "pill pill-violet" },
+    },
+    {
       href: "/reportes",
       icon: "📊",
       iconBg: "rgba(201,169,97,0.12)",
@@ -113,7 +122,7 @@ function modulosFor(rol: string): Modulo[] {
   ];
 
   const adminLike = ["ADMIN", "SUPERADMIN", "CEO", "SOPORTE"].includes(rol);
-  const adminOnly = new Set(["/rh-pro", "/rh-pro/empleados", "/rh-pro/contratos", "/reportes"]);
+  const adminOnly = new Set(["/rh-pro", "/rh-pro/empleados", "/rh-pro/contratos", "/rh-pro/sedes", "/reportes"]);
   return all.filter((m) => (adminOnly.has(m.href) ? adminLike : true));
 }
 
