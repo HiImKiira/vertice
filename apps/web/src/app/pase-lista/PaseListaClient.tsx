@@ -78,6 +78,20 @@ const CLS_BADGE: Record<"asist" | "falta" | "incid" | "pend", { letter: string; 
   pend:  { letter: "·", bg: "rgba(255,255,255,0.03)", ring: "rgba(255,255,255,0.08)", text: "#71717a" },
 };
 
+// Colores por jornada — chip visible en cada renglón para que el supervisor
+// identifique de un vistazo a qué turno pertenece cada empleado.
+const JORNADA_STYLE: Record<string, { label: string; bg: string; text: string; border: string }> = {
+  MATUTINO:        { label: "MAT", bg: "rgba(245,158,11,0.15)", text: "#FCD34D", border: "rgba(245,158,11,0.35)" },
+  VESPERTINO:      { label: "VES", bg: "rgba(249,115,22,0.15)", text: "#FDBA74", border: "rgba(249,115,22,0.35)" },
+  NOCTURNO:        { label: "NOC", bg: "rgba(139,92,246,0.18)", text: "#C4B5FD", border: "rgba(139,92,246,0.4)"  },
+  TURNO_ROTATIVO:  { label: "ROT", bg: "rgba(6,182,212,0.15)",  text: "#67E8F9", border: "rgba(6,182,212,0.35)"  },
+  CUBRETURNOS:     { label: "CUB", bg: "rgba(20,184,166,0.15)", text: "#5EEAD4", border: "rgba(20,184,166,0.35)" },
+  DIURNO:          { label: "DIA", bg: "rgba(34,197,94,0.15)",  text: "#86EFAC", border: "rgba(34,197,94,0.35)"  },
+};
+function jornadaChip(j: string) {
+  return JORNADA_STYLE[j] ?? { label: j.slice(0, 3), bg: "rgba(255,255,255,0.06)", text: "#94a3b8", border: "rgba(255,255,255,0.15)" };
+}
+
 export function PaseListaClient(props: Props) {
   const router = useRouter();
   const params = useSearchParams();
@@ -256,7 +270,7 @@ export function PaseListaClient(props: Props) {
             <span className="text-gradient-blue">{props.jornada}</span>
           </h1>
           <p className="mt-1 truncate text-[11px] text-muted sm:text-xs">
-            {sedeActual?.nombre ?? "—"} · {stats.total} empleado{stats.total === 1 ? "" : "s"}
+            {sedeActual?.nombre ?? "—"} · {stats.total} empleado{stats.total === 1 ? "" : "s"} (todas las jornadas)
           </p>
         </div>
       </section>
@@ -556,7 +570,21 @@ export function PaseListaClient(props: Props) {
                     {badge.letter}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-text sm:text-base">{emp.nombre}</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="min-w-0 truncate text-sm font-medium text-text sm:text-base">{emp.nombre}</p>
+                      {(() => {
+                        const j = jornadaChip(emp.jornada);
+                        return (
+                          <span
+                            className="shrink-0 rounded px-1.5 py-0.5 font-mono text-[9px] font-bold"
+                            style={{ background: j.bg, color: j.text, border: `1px solid ${j.border}` }}
+                            title={emp.jornada}
+                          >
+                            {j.label}
+                          </span>
+                        );
+                      })()}
+                    </div>
                     {meta && (
                       <p className="truncate text-[10px] text-muted-2" title={meta.ts ? new Date(meta.ts).toLocaleString("es-MX") : ""}>
                         por <span className="font-mono">@{meta.username}</span>

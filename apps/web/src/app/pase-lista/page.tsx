@@ -77,12 +77,16 @@ export default async function PaseListaPage({ searchParams }: PageProps) {
   const marcasMeta: Record<string, { nombre: string; username: string; rol: string; ts: string | null }> = {};
 
   if (sedeId) {
+    // Mostramos TODOS los empleados activos de la sede sin filtrar por jornada —
+    // la jornada se ve como chip en cada renglón. Esto permite a supervisores
+    // capturar también gente de otras jornadas que llega a cubrir o que se
+    // ajusta el turno sin tener que cambiar el selector.
     const { data: emps } = await supabase
       .from("empleados")
       .select("id, numero_empleado, nombre, jornada")
       .eq("sede_id", sedeId)
-      .eq("jornada", jornadaActual)
       .is("fecha_baja", null)
+      .order("jornada")
       .order("numero_empleado");
     empleados = (emps ?? []) as Empleado[];
 
