@@ -2,6 +2,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireUser, isAdminLike } from "@/lib/session";
 import { Topbar } from "@/components/Topbar";
 import { PushControls } from "@/components/PushControls";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Inicio" };
@@ -170,7 +171,9 @@ export default async function DashboardPage() {
 
         {/* Estado de notificaciones del dispositivo actual */}
         <section className="mb-6 animate-fade-up delay-50">
-          <PushControls compact />
+          <ErrorBoundary label="Notificaciones">
+            <PushControls compact />
+          </ErrorBoundary>
         </section>
 
         {showSedes && sedesAgrupadas.length > 0 && (

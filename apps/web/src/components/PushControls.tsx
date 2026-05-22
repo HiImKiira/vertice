@@ -34,45 +34,90 @@ function detectPlatform(): "ios" | "android" | "desktop" {
 }
 
 async function subscribeThisDevice(): Promise<{ ok: boolean; error?: string }> {
-  if (!("serviceWorker" in navigator)) return { ok: false, error: "El navegador no soporta service workers." };
-  if (!("PushManager" in window)) return { ok: false, error: "El navegador no soporta push notifications." };
-  if (!("Notification" in window)) return { ok: false, error: "El navegador no soporta notificaciones." };
-  if (!VAPID_PUBLIC_KEY) return { ok: false, error: "VAPID public key no configurada." };
+  try {
+    if (!("serviceWorker" in navigator)) return { ok: false, error: "El navegador no soporta service workers." };
+    if (!("PushManager" in window)) return { ok: false, error: "El navegador no soporta push notifications." };
+    if (!("Notification" in window)) return { ok: false, error: "El navegador no soporta notificaciones." };
+    if (!VAPID_PUBLIC_KEY) return { ok: false, error: "VAPID_PUBLIC_KEY no configurada en cliente. Avisa a soporte." };
 
-  const perm = await Notification.requestPermission();
-  if (perm !== "granted") {
-    return { ok: false, error: perm === "denied"
-      ? "Permiso denegado. Ve a Ajustes del navegador → Notificaciones → permitir Vortex."
-      : "Permiso no concedido." };
+    let perm: NotificationPermission;
+    try {
+      perm = await Notification.requestPermission();
+    } catch (e) {
+      return { ok: false, error: `requestPermission falló: ${(e as Error).message}` };
+    }
+    if (perm !== "granted") {
+      return { ok: false, error: perm === "denied"
+        ? "Permiso denegado. Ve a Ajustes del navegador → Notificaciones → permitir Vortex."
+        : "Permiso no concedido." };
+    }
+
+    // 1) Asegurar SW registrado
+    let reg: ServiceWorkerRegistration | undefined;
+    try {
+      reg = await navigator.serviceWorker.getRegistration("/");
+      if (!reg) reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+    } catch (e) {
+      return { ok: false, error: `No se pudo registrar el service worker: ${(e as Error).message}` };
+    }
+    try {
+      await navigator.serviceWorker.ready;
+    } catch (e) {
+      return { ok: false, error: `Service worker no listo: ${(e as Error).message}` };
+    }
+    if (!reg) return { ok: false, error: "Service worker no disponible tras el registro." };
+
+    // 2) Obtener o crear subscription
+    let sub: PushSubscription | null;
+    try {
+      sub = await reg.pushManager.getSubscription();
+    } catch (e) {
+      return { ok: false, error: `getSubscription falló: ${(e as Error).message}` };
+    }
+    if (!sub) {
+      try {
+        const keyBytes = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
+        // Crear ArrayBuffer limpio que no sea SharedArrayBuffer
+        const buf = new ArrayBuffer(keyBytes.byteLength);
+        new Uint8Array(buf).set(keyBytes);
+        sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: buf,
+        });
+      } catch (e) {
+        const err = e as Error;
+        const detail = err?.message ?? String(e);
+        // Errores típicos: NotAllowedError, InvalidStateError, AbortError
+        return { ok: false, error: `pushManager.subscribe falló: ${detail}` };
+      }
+    }
+    if (!sub) return { ok: false, error: "No se pudo obtener subscription del navegador." };
+
+    const j = sub.toJSON();
+    if (!j.endpoint || !j.keys || !j.keys.p256dh || !j.keys.auth) {
+      return { ok: false, error: "Subscription del navegador incompleta (falta endpoint o keys)." };
+    }
+
+    // 3) Enviar al servidor
+    try {
+      const res = await fetch("/api/push/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ endpoint: j.endpoint, keys: j.keys, userAgent: navigator.userAgent }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+        return { ok: false, error: err.error ?? `HTTP ${res.status}` };
+      }
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, error: `Fetch /api/push/subscribe falló: ${(e as Error).message}` };
+    }
+  } catch (e) {
+    // Catch-all defensivo: nunca debería propagar a React
+    console.error("[PushControls] subscribeThisDevice unhandled:", e);
+    return { ok: false, error: e instanceof Error ? e.message : "Error desconocido al suscribir" };
   }
-
-  let reg = await navigator.serviceWorker.getRegistration("/");
-  if (!reg) reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
-  await navigator.serviceWorker.ready;
-
-  let sub = await reg.pushManager.getSubscription();
-  if (!sub) {
-    const keyBytes = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
-    const applicationServerKey = keyBytes.buffer.slice(
-      keyBytes.byteOffset,
-      keyBytes.byteOffset + keyBytes.byteLength,
-    ) as ArrayBuffer;
-    sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey });
-  }
-
-  const j = sub.toJSON();
-  if (!j.endpoint || !j.keys) return { ok: false, error: "Subscription incompleta." };
-
-  const res = await fetch("/api/push/subscribe", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ endpoint: j.endpoint, keys: j.keys, userAgent: navigator.userAgent }),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: "Servidor falló" }));
-    return { ok: false, error: err.error ?? `HTTP ${res.status}` };
-  }
-  return { ok: true };
 }
 
 interface StatusResp {
@@ -100,42 +145,52 @@ export function PushControls({ compact = false }: { compact?: boolean }) {
   const [platform, setPlatform] = useState<"ios" | "android" | "desktop">("desktop");
 
   async function recompute() {
-    if (typeof window === "undefined") return;
-    if (!("Notification" in window) || !("PushManager" in window) || !("serviceWorker" in navigator)) {
-      setPhase("unsupported");
-      return;
-    }
-    setPlatform(detectPlatform());
-    const installed = detectPWAInstalled();
-    if (!installed) {
-      setPhase("not_installed");
-      // Aún así jala status para mostrarlo
+    try {
+      if (typeof window === "undefined") return;
+      if (!("Notification" in window) || !("PushManager" in window) || !("serviceWorker" in navigator)) {
+        setPhase("unsupported");
+        return;
+      }
+      setPlatform(detectPlatform());
+      const installed = detectPWAInstalled();
+      if (!installed) {
+        setPhase("not_installed");
+        const res = await fetch("/api/push/status").catch(() => null);
+        if (res?.ok) {
+          const j = await res.json().catch(() => null);
+          if (j) setStatus(j);
+        }
+        return;
+      }
+      const perm = Notification.permission;
+      if (perm === "denied") {
+        setPhase("denied");
+        return;
+      }
       const res = await fetch("/api/push/status").catch(() => null);
-      if (res?.ok) setStatus(await res.json());
-      return;
-    }
-    const perm = Notification.permission;
-    if (perm === "denied") {
-      setPhase("denied");
-      return;
-    }
-    // Status del server
-    const res = await fetch("/api/push/status").catch(() => null);
-    const j = res?.ok ? (await res.json()) as StatusResp : null;
-    if (j) setStatus(j);
+      const j = res?.ok ? (await res.json().catch(() => null)) as StatusResp | null : null;
+      if (j) setStatus(j);
 
-    if (perm !== "granted") {
-      setPhase("needs_permission");
-      return;
+      if (perm !== "granted") {
+        setPhase("needs_permission");
+        return;
+      }
+      let browserSub: PushSubscription | null = null;
+      try {
+        const reg = await navigator.serviceWorker.getRegistration("/");
+        browserSub = reg ? await reg.pushManager.getSubscription() : null;
+      } catch {
+        browserSub = null;
+      }
+      if (!browserSub || (j?.misSuscripciones ?? 0) === 0) {
+        setPhase("needs_subscribe");
+        return;
+      }
+      setPhase("subscribed");
+    } catch (e) {
+      console.error("[PushControls] recompute failed:", e);
+      setPhase("needs_subscribe"); // fallback seguro: muestra el botón Activar
     }
-    // Granted: verificar que el browser SI tenga subscription y esté reportada al server
-    const reg = await navigator.serviceWorker.getRegistration("/");
-    const browserSub = reg ? await reg.pushManager.getSubscription() : null;
-    if (!browserSub || (j?.misSuscripciones ?? 0) === 0) {
-      setPhase("needs_subscribe");
-      return;
-    }
-    setPhase("subscribed");
   }
 
   useEffect(() => {
@@ -150,12 +205,18 @@ export function PushControls({ compact = false }: { compact?: boolean }) {
   function handleSuscribir() {
     setMsg(null);
     start(async () => {
-      const r = await subscribeThisDevice();
-      if (r.ok) {
-        setMsg("Listo. Este dispositivo ya recibe notificaciones.");
-        await recompute();
-      } else {
-        setMsg(r.error ?? "Error al suscribir.");
+      try {
+        const r = await subscribeThisDevice();
+        if (r.ok) {
+          setMsg("Listo. Este dispositivo ya recibe notificaciones.");
+          await recompute();
+        } else {
+          setMsg(r.error ?? "Error al suscribir.");
+        }
+      } catch (e) {
+        // Catch-all final: nunca propagar a React
+        console.error("[PushControls] handleSuscribir caught:", e);
+        setMsg(`Error inesperado: ${e instanceof Error ? e.message : "desconocido"}`);
       }
     });
   }
@@ -163,12 +224,24 @@ export function PushControls({ compact = false }: { compact?: boolean }) {
   async function handleTest() {
     setMsg(null);
     start(async () => {
-      const res = await fetch("/api/push/test", { method: "POST" });
-      const j = await res.json().catch(() => ({ error: "Respuesta inválida" }));
-      if (res.ok) {
-        setMsg(`Push de prueba enviado a ${j.enviados ?? 0} dispositivo${j.enviados === 1 ? "" : "s"}. Revisa tu barra de notificaciones.`);
-      } else {
-        setMsg(`Error: ${j.error}`);
+      try {
+        const res = await fetch("/api/push/test", { method: "POST" });
+        const ct = res.headers.get("content-type") ?? "";
+        let j: { enviados?: number; fallidos?: number; error?: string };
+        if (ct.includes("application/json")) {
+          j = await res.json().catch(() => ({ error: "Respuesta inválida" }));
+        } else {
+          const txt = await res.text().catch(() => "");
+          j = { error: `Respuesta no-JSON: ${txt.slice(0, 100)}` };
+        }
+        if (res.ok) {
+          setMsg(`Push de prueba enviado a ${j.enviados ?? 0} dispositivo${j.enviados === 1 ? "" : "s"}. Revisa tu barra de notificaciones.`);
+        } else {
+          setMsg(`Error: ${j.error}`);
+        }
+      } catch (e) {
+        console.error("[PushControls] handleTest caught:", e);
+        setMsg(`Error de red: ${e instanceof Error ? e.message : "desconocido"}`);
       }
     });
   }

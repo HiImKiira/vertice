@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { Icon } from "@/components/Icon";
 import { PushControls } from "@/components/PushControls";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 export function AnnouncementPanel() {
   const [open, setOpen] = useState(false);
@@ -108,7 +109,9 @@ export function AnnouncementPanel() {
       {open && (
         <div className="mt-4 space-y-4">
           {/* Estado de suscripciones */}
-          <PushControls />
+          <ErrorBoundary label="PushControls">
+            <PushControls />
+          </ErrorBoundary>
 
           {/* Botón recordatorio rápido */}
           <div className="rounded-xl border border-amber-400/25 bg-amber-500/[0.05] p-3">
