@@ -1,6 +1,7 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireUser, isAdminLike } from "@/lib/session";
 import { Topbar } from "@/components/Topbar";
+import { PushControls } from "@/components/PushControls";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Inicio" };
@@ -165,6 +166,11 @@ export default async function DashboardPage() {
               ? "Centro de operación: pase de lista, incidencias, RH y reportes."
               : "Captura el pase de lista de tus sedes asignadas y manda tickets a RH."}
           </p>
+        </section>
+
+        {/* Estado de notificaciones del dispositivo actual */}
+        <section className="mb-6 animate-fade-up delay-50">
+          <PushControls compact />
         </section>
 
         {showSedes && sedesAgrupadas.length > 0 && (

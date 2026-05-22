@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Icon } from "@/components/Icon";
+import { PushControls } from "@/components/PushControls";
 
 export function AnnouncementPanel() {
   const [open, setOpen] = useState(false);
@@ -106,6 +107,9 @@ export function AnnouncementPanel() {
 
       {open && (
         <div className="mt-4 space-y-4">
+          {/* Estado de suscripciones */}
+          <PushControls />
+
           {/* Botón recordatorio rápido */}
           <div className="rounded-xl border border-amber-400/25 bg-amber-500/[0.05] p-3">
             <div className="mb-2 flex items-center gap-2">
