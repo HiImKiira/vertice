@@ -272,6 +272,33 @@ export function PaseListaClient(props: Props) {
           <p className="mt-1 truncate text-[11px] text-muted sm:text-xs">
             {sedeActual?.nombre ?? "—"} · {stats.total} empleado{stats.total === 1 ? "" : "s"} (todas las jornadas)
           </p>
+          {/* Jornadas asignadas en RH — chips con la activa resaltada */}
+          {jornadasDeSede.length > 0 && (
+            <div className="mt-2 flex flex-wrap items-center gap-1 sm:justify-end">
+              <span className="text-[9px] uppercase tracking-tagline text-muted-2">
+                Tus turnos asignados ({jornadasDeSede.length}):
+              </span>
+              {jornadasDeSede.map((j) => {
+                const style = jornadaChip(j);
+                const isActive = j === props.jornada;
+                return (
+                  <button
+                    key={j}
+                    type="button"
+                    onClick={() => updateUrl({ jornada: j })}
+                    disabled={operacionEnCurso}
+                    className={`shrink-0 rounded px-1.5 py-0.5 font-mono text-[10px] font-bold transition disabled:opacity-50 ${
+                      isActive ? "ring-2 ring-blue-400/60 ring-offset-1 ring-offset-[color:var(--bg)]" : "opacity-60 hover:opacity-100"
+                    }`}
+                    style={{ background: style.bg, color: style.text, border: `1px solid ${style.border}` }}
+                    title={isActive ? `Activo: ${j}` : `Cambiar a ${j}`}
+                  >
+                    {style.label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       </section>
 
