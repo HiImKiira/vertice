@@ -1,9 +1,24 @@
 import webpush from "web-push";
 import { supabaseAdmin } from "./supabase-admin";
 
-const VAPID_SUBJECT = process.env.VAPID_SUBJECT ?? "mailto:hr@mhs-integradora.com";
-const VAPID_PUBLIC = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-const VAPID_PRIVATE = process.env.VAPID_PRIVATE_KEY;
+// Sanitizamos para evitar que un newline/whitespace pegado al setear el
+// env var en Vercel rompa el parseo de URL del web-push library.
+function clean(v: string | undefined): string {
+  return (v ?? "").trim().replace(/[\r\n]+/g, "");
+}
+
+function pickValidSubject(raw: string): string {
+  const v = clean(raw);
+  // Acepta solo mailto: o https:// (lo que pide la spec VAPID)
+  if (/^mailto:[^@\s]+@[^@\s]+\.[^@\s]+$/i.test(v)) return v;
+  if (/^https?:\/\/[^\s]+$/i.test(v)) return v;
+  // Fallback seguro: nuestro propio dominio en Vercel
+  return "https://vertice-rosy.vercel.app";
+}
+
+const VAPID_SUBJECT = pickValidSubject(process.env.VAPID_SUBJECT ?? "");
+const VAPID_PUBLIC = clean(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY);
+const VAPID_PRIVATE = clean(process.env.VAPID_PRIVATE_KEY);
 
 let configured = false;
 function configure() {
