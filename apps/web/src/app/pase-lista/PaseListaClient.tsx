@@ -79,6 +79,13 @@ export function PaseListaClient(props: Props) {
   const [bulkIDs, setBulkIDs] = useState<string>("");
   const [showReview, setShowReview] = useState(false);
   const [bulkFeedback, setBulkFeedback] = useState<string | null>(null);
+  const [expandedRow, setExpandedRow] = useState<string | null>(null);
+
+  function setMarca(empId: string, codigo: CodigoAsistencia) {
+    if (!props.canEdit) return;
+    setPendientes((p) => ({ ...p, [empId]: codigo }));
+    setResultado(null);
+  }
 
   const fechaInfo = formatLongDate(props.fecha);
 
@@ -469,34 +476,81 @@ export function PaseListaClient(props: Props) {
             const spec = current ? CODIGO_SPEC[current] : null;
             const cls = classifyCode(current);
             const badge = CLS_BADGE[cls];
+            const isExpanded = expandedRow === emp.id;
+            const disabledRow = !props.canEdit || operacionEnCurso;
             return (
               <li
                 key={emp.id}
-                className={`flex min-w-0 items-center gap-2 rounded-xl border bg-[color:var(--surface)]/60 px-3 py-2 transition sm:gap-3 sm:px-4 sm:py-2.5 ${
+                className={`min-w-0 rounded-xl border bg-[color:var(--surface)]/60 transition ${
                   isPendingChange ? "border-blue-400/40 ring-1 ring-blue-400/20" : "border-white/5"
                 }`}
               >
-                <span className="shrink-0 font-mono text-[10px] text-muted-2 sm:text-xs">#{emp.numero_empleado}</span>
-                <span
-                  className="shrink-0 inline-flex h-7 w-7 items-center justify-center rounded-full font-mono text-xs font-bold sm:h-8 sm:w-8 sm:text-sm"
-                  style={{ background: badge.bg, boxShadow: `inset 0 0 0 1px ${badge.ring}`, color: badge.text }}
-                  title={cls === "asist" ? "Asistencia" : cls === "falta" ? "Falta" : cls === "incid" ? `Incidencia${spec ? ` (${spec.nombre})` : ""}` : "Sin marcar"}
-                >
-                  {badge.letter}
-                </span>
-                <p className="min-w-0 flex-1 truncate text-sm font-medium text-text sm:text-base">{emp.nombre}</p>
-                {current ? (
+                <div className="flex items-center gap-2 px-3 py-2 sm:gap-3 sm:px-4 sm:py-2.5">
+                  <span className="shrink-0 font-mono text-[10px] text-muted-2 sm:text-xs">#{emp.numero_empleado}</span>
                   <span
-                    className="shrink-0 rounded-full px-2.5 py-1 font-mono text-[10px] font-bold uppercase text-white"
-                    style={{ background: spec?.color }}
-                    title={spec?.nombre}
+                    className="shrink-0 inline-flex h-7 w-7 items-center justify-center rounded-full font-mono text-xs font-bold sm:h-8 sm:w-8 sm:text-sm"
+                    style={{ background: badge.bg, boxShadow: `inset 0 0 0 1px ${badge.ring}`, color: badge.text }}
+                    title={cls === "asist" ? "Asistencia" : cls === "falta" ? "Falta" : cls === "incid" ? `Incidencia${spec ? ` (${spec.nombre})` : ""}` : "Sin marcar"}
                   >
-                    {current}
+                    {badge.letter}
                   </span>
-                ) : (
-                  <span className="shrink-0 rounded-full border border-white/10 bg-white/[0.03] px-2 py-1 font-mono text-[9px] uppercase text-muted-2 sm:px-2.5 sm:text-[10px]">
-                    Sin marcar
-                  </span>
+                  <p className="min-w-0 flex-1 truncate text-sm font-medium text-text sm:text-base">{emp.nombre}</p>
+                  {/* Botones rápidos A/F/I */}
+                  <div className="flex shrink-0 items-center gap-1">
+                    <RowCodeBtn label="A" active={current === "A"} color="emerald" onClick={() => setMarca(emp.id, "A")} disabled={disabledRow} />
+                    <RowCodeBtn label="F" active={current === "F"} color="red"     onClick={() => setMarca(emp.id, "F")} disabled={disabledRow} />
+                    <RowCodeBtn label="I" active={current === "I" || current === "DT" || current === "INH" || current === "FER" || current === "PCG" || current === "PSG" || current === "DS" || current === "AF"} color="amber" onClick={() => setMarca(emp.id, "I")} disabled={disabledRow} />
+                    <button
+                      type="button"
+                      onClick={() => setExpandedRow(isExpanded ? null : emp.id)}
+                      disabled={disabledRow}
+                      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md border text-xs font-bold transition sm:h-8 sm:w-8 sm:text-sm ${
+                        isExpanded
+                          ? "border-blue-400/50 bg-blue-500/20 text-blue-200"
+                          : "border-white/10 bg-white/[0.03] text-muted hover:border-white/30 hover:text-text"
+                      } disabled:opacity-40`}
+                      title="Más códigos"
+                    >
+                      ⋯
+                    </button>
+                    {current ? (
+                      <span
+                        className="shrink-0 hidden sm:inline-flex rounded-full px-2 py-0.5 font-mono text-[10px] font-bold uppercase text-white"
+                        style={{ background: spec?.color }}
+                        title={spec?.nombre}
+                      >
+                        {current}
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+                {/* Códigos avanzados expandidos */}
+                {isExpanded && (
+                  <div className="border-t border-white/5 px-3 py-2 sm:px-4">
+                    <p className="mb-2 text-[10px] uppercase tracking-tagline text-muted-2">Códigos detallados</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {(["A", "AF", "F", "I", "DT", "DS", "INH", "FER", "PCG", "PSG"] as const).map((c) => {
+                        const s = CODIGO_SPEC[c];
+                        const isActive = current === c;
+                        return (
+                          <button
+                            key={c}
+                            type="button"
+                            onClick={() => { setMarca(emp.id, c); setExpandedRow(null); }}
+                            disabled={disabledRow}
+                            className={`flex items-center gap-1.5 rounded-md border px-2 py-1 font-mono text-[10px] font-bold transition disabled:opacity-40 ${
+                              isActive ? "border-white/50 text-white" : "border-white/10 text-muted hover:border-white/30 hover:text-text"
+                            }`}
+                            style={isActive ? { background: s.color } : undefined}
+                            title={s.nombre}
+                          >
+                            <span>{c}</span>
+                            <span className="text-[9px] font-normal opacity-70">{s.nombre}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 )}
               </li>
             );
@@ -646,6 +700,40 @@ function StatRing({ label, value, total, color }: { label: string; value: number
       </div>
       <p className="mt-1 text-[9px] font-semibold uppercase tracking-tagline text-muted sm:mt-1.5 sm:text-[10px]">{label}</p>
     </div>
+  );
+}
+
+function RowCodeBtn({
+  label,
+  active,
+  color,
+  onClick,
+  disabled,
+}: {
+  label: string;
+  active: boolean;
+  color: "emerald" | "red" | "amber";
+  onClick: () => void;
+  disabled?: boolean;
+}) {
+  const palette = {
+    emerald: { activeBg: "rgba(34,197,94,0.85)",  activeText: "#fff", inactive: "border-emerald-400/30 text-emerald-300 hover:bg-emerald-500/15" },
+    red:     { activeBg: "rgba(239,68,68,0.85)",  activeText: "#fff", inactive: "border-red-400/30 text-red-300 hover:bg-red-500/15" },
+    amber:   { activeBg: "rgba(245,158,11,0.85)", activeText: "#fff", inactive: "border-amber-400/30 text-amber-300 hover:bg-amber-500/15" },
+  }[color];
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md font-mono text-xs font-bold transition sm:h-8 sm:w-8 sm:text-sm disabled:opacity-40 ${
+        active ? "" : `border ${palette.inactive}`
+      }`}
+      style={active ? { background: palette.activeBg, color: palette.activeText } : undefined}
+      aria-pressed={active}
+    >
+      {label}
+    </button>
   );
 }
 
