@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { VortexLoader } from "@/components/VortexLoader";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CODIGO_SPEC, CODIGOS, type CodigoAsistencia } from "@vertice/shared/codes";
@@ -25,6 +25,7 @@ export interface Empleado {
   numero_empleado: string;
   nombre: string;
   jornada: string;
+  dia_descanso?: string[];
 }
 
 export interface MarcaMeta {
@@ -114,6 +115,48 @@ export function PaseListaClient(props: Props) {
 
   const fechaInfo = formatLongDate(props.fecha);
 
+  // Día de la semana de la fecha actual → código LUN/MAR/MIE/... para
+  // matchear contra empleado.dia_descanso. La fecha viene como YYYY-MM-DD
+  // (Mérida), construimos Date local sin TZ shift.
+  const DOW_CODES = ["DOM", "LUN", "MAR", "MIE", "JUE", "VIE", "SAB"];
+  const fechaDOW = (() => {
+    const parts = props.fecha.split("-");
+    const d = new Date(Number(parts[0]!), Number(parts[1]!) - 1, Number(parts[2]!));
+    return DOW_CODES[d.getDay()]!;
+  })();
+
+  // Empleados que deben tener DS hoy (su dia_descanso incluye fechaDOW)
+  // Y que NO tienen ya una marca capturada — para no pisar lo que ya existe.
+  const descansoHoy = useMemo(() => {
+    const set = new Set<string>();
+    for (const emp of props.empleados) {
+      if (props.marcasExistentes[emp.id]) continue; // ya tiene marca: respeto
+      if (emp.dia_descanso?.includes(fechaDOW)) set.add(emp.id);
+    }
+    return set;
+  }, [props.empleados, props.marcasExistentes, fechaDOW]);
+
+  // Pre-llenar pendientes con DS para los descansos del día, una sola vez
+  // al montar (o cuando cambia fecha/sede). Si el supervisor cambia el
+  // código a otro, su decisión gana (no sobrescribimos).
+  useEffect(() => {
+    if (!props.canEdit) return;
+    if (descansoHoy.size === 0) return;
+    setPendientes((prev) => {
+      const next = { ...prev };
+      let cambio = false;
+      for (const id of descansoHoy) {
+        if (!(id in next)) {
+          next[id] = "DS";
+          cambio = true;
+        }
+      }
+      return cambio ? next : prev;
+    });
+    // Solo dispara cuando cambia el set de descansos (fecha/sede)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [props.fecha, props.sedeId, props.canEdit]);
+
   function updateUrl(next: { sede?: string; jornada?: string; fecha?: string }) {
     if (isPending || busyAction) return;
     const usp = new URLSearchParams(params.toString());
@@ -127,7 +170,12 @@ export function PaseListaClient(props: Props) {
   }
 
   function getCurrent(id: string): CodigoAsistencia | null {
-    return (pendientes[id] ?? (props.marcasExistentes[id] as CodigoAsistencia | undefined) ?? null);
+    // Prioridad: pendiente del usuario > marca ya en DB > sugerencia DS por descanso semanal
+    if (pendientes[id]) return pendientes[id]!;
+    const enDb = props.marcasExistentes[id];
+    if (enDb) return enDb as CodigoAsistencia;
+    if (descansoHoy.has(id)) return "DS";
+    return null;
   }
 
   // === Quick actions con feedback ===

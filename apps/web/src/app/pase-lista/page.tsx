@@ -83,7 +83,7 @@ export default async function PaseListaPage({ searchParams }: PageProps) {
     // ajusta el turno sin tener que cambiar el selector.
     const { data: emps } = await supabase
       .from("empleados")
-      .select("id, numero_empleado, nombre, jornada")
+      .select("id, numero_empleado, nombre, jornada, dia_descanso")
       .eq("sede_id", sedeId)
       .is("fecha_baja", null)
       .order("jornada")

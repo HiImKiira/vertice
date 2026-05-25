@@ -149,6 +149,16 @@ export default async function RHProPage() {
               badgeCls="pill pill-green"
             />
             <ActionCard
+              href="/rh-pro/descansos-semanales"
+              icon="🛌"
+              iconBg="rgba(96,165,250,0.12)"
+              iconBorder="rgba(96,165,250,0.3)"
+              title="Descansos semanales"
+              sub="Día de descanso por ley (1 de cada 6 días). Vortex auto-llena DS en pase de lista cuando llega ese día."
+              badge="ADMIN / SUPERADMIN / SOPORTE"
+              badgeCls="pill pill-blue"
+            />
+            <ActionCard
               href="/rh-pro/empleados"
               icon="📅"
               iconBg="rgba(6,182,212,0.12)"
