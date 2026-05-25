@@ -4,6 +4,7 @@ import { ParticlesBg } from "@/components/ParticlesBg";
 import { NavigationLoader } from "@/components/NavigationLoader";
 import { ZoomBlocker } from "@/components/ZoomBlocker";
 import { PWARegister } from "@/components/PWARegister";
+import { PushSoundListener } from "@/components/PushSoundListener";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -49,6 +50,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <ZoomBlocker />
         <PWARegister />
+        <PushSoundListener />
         <ParticlesBg />
         <Suspense fallback={null}>
           <NavigationLoader />

@@ -113,12 +113,18 @@ export async function sendPush(
   const detalles: SendResult["detalles"] = [];
   const muertas: string[] = [];
 
+  // Embebemos `tipo` en payload.data para que el SW pueda elegir el sonido
+  const payloadConTipo: PushPayload = {
+    ...payload,
+    data: { ...(payload.data ?? {}), tipo },
+  };
+
   await Promise.all(
     subscriptions.map(async (s) => {
       try {
         await webpush.sendNotification(
           { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
-          JSON.stringify(payload),
+          JSON.stringify(payloadConTipo),
           { TTL: 24 * 60 * 60 }, // 24h max retry por el push service
         );
         enviados++;

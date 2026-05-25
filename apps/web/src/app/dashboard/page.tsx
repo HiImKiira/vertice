@@ -77,6 +77,15 @@ function modulosFor(rol: string): Modulo[] {
       badge: { label: "Todos", cls: "pill" },
     },
     {
+      href: "/sonidos",
+      icon: "🔔",
+      iconBg: "rgba(245,158,11,0.12)",
+      iconBorder: "rgba(245,158,11,0.3)",
+      title: "Sonidos",
+      sub: "Personaliza el tono de cada tipo de notificación.",
+      badge: { label: "Todos", cls: "pill pill-amber" },
+    },
+    {
       href: "/rh-pro",
       icon: "👥",
       iconBg: "rgba(139,92,246,0.12)",

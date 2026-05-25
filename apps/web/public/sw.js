@@ -8,7 +8,7 @@
  *
  * Para forzar el refresh del SW en producción: cambiar CACHE_VERSION.
  */
-const CACHE_VERSION = "vortex-v3";
+const CACHE_VERSION = "vortex-v4";
 const SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const SHELL_FILES = [
   "/manifest.webmanifest",
@@ -110,10 +110,26 @@ self.addEventListener("push", (event) => {
     renotify: true,
   };
   event.waitUntil(
-    self.registration.showNotification(payload.title, options).then(
-      () => console.log("[SW push] showNotification OK"),
-      (err) => console.error("[SW push] showNotification FAIL", err),
-    ),
+    Promise.all([
+      self.registration.showNotification(payload.title, options).then(
+        () => console.log("[SW push] showNotification OK"),
+        (err) => console.error("[SW push] showNotification FAIL", err),
+      ),
+      // Broadcast a clients abiertos para que toquen sonido custom
+      self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+        for (const client of clients) {
+          try {
+            client.postMessage({
+              type: "vortex-push",
+              payload: payload,
+              tipo: (payload.data && payload.data.tipo) || payload.tag || "test",
+            });
+          } catch (e) {
+            console.warn("[SW push] postMessage to client failed", e);
+          }
+        }
+      }),
+    ]),
   );
 });
 
