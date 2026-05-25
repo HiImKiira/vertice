@@ -47,25 +47,30 @@ const styles = StyleSheet.create({
   intro: {
     fontSize: 10,
     textAlign: "justify",
-    marginBottom: 12,
-    lineHeight: 1.55,
+    marginBottom: 10,
+    lineHeight: 1.5,
   },
 
   sectionHeader: {
     fontFamily: "Helvetica-Bold",
     fontSize: 11,
     color: C.blueDeep,
-    marginTop: 12,
-    marginBottom: 6,
+    marginTop: 14,
+    marginBottom: 8,
     textAlign: "center",
     letterSpacing: 0.3,
   },
+  // Cláusula: un solo párrafo justificado con título bold inline
   clausula: {
-    fontFamily: "Helvetica-Bold",
-    fontSize: 10.5,
-    color: C.text,
+    fontSize: 10,
+    textAlign: "justify",
     marginTop: 8,
     marginBottom: 4,
+    lineHeight: 1.5,
+  },
+  clausulaTitulo: {
+    fontFamily: "Helvetica-Bold",
+    fontSize: 10,
   },
   paragraph: {
     fontSize: 10,
@@ -156,6 +161,8 @@ function substitute(template: string, values: Record<string, string>): string {
 interface Block {
   type: "intro" | "section" | "clausula" | "para" | "para-indent" | "signatures-marker";
   text: string;
+  /** Solo en clausula: texto en bold al inicio (ej. "PRIMERA.-") */
+  inlineBold?: string;
 }
 
 /**
@@ -199,13 +206,12 @@ function parseTemplate(text: string): Block[] {
       continue;
     }
     if (/^(PRIMERA|SEGUNDA|TERCERA|CUARTA|QUINTA|SEXTA|S[ÉE]PTIMA|OCTAVA|NOVENA|D[ÉE]CIMA|D[ÉE]CIMA \w+)\.-/i.test(p)) {
-      // Separar título de párrafo
+      // Cláusula: título bold inline + cuerpo justificado en el mismo párrafo
       const m = p.match(/^([A-ZÁÉÍÓÚ ]+\.-)\s*(.*)$/i);
       if (m) {
-        blocks.push({ type: "clausula", text: m[1]! });
-        if (m[2]) blocks.push({ type: "para", text: m[2] });
+        blocks.push({ type: "clausula", text: m[2] ?? "", inlineBold: m[1]! });
       } else {
-        blocks.push({ type: "clausula", text: p });
+        blocks.push({ type: "clausula", text: "", inlineBold: p });
       }
       continue;
     }
@@ -253,7 +259,16 @@ export function ContratoDoc(props: ContratoDocProps) {
 
         {blocks.map((b, i) => {
           if (b.type === "section") return <Text key={i} style={styles.sectionHeader}>{b.text}</Text>;
-          if (b.type === "clausula") return <Text key={i} style={styles.clausula}>{b.text}</Text>;
+          if (b.type === "clausula") {
+            return (
+              <Text key={i} style={styles.clausula}>
+                {b.inlineBold && (
+                  <Text style={styles.clausulaTitulo}>{b.inlineBold} </Text>
+                )}
+                {b.text}
+              </Text>
+            );
+          }
           if (b.type === "para-indent") return <Text key={i} style={styles.paragraphIndent}>{b.text}</Text>;
           if (b.type === "intro") return <Text key={i} style={styles.intro}>{b.text}</Text>;
           return <Text key={i} style={styles.paragraph}>{b.text}</Text>;
