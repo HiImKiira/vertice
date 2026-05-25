@@ -159,6 +159,16 @@ export default async function RHProPage() {
               badgeCls="pill pill-blue"
             />
             <ActionCard
+              href="/rh-pro/consulta"
+              icon="🔍"
+              iconBg="rgba(245,158,11,0.12)"
+              iconBorder="rgba(245,158,11,0.3)"
+              title="Consulta de empleados"
+              sub="Busca por nombre o ID. Histórico de asistencias, estadísticas y notas internas de RH."
+              badge="ADMIN / SUPERADMIN / SOPORTE"
+              badgeCls="pill pill-amber"
+            />
+            <ActionCard
               href="/rh-pro/empleados"
               icon="📅"
               iconBg="rgba(6,182,212,0.12)"
