@@ -3,11 +3,17 @@
 import { useEffect, useState, useTransition } from "react";
 import { Icon } from "./Icon";
 
-const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "";
+// El env var puede llegar con \r\n trailing si fue seteado via PowerShell pipe.
+// Eliminamos TODO whitespace y caracteres no-base64url para evitar el error
+// "pushManager.subscribe: The String Contains invalid characters."
+const VAPID_PUBLIC_KEY = (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "")
+  .replace(/[^A-Za-z0-9_-]/g, "");
 
 function urlBase64ToUint8Array(base64: string): Uint8Array {
-  const padding = "=".repeat((4 - (base64.length % 4)) % 4);
-  const base64Padded = (base64 + padding).replace(/-/g, "+").replace(/_/g, "/");
+  // Defensa adicional: limpia caracteres no-base64url antes de procesar
+  const clean = base64.replace(/[^A-Za-z0-9_-]/g, "");
+  const padding = "=".repeat((4 - (clean.length % 4)) % 4);
+  const base64Padded = (clean + padding).replace(/-/g, "+").replace(/_/g, "/");
   const rawData = atob(base64Padded);
   const out = new Uint8Array(rawData.length);
   for (let i = 0; i < rawData.length; i++) out[i] = rawData.charCodeAt(i);
