@@ -68,14 +68,23 @@ export async function crearContratoAction(input: ContratoInput): Promise<CrearRe
   const cfgMap = new Map<string, string>((cfg ?? []).map((c) => [c.clave, c.valor]));
 
   // 3) Crear empleado (necesario antes para vincular)
-  //    Generar numero_empleado autoincrementable a partir del max actual
-  const { data: maxEmp } = await supabase
+  //    Generar numero_empleado: max(existente) + 1, pero nunca menor que 400.
+  //    Razón: los IDs 1-354 vienen del legacy del sheet; reservamos 400+ para
+  //    cualquier alta nueva desde Vortex para que no haya colisión con
+  //    contratos futuros que el sheet añada en el rango 355-399.
+  //    Cargamos todos los numero_empleado y parseamos a int en JS porque
+  //    la columna es TEXT (orden lexicográfico no sirve: "9" > "354").
+  const { data: todosNums } = await supabase
     .from("empleados")
-    .select("numero_empleado")
-    .order("numero_empleado", { ascending: false })
-    .limit(1)
-    .maybeSingle<{ numero_empleado: string }>();
-  const nextNum = String((parseInt(maxEmp?.numero_empleado || "0", 10) || 0) + 1);
+    .select("numero_empleado");
+  let maxN = 0;
+  for (const r of (todosNums ?? []) as Array<{ numero_empleado: string }>) {
+    const n = parseInt(r.numero_empleado, 10);
+    if (Number.isFinite(n) && n > maxN) maxN = n;
+  }
+  const MIN_NUEVOS = 400;
+  const siguiente = Math.max(maxN + 1, MIN_NUEVOS);
+  const nextNum = String(siguiente);
 
   const { data: empleado, error: empErr } = await supabase
     .from("empleados")
