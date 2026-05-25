@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { notifyAdminLike, sendPush } from "@/lib/push";
 
 export type TicketResult = { ok: true; ticketId?: string } | { ok: false; error: string };
 
@@ -86,6 +87,20 @@ export async function crearTicketAction(input: NuevoTicketInput): Promise<Ticket
     return { ok: false, error: `Mensaje: ${mErr.message}` };
   }
 
+  // Push a admins/soporte — fire & forget (no bloquea la respuesta al user)
+  void notifyAdminLike(
+    {
+      title: `Vortex · Nuevo ticket ${input.urgencia === "URGENTE" ? "🚨" : ""}`,
+      body: `${auth.nombre ?? "Supervisor"} abrió un ${input.tipo.toLowerCase()}: ${input.asunto.trim().slice(0, 80)}`,
+      url: `/soporte/${ticket.id}`,
+      tag: `ticket-${ticket.id}`,
+      icon: "/icons/icon-192.png",
+      data: { ticketId: ticket.id },
+    },
+    "ticket_nuevo",
+    auth.userId, // no notificar al que abrió
+  ).catch((e) => console.error("[crearTicket] notifyAdminLike fail:", e));
+
   revalidatePath("/soporte");
   return { ok: true, ticketId: ticket.id };
 }
@@ -95,7 +110,6 @@ export async function enviarMensajeAction(ticketId: string, mensaje: string): Pr
   if (!auth.sb) return { ok: false, error: auth.error! };
   if (!mensaje.trim()) return { ok: false, error: "Mensaje vacío." };
 
-  // ¿Quién envía? Si es admin/soporte responde, si es user agrega mensaje
   const esSoporte = ["ADMIN", "SUPERADMIN", "CEO", "SOPORTE"].includes(auth.rol!);
   const origen = esSoporte ? "SOPORTE" : "USUARIO";
 
@@ -106,12 +120,11 @@ export async function enviarMensajeAction(ticketId: string, mensaje: string): Pr
       remitente_id: auth.userId,
       origen,
       mensaje: mensaje.trim(),
-      leido_user: !esSoporte,           // user lee su propio msg automáticamente
+      leido_user: !esSoporte,
       leido_soporte: esSoporte,
     });
   if (mErr) return { ok: false, error: mErr.message };
 
-  // Actualizar ticket: último_mensaje, ultimo_ts, contadores
   const admin = supabaseAdmin();
   await admin
     .from("tickets_soporte")
@@ -119,12 +132,48 @@ export async function enviarMensajeAction(ticketId: string, mensaje: string): Pr
       ultimo_mensaje: mensaje.trim().slice(0, 120),
       ultimo_ts: new Date().toISOString(),
       estado: esSoporte ? "RESPONDIDO" : "PENDIENTE",
-      // increment con sql
-      ...(esSoporte
-        ? { unread_user: 1 }              // sumamos para el usuario
-        : { unread_soporte: 1 }),         // sumamos para soporte
+      ...(esSoporte ? { unread_user: 1 } : { unread_soporte: 1 }),
     })
     .eq("id", ticketId);
+
+  // Traer ticket para conocer supervisor + folio
+  const { data: t } = await admin
+    .from("tickets_soporte")
+    .select("folio, supervisor_id")
+    .eq("id", ticketId)
+    .maybeSingle<{ folio: string; supervisor_id: string }>();
+  const folio = t?.folio ?? "ticket";
+
+  // Push fire-and-forget según quién respondió
+  if (esSoporte && t?.supervisor_id) {
+    // Soporte respondió → push al supervisor
+    void sendPush(
+      {
+        title: `Vortex · Respuesta a ${folio}`,
+        body: `Recursos Humanos te respondió: ${mensaje.trim().slice(0, 100)}`,
+        url: `/soporte/${ticketId}`,
+        tag: `ticket-${ticketId}`,
+        icon: "/icons/icon-192.png",
+        data: { ticketId },
+      },
+      [t.supervisor_id],
+      "ticket_respuesta_rh",
+    ).catch((e) => console.error("[enviarMensaje→user] push fail:", e));
+  } else if (!esSoporte) {
+    // Usuario respondió → push a admins/soporte
+    void notifyAdminLike(
+      {
+        title: `Vortex · Nueva respuesta en ${folio}`,
+        body: `${auth.nombre ?? "Supervisor"}: ${mensaje.trim().slice(0, 100)}`,
+        url: `/soporte/${ticketId}`,
+        tag: `ticket-${ticketId}`,
+        icon: "/icons/icon-192.png",
+        data: { ticketId },
+      },
+      "ticket_respuesta_user",
+      auth.userId,
+    ).catch((e) => console.error("[enviarMensaje→admins] push fail:", e));
+  }
 
   revalidatePath("/soporte");
   revalidatePath(`/soporte/${ticketId}`);
@@ -152,6 +201,27 @@ export async function cerrarTicketAction(ticketId: string): Promise<TicketResult
     .update({ estado: "CERRADO", cierre_ts: new Date().toISOString(), cerrado_por: auth.userId })
     .eq("id", ticketId);
   if (error) return { ok: false, error: error.message };
+
+  // Notificar al supervisor que su ticket se cerró
+  const admin = supabaseAdmin();
+  const { data: t } = await admin
+    .from("tickets_soporte")
+    .select("folio, supervisor_id")
+    .eq("id", ticketId)
+    .maybeSingle<{ folio: string; supervisor_id: string }>();
+  if (t?.supervisor_id) {
+    void sendPush(
+      {
+        title: `Vortex · Ticket ${t.folio} cerrado`,
+        body: "Recursos Humanos cerró tu ticket. Si necesitas algo más, abre uno nuevo.",
+        url: `/soporte/${ticketId}`,
+        tag: `ticket-${ticketId}`,
+        icon: "/icons/icon-192.png",
+      },
+      [t.supervisor_id],
+      "ticket_cerrado",
+    ).catch((e) => console.error("[cerrarTicket] push fail:", e));
+  }
 
   revalidatePath("/soporte");
   revalidatePath(`/soporte/${ticketId}`);
@@ -235,6 +305,28 @@ export async function liberarFechaDesdeTicketAction(
       unread_user: 1,
     })
     .eq("id", ticketId);
+
+  // Push al supervisor: tu fecha quedó liberada, captura ahora
+  const { data: tInfo } = await admin
+    .from("tickets_soporte")
+    .select("supervisor_id, sede_id, jornada")
+    .eq("id", ticketId)
+    .maybeSingle<{ supervisor_id: string; sede_id: string | null; jornada: string | null }>();
+  if (tInfo?.supervisor_id) {
+    const urlCaptura = `/pase-lista?fecha=${ticket.fecha_solicitada}${tInfo.sede_id ? `&sede=${tInfo.sede_id}` : ""}${tInfo.jornada ? `&jornada=${tInfo.jornada}` : ""}`;
+    void sendPush(
+      {
+        title: `Vortex · Fecha ${ticket.fecha_solicitada} liberada`,
+        body: `RH liberó la fecha por ${horas}h. Captura tu pase de lista antes de que expire.`,
+        url: urlCaptura,
+        tag: `liberacion-${ticketId}`,
+        icon: "/icons/icon-192.png",
+        requireInteraction: true,
+      },
+      [tInfo.supervisor_id],
+      "fecha_liberada",
+    ).catch((e) => console.error("[liberarFecha] push fail:", e));
+  }
 
   revalidatePath("/soporte");
   revalidatePath(`/soporte/${ticketId}`);

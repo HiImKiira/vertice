@@ -37,6 +37,8 @@ export interface PushPayload {
   tag?: string | undefined;
   icon?: string | undefined;
   data?: Record<string, unknown> | undefined;
+  /** Si true, notification persiste hasta que el usuario interactúa */
+  requireInteraction?: boolean | undefined;
 }
 
 interface Subscription {
@@ -51,6 +53,35 @@ interface SendResult {
   enviados: number;
   fallidos: number;
   detalles: Array<{ usuario_id: string; ok: boolean; razon?: string }>;
+}
+
+/**
+ * Manda push a TODOS los usuarios admin-like (ADMIN/SUPERADMIN/CEO/SOPORTE).
+ * Útil para eventos que requieren acción del equipo de RH:
+ *   - Nuevo ticket de soporte abierto
+ *   - Nueva respuesta de supervisor en un ticket
+ *   - Etc.
+ *
+ * El parámetro `excluirUserId` evita notificar al usuario que disparó la
+ * acción (ej. si un admin escribe en un ticket, no recibe su propio push).
+ */
+export async function notifyAdminLike(
+  payload: PushPayload,
+  tipo: string,
+  excluirUserId?: string | null,
+): Promise<SendResult> {
+  const admin = supabaseAdmin();
+  const { data, error } = await admin
+    .from("usuarios")
+    .select("id")
+    .in("rol", ["ADMIN", "SUPERADMIN", "CEO", "SOPORTE"])
+    .eq("activo", true);
+  if (error || !data) {
+    return { enviados: 0, fallidos: 0, detalles: [{ usuario_id: "n/a", ok: false, razon: error?.message ?? "no admins" }] };
+  }
+  const ids = data.map((u) => u.id as string).filter((id) => id !== excluirUserId);
+  if (ids.length === 0) return { enviados: 0, fallidos: 0, detalles: [] };
+  return sendPush(payload, ids, tipo);
 }
 
 /**
