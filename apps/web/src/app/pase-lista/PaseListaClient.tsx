@@ -626,8 +626,12 @@ export function PaseListaClient(props: Props) {
             const cls = classifyCode(current);
             const badge = CLS_BADGE[cls];
             const isExpanded = expandedRow === emp.id;
-            const disabledRow = !props.canEdit || operacionEnCurso;
             const meta = !isPendingChange ? props.marcasMeta[emp.id] : undefined;
+            // Inmutabilidad: si ya hay marca guardada y el usuario NO es admin-like,
+            // bloqueamos los botones. Solo RH puede sobrescribir.
+            const yaCapturada = !!meta && !isPendingChange;
+            const noPuedeModificar = yaCapturada && !props.isAdmin;
+            const disabledRow = !props.canEdit || operacionEnCurso || noPuedeModificar;
             return (
               <li
                 key={emp.id}
@@ -670,6 +674,7 @@ export function PaseListaClient(props: Props) {
                       <p className="truncate text-[10px] text-muted-2" title={meta.ts ? new Date(meta.ts).toLocaleString("es-MX") : ""}>
                         por <span className="font-mono">@{meta.username}</span>
                         {meta.ts && <> · {new Date(meta.ts).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })}</>}
+                        {noPuedeModificar && <span className="ml-1 text-amber-300/80">· solo RH puede modificar</span>}
                       </p>
                     )}
                     {isPendingChange && current !== "DS" && (
@@ -747,6 +752,9 @@ export function PaseListaClient(props: Props) {
               {resultado?.ok && (
                 <span className="text-emerald-300">
                   ✓ {resultado.saved} marca{resultado.saved === 1 ? "" : "s"}
+                  {resultado.protegidas && resultado.protegidas > 0 ? (
+                    <span className="ml-2 text-amber-300">· {resultado.protegidas} protegida{resultado.protegidas === 1 ? "" : "s"} (solo RH)</span>
+                  ) : null}
                 </span>
               )}
               {resultado && !resultado.ok && <span className="block truncate text-red-300">⚠ {resultado.error}</span>}

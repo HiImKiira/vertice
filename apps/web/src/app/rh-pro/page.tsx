@@ -169,6 +169,16 @@ export default async function RHProPage() {
               badgeCls="pill pill-amber"
             />
             <ActionCard
+              href="/rh-pro/liberacion-global"
+              icon="🔓"
+              iconBg="rgba(239,68,68,0.12)"
+              iconBorder="rgba(239,68,68,0.3)"
+              title="Liberación global"
+              sub="Atajo de emergencia: abre TODAS las fechas para captura libre. Útil en cierre de quincena o recuperación masiva."
+              badge="ADMIN / SUPERADMIN / SOPORTE"
+              badgeCls="pill pill-red"
+            />
+            <ActionCard
               href="/rh-pro/empleados"
               icon="📅"
               iconBg="rgba(6,182,212,0.12)"
