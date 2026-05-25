@@ -11,6 +11,10 @@ const C = {
   goldDeep: "#85692A",
   domingoBg: "#FFE3C8",
   domingoBorder: "#E68900",
+  // Descanso semanal — fondo y header diferenciados
+  dsBg: "#D9F5E9",
+  dsHeader: "#0F6E56",
+  dsText: "#065F46",
 };
 
 const styles = StyleSheet.create({
@@ -189,7 +193,7 @@ export function AsistenciasDoc(props: AsistenciasDocProps) {
             ))}
             <Text style={[styles.th, { width: 24, backgroundColor: "#065F46" }]}>A</Text>
             <Text style={[styles.th, { width: 24, backgroundColor: "#7F1D1D" }]}>F</Text>
-            <Text style={[styles.th, { width: 24, backgroundColor: "#065F46" }]}>DS</Text>
+            <Text style={[styles.th, { width: 28, backgroundColor: C.dsHeader, borderLeft: `1pt solid ${C.gold}`, borderRight: `1pt solid ${C.gold}` }]}>DESC.</Text>
             <Text style={[styles.th, { width: 26, backgroundColor: "#854F0B" }]}>INC</Text>
             <Text style={[styles.th, { width: 24 }]}>S/N</Text>
           </View>
@@ -204,10 +208,16 @@ export function AsistenciasDoc(props: AsistenciasDocProps) {
                 {fechasObj.map((d) => {
                   const cod = props.marcas[emp.id]?.[d.iso];
                   const spec = cod ? CODIGO_SPEC[cod] : null;
+                  const esDS = cod === "DS";
                   return (
                     <View
                       key={d.iso}
-                      style={[styles.td, { width: colDateW, padding: 2 }, d.esDom ? { backgroundColor: C.domingoBg } : {}]}
+                      style={[
+                        styles.td,
+                        { width: colDateW, padding: 2 },
+                        // Prioridad de fondo: DS > Domingo > nada
+                        esDS ? { backgroundColor: C.dsBg } : d.esDom ? { backgroundColor: C.domingoBg } : {},
+                      ]}
                     >
                       {spec ? (
                         <Text style={[styles.codeChip, { backgroundColor: spec.color }]}>{cod}</Text>
@@ -219,7 +229,7 @@ export function AsistenciasDoc(props: AsistenciasDocProps) {
                 })}
                 <Text style={[styles.td, { width: 24, color: "#10B981", fontFamily: "Helvetica-Bold" }]}>{s.asist}</Text>
                 <Text style={[styles.td, { width: 24, color: "#EF4444", fontFamily: "Helvetica-Bold" }]}>{s.falta}</Text>
-                <Text style={[styles.td, { width: 24 }]}>{s.desc}</Text>
+                <Text style={[styles.td, { width: 28, color: C.dsText, fontFamily: "Helvetica-Bold", backgroundColor: C.dsBg }]}>{s.desc}</Text>
                 <Text style={[styles.td, { width: 26 }]}>{s.incid}</Text>
                 <Text style={[styles.td, { width: 24, color: C.muted }]}>{s.sn}</Text>
               </View>

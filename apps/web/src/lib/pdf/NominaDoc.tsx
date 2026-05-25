@@ -22,6 +22,10 @@ const C = {
   amber: "#F59E0B",
   domingoBg: "#FFE3C8",
   domingoBorder: "#E68900",
+  // Descanso semanal — fondo y header diferenciados
+  dsBg: "#D9F5E9",
+  dsHeader: "#0F6E56",
+  dsText: "#065F46",
 };
 
 const styles = StyleSheet.create({
@@ -136,7 +140,10 @@ export interface NominaDocProps {
 }
 
 function calcEmp(emp: NominaDocProps["empleados"][number], fechas: string[], marcas: Record<string, CodigoAsistencia> | undefined) {
-  let diasLab = 0, diasDT = 0, diasFalta = 0, diasDom = 0;
+  // diasLab = total que cuenta para nómina (A + AF + DT + DS + INH + FER + PCG)
+  // diasDS  = sólo descansos semanales (subset de diasLab, separado para reporte)
+  // diasTrabajados = diasLab - diasDS (días que fueron a trabajar de verdad)
+  let diasLab = 0, diasDT = 0, diasDS = 0, diasFalta = 0, diasDom = 0;
   for (const f of fechas) {
     const cod = marcas?.[f];
     if (!cod) continue;
@@ -144,7 +151,8 @@ function calcEmp(emp: NominaDocProps["empleados"][number], fechas: string[], mar
     const esDom = dt.getDay() === 0;
     if (cod === "DT") { diasLab++; diasDT++; if (esDom) diasDom++; }
     else if (cod === "A" || cod === "AF") { diasLab++; if (esDom) diasDom++; }
-    else if (cod === "DS" || cod === "INH" || cod === "FER" || cod === "PCG") { diasLab++; }
+    else if (cod === "DS") { diasLab++; diasDS++; }
+    else if (cod === "INH" || cod === "FER" || cod === "PCG") { diasLab++; }
     else if (cod === "F") { diasFalta++; }
   }
   const salDia = emp.salario_diario || PAGO_DIA_DEFAULT;
@@ -152,7 +160,7 @@ function calcEmp(emp: NominaDocProps["empleados"][number], fechas: string[], mar
   const primaDom = diasDom * PRIMA_DOMINICAL_DEFAULT;
   const descFaltas = diasFalta * DESCUENTO_FALTA_DEFAULT;
   const pagoEstim = diasLab * salDia + valorExtra + primaDom - descFaltas;
-  return { diasLab, diasDT, diasFalta, diasDom, valorExtra, primaDom, descFaltas, pagoEstim };
+  return { diasLab, diasDT, diasDS, diasFalta, diasDom, valorExtra, primaDom, descFaltas, pagoEstim };
 }
 
 const fmtMXN = (n: number) =>
@@ -170,6 +178,7 @@ export function NominaDoc(props: NominaDocProps) {
     (acc, f) => ({
       diasLab: acc.diasLab + f.calc.diasLab,
       diasDT: acc.diasDT + f.calc.diasDT,
+      diasDS: acc.diasDS + f.calc.diasDS,
       diasFalta: acc.diasFalta + f.calc.diasFalta,
       diasDom: acc.diasDom + f.calc.diasDom,
       valorExtra: acc.valorExtra + f.calc.valorExtra,
@@ -177,7 +186,7 @@ export function NominaDoc(props: NominaDocProps) {
       descFaltas: acc.descFaltas + f.calc.descFaltas,
       pagoEstim: acc.pagoEstim + f.calc.pagoEstim,
     }),
-    { diasLab: 0, diasDT: 0, diasFalta: 0, diasDom: 0, valorExtra: 0, primaDom: 0, descFaltas: 0, pagoEstim: 0 },
+    { diasLab: 0, diasDT: 0, diasDS: 0, diasFalta: 0, diasDom: 0, valorExtra: 0, primaDom: 0, descFaltas: 0, pagoEstim: 0 },
   );
 
   // Anchos columnas — el calendario crece según N fechas
@@ -228,6 +237,7 @@ export function NominaDoc(props: NominaDocProps) {
               </Text>
             ))}
             <Text style={[styles.th, { width: 28 }]}>DÍAS</Text>
+            <Text style={[styles.th, { width: 26, backgroundColor: C.dsHeader, borderLeft: `1pt solid ${C.gold}` }]}>DS</Text>
             <Text style={[styles.th, { width: 28 }]}>EXT.</Text>
             <Text style={[styles.th, { width: 38 }]}>VAL.EXT</Text>
             <Text style={[styles.th, { width: 28 }]}>FALT.</Text>
@@ -246,8 +256,17 @@ export function NominaDoc(props: NominaDocProps) {
               {fechasObj.map((d) => {
                 const cod = props.marcas[f.emp.id]?.[d.iso];
                 const spec = cod ? CODIGO_SPEC[cod] : null;
+                const esDS = cod === "DS";
                 return (
-                  <View key={d.iso} style={[styles.td, { width: colDateW, padding: 2 }, d.esDom ? { backgroundColor: C.domingoBg } : {}]}>
+                  <View
+                    key={d.iso}
+                    style={[
+                      styles.td,
+                      { width: colDateW, padding: 2 },
+                      // Prioridad: DS > Domingo > nada
+                      esDS ? { backgroundColor: C.dsBg } : d.esDom ? { backgroundColor: C.domingoBg } : {},
+                    ]}
+                  >
                     {spec ? (
                       <Text style={[styles.codeChip, { backgroundColor: spec.color }]}>{cod}</Text>
                     ) : (
@@ -257,6 +276,7 @@ export function NominaDoc(props: NominaDocProps) {
                 );
               })}
               <Text style={[styles.td, { width: 28 }, styles.tdBold]}>{f.calc.diasLab}</Text>
+              <Text style={[styles.td, { width: 26, backgroundColor: C.dsBg, color: C.dsText, fontFamily: "Helvetica-Bold" }]}>{f.calc.diasDS}</Text>
               <Text style={[styles.td, { width: 28 }, f.calc.diasDT > 0 ? { color: C.green, fontFamily: "Helvetica-Bold" } : {}]}>{f.calc.diasDT}</Text>
               <Text style={[styles.td, { width: 38 }]}>{fmtMXN(f.calc.valorExtra)}</Text>
               <Text style={[styles.td, { width: 28 }, f.calc.diasFalta > 0 ? { color: C.red, fontFamily: "Helvetica-Bold" } : {}]}>{f.calc.diasFalta}</Text>
@@ -271,8 +291,12 @@ export function NominaDoc(props: NominaDocProps) {
         {/* Resumen */}
         <View style={styles.summary}>
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Días laborados (total)</Text>
+            <Text style={styles.summaryLabel}>Días laborados (total: trabajados + descansos pagados)</Text>
             <Text style={styles.summaryValue}>{totales.diasLab}</Text>
+          </View>
+          <View style={styles.summaryRow}>
+            <Text style={[styles.summaryLabel, { color: C.dsText }]}>  · de los cuales descansos semanales (DS)</Text>
+            <Text style={[styles.summaryValue, { color: C.dsText }]}>{totales.diasDS}</Text>
           </View>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Turnos extra (DT)</Text>

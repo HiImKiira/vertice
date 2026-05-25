@@ -663,7 +663,7 @@ export function PaseListaClient(props: Props) {
                     {current === "DS" && (
                       <p className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-300">
                         <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                        Día de descanso · cuenta como día laborado
+                        Día de descanso
                       </p>
                     )}
                     {meta && (
