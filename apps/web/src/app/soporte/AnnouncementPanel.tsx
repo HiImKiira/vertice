@@ -1,9 +1,19 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { Icon } from "@/components/Icon";
 import { PushControls } from "@/components/PushControls";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+
+interface LogEntry {
+  id: number;
+  tipo: string;
+  titulo: string | null;
+  cuerpo: string | null;
+  resultado: string | null;
+  creado_en: string;
+  usuarios: { nombre: string; username: string } | { nombre: string; username: string }[] | null;
+}
 
 export function AnnouncementPanel() {
   const [open, setOpen] = useState(false);
@@ -12,6 +22,19 @@ export function AnnouncementPanel() {
   const [urlDestino, setUrlDestino] = useState("/dashboard");
   const [pending, start] = useTransition();
   const [result, setResult] = useState<string | null>(null);
+  const [log, setLog] = useState<LogEntry[]>([]);
+  const [showLog, setShowLog] = useState(false);
+
+  async function cargarLog() {
+    const res = await fetch("/api/push/log").catch(() => null);
+    if (!res?.ok) return;
+    const j = await res.json().catch(() => null);
+    if (j?.ok) setLog(j.log ?? []);
+  }
+
+  useEffect(() => {
+    if (open) cargarLog();
+  }, [open]);
 
   async function parseJsonSafe(res: Response): Promise<Record<string, unknown>> {
     const ct = res.headers.get("content-type") ?? "";
@@ -24,6 +47,24 @@ export function AnnouncementPanel() {
     } catch (e) {
       return { error: e instanceof Error ? e.message : "JSON inválido" };
     }
+  }
+
+  async function testBroadcast() {
+    if (!confirm("Mandar push de prueba a TODOS los dispositivos suscritos. ¿Continuar?")) return;
+    start(async () => {
+      try {
+        const res = await fetch("/api/push/test?broadcast=true", { method: "POST" });
+        const j = await parseJsonSafe(res);
+        if (res.ok) {
+          setResult(`Test broadcast: ${j.enviados ?? 0} entregados, ${j.fallidos ?? 0} fallidos`);
+          cargarLog();
+        } else {
+          setResult(`Error: ${j.error ?? `HTTP ${res.status}`}`);
+        }
+      } catch (e) {
+        setResult(`Error de red: ${e instanceof Error ? e.message : "desconocido"}`);
+      }
+    });
   }
 
   async function enviarRecordatorio() {
@@ -108,6 +149,22 @@ export function AnnouncementPanel() {
 
       {open && (
         <div className="mt-4 space-y-4">
+          {/* Test broadcast quick action */}
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-blue-400/25 bg-blue-500/[0.04] p-3 text-xs">
+            <Icon name="send" size={14} className="text-blue-300" />
+            <span className="text-muted">
+              Diagnóstico: manda un push de prueba a <strong>todos los dispositivos suscritos</strong> para verificar entrega.
+            </span>
+            <button
+              type="button"
+              onClick={testBroadcast}
+              disabled={pending}
+              className="ml-auto rounded-md bg-blue-500/30 px-3 py-1.5 text-[11px] font-semibold text-blue-100 hover:bg-blue-500/50 disabled:opacity-40"
+            >
+              {pending ? "Enviando..." : "Test broadcast"}
+            </button>
+          </div>
+
           {/* Estado de suscripciones */}
           <ErrorBoundary label="PushControls">
             <PushControls />
@@ -188,6 +245,57 @@ export function AnnouncementPanel() {
               {result}
             </p>
           )}
+
+          {/* Actividad reciente */}
+          <div className="rounded-xl border border-white/5 bg-[color:var(--card)] p-3">
+            <button
+              type="button"
+              onClick={() => { setShowLog(!showLog); if (!showLog) cargarLog(); }}
+              className="flex w-full items-center justify-between text-xs"
+            >
+              <span className="flex items-center gap-2 font-semibold text-text">
+                <Icon name="clock" size={12} /> Actividad reciente
+                <span className="text-[10px] font-mono text-muted-2">({log.length} eventos)</span>
+              </span>
+              <span className="text-muted">{showLog ? "ocultar" : "ver"}</span>
+            </button>
+
+            {showLog && (
+              <div className="mt-3 space-y-1">
+                {log.length === 0 ? (
+                  <p className="rounded-md border border-dashed border-white/10 bg-white/[0.02] p-3 text-center text-[11px] text-muted-2">
+                    Sin actividad reciente. Manda un push de prueba arriba.
+                  </p>
+                ) : (
+                  <ul className="max-h-72 space-y-1 overflow-y-auto">
+                    {log.map((e) => {
+                      const u = Array.isArray(e.usuarios) ? e.usuarios[0] : e.usuarios;
+                      const ok = e.resultado === "enviado";
+                      const color = ok ? "text-emerald-300" : e.resultado?.startsWith("fallido") ? "text-red-300" : "text-amber-300";
+                      return (
+                        <li key={e.id} className="rounded-md border border-white/5 bg-[color:var(--surface)]/40 px-2 py-1.5 text-[11px]">
+                          <div className="flex items-center gap-2">
+                            <span className={`shrink-0 font-mono text-[10px] font-bold uppercase ${color}`}>
+                              {ok ? "✓" : "✗"} {e.resultado ?? "—"}
+                            </span>
+                            <span className="min-w-0 flex-1 truncate text-text">
+                              {e.titulo ?? "(sin título)"}
+                            </span>
+                            <span className="shrink-0 font-mono text-[9px] text-muted-2">
+                              {new Date(e.creado_en).toLocaleString("es-MX", { dateStyle: "short", timeStyle: "short" })}
+                            </span>
+                          </div>
+                          <p className="mt-0.5 truncate text-[10px] text-muted-2">
+                            {u ? `@${u.username} (${u.nombre})` : "—"} · tipo: {e.tipo}
+                          </p>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </section>

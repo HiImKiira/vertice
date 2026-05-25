@@ -8,7 +8,7 @@
  *
  * Para forzar el refresh del SW en producción: cambiar CACHE_VERSION.
  */
-const CACHE_VERSION = "vortex-v2";
+const CACHE_VERSION = "vortex-v3";
 const SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const SHELL_FILES = [
   "/manifest.webmanifest",
@@ -25,6 +25,13 @@ self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(SHELL_CACHE).then((cache) => cache.addAll(SHELL_FILES).catch(() => {})),
   );
+});
+
+// Mensaje del cliente para forzar el take-over cuando hay versión nueva
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener("activate", (event) => {
@@ -81,14 +88,17 @@ self.addEventListener("fetch", (event) => {
 // Push notifications
 // ─────────────────────────────────────────────────────────────────────
 self.addEventListener("push", (event) => {
+  console.log("[SW push] evento recibido", { hasData: !!event.data });
   let payload = { title: "Vortex", body: "Hay novedades.", url: "/dashboard", tag: "vortex" };
   if (event.data) {
     try {
       payload = { ...payload, ...event.data.json() };
-    } catch {
-      payload.body = event.data.text();
+    } catch (e) {
+      console.warn("[SW push] data no es JSON, usando text()", e);
+      try { payload.body = event.data.text(); } catch {}
     }
   }
+  console.log("[SW push] mostrando notificación", payload);
   const options = {
     body: payload.body,
     icon: payload.icon || "/icons/icon-192.png",
@@ -96,9 +106,15 @@ self.addEventListener("push", (event) => {
     tag: payload.tag,
     data: { url: payload.url, ...(payload.data || {}) },
     vibrate: [200, 100, 200],
-    requireInteraction: false,
+    requireInteraction: payload.requireInteraction === true,
+    renotify: true,
   };
-  event.waitUntil(self.registration.showNotification(payload.title, options));
+  event.waitUntil(
+    self.registration.showNotification(payload.title, options).then(
+      () => console.log("[SW push] showNotification OK"),
+      (err) => console.error("[SW push] showNotification FAIL", err),
+    ),
+  );
 });
 
 self.addEventListener("notificationclick", (event) => {

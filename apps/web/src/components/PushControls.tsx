@@ -275,68 +275,101 @@ export function PushControls({ compact = false }: { compact?: boolean }) {
   // Render según phase
   // ────────────────────────────────────────────────────────────────────
 
-  // Modo compact: solo aparece si hay algo que hacer. Si está suscrito y es
-  // compact, no renderiza nada (UX limpia en dashboard).
-  if (compact && (phase === "subscribed" || phase === "loading" || phase === "unsupported" || phase === "denied")) {
+  // Modo compact: oculta solo si está suscrito o navegador no soportado.
+  if (compact && (phase === "subscribed" || phase === "loading" || phase === "unsupported")) {
     return null;
   }
 
-  if (phase === "loading") {
-    return compact ? null : <div className="rounded-xl border border-white/5 bg-white/[0.02] p-3 text-xs text-muted-2">Verificando notificaciones…</div>;
+  // Cooldown 24h: si el usuario dismisseó, no mostramos hasta el día siguiente
+  if (compact && typeof window !== "undefined") {
+    try {
+      const dismissed = localStorage.getItem("vortex-push-dismissed-at");
+      if (dismissed) {
+        const ts = parseInt(dismissed, 10);
+        if (Number.isFinite(ts) && Date.now() - ts < 24 * 60 * 60 * 1000) {
+          return null;
+        }
+      }
+    } catch {}
   }
 
-  if (phase === "unsupported") {
-    return (
-      <div className="rounded-xl border border-red-400/30 bg-red-500/[0.06] p-3 text-xs text-red-200">
-        Tu navegador no soporta notificaciones push. Usa Chrome, Edge, Safari 16.4+ o Firefox.
-      </div>
-    );
+  // Casos full-mode antes del render principal
+  if (!compact) {
+    if (phase === "loading") {
+      return <div className="rounded-xl border border-white/5 bg-white/[0.02] p-3 text-xs text-muted-2">Verificando notificaciones…</div>;
+    }
+    if (phase === "unsupported") {
+      return (
+        <div className="rounded-xl border border-red-400/30 bg-red-500/[0.06] p-3 text-xs text-red-200">
+          Tu navegador no soporta notificaciones push. Usa Chrome, Edge, Safari 16.4+ o Firefox.
+        </div>
+      );
+    }
+    if (phase === "not_installed") {
+      return <InstallPrompt platform={platform} compact={false} />;
+    }
+    if (phase === "denied") {
+      return (
+        <div className="rounded-xl border border-amber-400/40 bg-amber-500/[0.08] p-3 text-xs text-amber-200">
+          Las notificaciones están <strong>bloqueadas</strong> en este navegador.
+          Para activarlas: barra de URL → ícono de candado/permisos → notificaciones → permitir → recarga.
+        </div>
+      );
+    }
   }
 
-  if (phase === "not_installed") {
-    return (
-      <InstallPrompt platform={platform} compact={compact} />
-    );
-  }
-
-  if (phase === "denied") {
-    return (
-      <div className="rounded-xl border border-amber-400/40 bg-amber-500/[0.08] p-3 text-xs text-amber-200">
-        Las notificaciones están <strong>bloqueadas</strong> en este navegador.
-        Para activarlas: barra de URL → ícono de candado/permisos → notificaciones → permitir → recarga.
-      </div>
-    );
-  }
-
-  // needs_permission | needs_subscribe | subscribed (en modo full)
-  const yaSuscrito = phase === "subscribed";
-
+  // Modo compact handle TODOS sus casos restantes (incluido denied y not_installed)
   if (compact) {
-    // Solo mostramos invitación cuando hay algo que activar
+    if (phase === "not_installed") return <InstallPrompt platform={platform} compact />;
     return (
-      <div className="flex items-center gap-2 rounded-xl border border-blue-400/30 bg-blue-500/[0.08] p-3">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-500/20 text-blue-200">
-          <Icon name="alert-triangle" size={16} />
+      <div className="rounded-xl border border-blue-400/30 bg-blue-500/[0.08] p-3">
+        <div className="flex items-center gap-2">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-500/20 text-blue-200">
+            <Icon name="alert-triangle" size={16} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-semibold text-text">
+              {phase === "denied" ? "Notificaciones bloqueadas" : "Activa las notificaciones"}
+            </p>
+            <p className="text-[10px] text-muted">
+              {phase === "denied"
+                ? "Tu navegador rechazó el permiso. Cámbialo en ajustes del sitio."
+                : "Recibe recordatorios de captura, anuncios de RH y futuras facturas/STs."}
+            </p>
+          </div>
+          {phase !== "denied" && (
+            <button
+              type="button"
+              onClick={handleSuscribir}
+              disabled={busy}
+              className="shrink-0 rounded-md bg-blue-500/80 px-2.5 py-1 text-[10px] font-semibold text-white hover:bg-blue-500 disabled:opacity-40"
+            >
+              {busy ? "..." : "Activar"}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              try { localStorage.setItem("vortex-push-dismissed-at", String(Date.now())); } catch {}
+              setPhase("subscribed"); // ocultamos hasta el próximo render
+            }}
+            className="shrink-0 rounded-md border border-white/10 px-2 py-1 text-[10px] text-muted hover:text-text"
+            title="Recordar mañana"
+          >
+            Después
+          </button>
         </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-xs font-semibold text-text">Activa las notificaciones</p>
-          <p className="text-[10px] text-muted">
-            Recibe recordatorios de captura y avisos urgentes de RH.
+        {msg && (
+          <p className="mt-2 break-words rounded-md border border-white/10 bg-white/5 px-2 py-1.5 text-[10px] text-muted">
+            {msg}
           </p>
-        </div>
-        <button
-          type="button"
-          onClick={handleSuscribir}
-          disabled={busy}
-          className="shrink-0 rounded-md bg-blue-500/80 px-2.5 py-1 text-[10px] font-semibold text-white hover:bg-blue-500 disabled:opacity-40"
-        >
-          {busy ? "..." : "Activar"}
-        </button>
+        )}
       </div>
     );
   }
 
-  // FULL panel (para /soporte)
+  // FULL panel (para /soporte) — solo llegamos aquí si phase ∈ {needs_permission, needs_subscribe, subscribed}
+  const yaSuscrito = phase === "subscribed";
   return (
     <div className="rounded-xl border border-blue-400/25 bg-blue-500/[0.04] p-4">
       <div className="mb-3 flex items-start gap-3">
