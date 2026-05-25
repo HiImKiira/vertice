@@ -19,9 +19,11 @@ create table if not exists liberaciones_globales (
   desactivado_en timestamptz
 );
 
+-- Índice solo por flag activo (now() no es IMMUTABLE, no se permite en
+-- predicates de índice). El filtro de expira_en lo hace el query en runtime.
 create index if not exists liberaciones_globales_activas
   on liberaciones_globales (activado_en desc)
-  where activo and (expira_en is null or expira_en > now());
+  where activo;
 
 alter table liberaciones_globales enable row level security;
 
