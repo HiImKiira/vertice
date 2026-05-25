@@ -660,13 +660,19 @@ export function PaseListaClient(props: Props) {
                         );
                       })()}
                     </div>
+                    {current === "DS" && (
+                      <p className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-300">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                        Día de descanso · cuenta como día laborado
+                      </p>
+                    )}
                     {meta && (
                       <p className="truncate text-[10px] text-muted-2" title={meta.ts ? new Date(meta.ts).toLocaleString("es-MX") : ""}>
                         por <span className="font-mono">@{meta.username}</span>
                         {meta.ts && <> · {new Date(meta.ts).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })}</>}
                       </p>
                     )}
-                    {isPendingChange && (
+                    {isPendingChange && current !== "DS" && (
                       <p className="text-[10px] text-blue-300/70">cambio pendiente — sin guardar</p>
                     )}
                   </div>
