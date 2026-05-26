@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import { Icon } from "@/components/Icon";
 import { PushControls } from "@/components/PushControls";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { DestinatariosPicker } from "./DestinatariosPicker";
 
 interface LogEntry {
   id: number;
@@ -20,6 +21,7 @@ export function AnnouncementPanel() {
   const [titulo, setTitulo] = useState("");
   const [cuerpo, setCuerpo] = useState("");
   const [urlDestino, setUrlDestino] = useState("/dashboard");
+  const [destinatarios, setDestinatarios] = useState<string[]>([]); // vacío = broadcast
   const [pending, start] = useTransition();
   const [result, setResult] = useState<string | null>(null);
   const [log, setLog] = useState<LogEntry[]>([]);
@@ -109,6 +111,7 @@ export function AnnouncementPanel() {
             titulo: titulo.trim(),
             cuerpo: cuerpo.trim(),
             urlDestino: urlDestino.trim() || "/dashboard",
+            destinatarios: destinatarios.length > 0 ? destinatarios : undefined,
           }),
         });
         const j = await parseJsonSafe(res);
@@ -230,13 +233,23 @@ export function AnnouncementPanel() {
                 />
               </div>
             </div>
+
+            {/* Picker de destinatarios */}
+            <div className="mt-3">
+              <DestinatariosPicker
+                value={destinatarios}
+                onChange={setDestinatarios}
+                disabled={pending}
+              />
+            </div>
+
             <button
               type="button"
               onClick={enviarAnuncio}
               disabled={pending || !titulo.trim() || !cuerpo.trim()}
               className="mt-3 rounded-md bg-blue-500/30 px-3 py-1.5 text-xs font-semibold text-blue-100 transition hover:bg-blue-500/50 disabled:opacity-40"
             >
-              {pending ? "Enviando..." : "Mandar anuncio"}
+              {pending ? "Enviando..." : destinatarios.length > 0 ? `Mandar a ${destinatarios.length} usuario${destinatarios.length === 1 ? "" : "s"}` : "Mandar anuncio (broadcast)"}
             </button>
           </div>
 

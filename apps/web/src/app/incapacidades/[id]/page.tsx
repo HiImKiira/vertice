@@ -11,6 +11,7 @@ import {
   type IncapacidadTipo,
 } from "@/lib/incapacidades";
 import { EstadoActions } from "./EstadoActions";
+import { DocumentosPanel } from "./DocumentosPanel";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Incapacidad · Vortex" };
@@ -85,6 +86,37 @@ export default async function IncapacidadDetailPage({ params }: PageProps) {
     .order("creado_en", { ascending: false });
   const eventos = (evRaw ?? []) as unknown as RawEvento[];
 
+  // Documentos
+  const { data: docsRaw } = await supabase
+    .from("incapacidad_documentos")
+    .select(`
+      id, tipo, archivo_nombre, mime, "tamaño_bytes", subido_en,
+      usuarios:subido_por(nombre, username)
+    `)
+    .eq("incapacidad_id", id)
+    .order("subido_en", { ascending: false });
+  const documentos = ((docsRaw ?? []) as Array<{
+    id: string;
+    tipo: string;
+    archivo_nombre: string | null;
+    mime: string | null;
+    "tamaño_bytes": number | null;
+    subido_en: string;
+    usuarios: { nombre: string; username: string } | { nombre: string; username: string }[] | null;
+  }>).map((d) => {
+    const u = Array.isArray(d.usuarios) ? d.usuarios[0] : d.usuarios;
+    return {
+      id: d.id,
+      tipo: d.tipo,
+      archivo_nombre: d.archivo_nombre,
+      mime: d.mime,
+      tamano_bytes: d["tamaño_bytes"],
+      subido_en: d.subido_en,
+      subido_por_nombre: u?.nombre ?? null,
+      subido_por_username: u?.username ?? null,
+    };
+  });
+
   const tipoSpec = TIPO_SPECS[incap.tipo];
   const estadoSpec = ESTADO_SPECS[incap.estado];
   const cerrada = ["CERRADA", "RECHAZADA", "CANCELADA"].includes(incap.estado);
@@ -155,23 +187,41 @@ export default async function IncapacidadDetailPage({ params }: PageProps) {
               </dl>
             </section>
 
-            {/* Documentos requeridos según tipo */}
+            {/* Documentos del expediente */}
+            <DocumentosPanel
+              incapacidadId={incap.id}
+              documentos={documentos}
+              tiposRequeridos={tipoSpec.documentosRequeridos.map((d) => ({
+                tipo: d.tipo,
+                label: d.label,
+                etapa: ESTADO_SPECS[d.etapa].label,
+              }))}
+              isAdmin={isAdmin}
+            />
+
+            {/* Documentos requeridos por tipo — guía */}
             <section className="surface-card p-4">
-              <h2 className="mb-3 font-display text-sm">Documentos requeridos</h2>
+              <h2 className="mb-3 font-display text-sm">Documentos requeridos del flujo</h2>
               <ul className="space-y-1.5 text-[11px]">
-                {tipoSpec.documentosRequeridos.map((d) => (
-                  <li key={d.tipo} className="flex items-start gap-2">
-                    <Icon name="file-text" size={11} className="mt-0.5 shrink-0 text-muted" />
-                    <div className="min-w-0 flex-1">
-                      <p>{d.label}</p>
-                      <p className="text-[10px] text-muted-2">Etapa: {ESTADO_SPECS[d.etapa].label}</p>
-                    </div>
-                  </li>
-                ))}
+                {tipoSpec.documentosRequeridos.map((d) => {
+                  const yaSubido = documentos.some((doc) => doc.tipo === d.tipo);
+                  return (
+                    <li key={d.tipo} className="flex items-start gap-2">
+                      <Icon
+                        name={yaSubido ? "check" : "file-text"}
+                        size={11}
+                        className={`mt-0.5 shrink-0 ${yaSubido ? "text-emerald-300" : "text-muted"}`}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className={yaSubido ? "text-emerald-200" : ""}>
+                          {d.label} {yaSubido && <span className="text-emerald-400">· ✓ ya subido</span>}
+                        </p>
+                        <p className="text-[10px] text-muted-2">Etapa: {ESTADO_SPECS[d.etapa].label}</p>
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
-              <p className="mt-3 text-[10px] text-muted-2">
-                Storage de PDFs/fotos viene en próximo release. Por ahora regístralos en los comentarios.
-              </p>
             </section>
 
             {/* Flujo de etapas */}
