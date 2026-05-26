@@ -19,6 +19,35 @@ export interface SyncStatus {
 }
 
 const MAX_REINTENTOS = 5;
+const PING_URL = "/api/ping";
+const PING_TIMEOUT_MS = 4000;
+
+/**
+ * Verifica si realmente hay conexión haciendo un ping al servidor.
+ *
+ * `navigator.onLine` es notoriamente poco fiable en móviles: en 4G/5G puede
+ * reportar `false` durante captive portals, cambios de torre, transiciones
+ * wifi↔móvil o caídas de DNS. Solo damos por offline si EL PING TAMBIÉN
+ * falla. Una respuesta de cualquier código HTTP cuenta como "hay red" —
+ * incluso 401/403 — porque significa que la conexión TCP se estableció.
+ */
+async function pingServer(): Promise<boolean> {
+  if (typeof window === "undefined") return true;
+  try {
+    const ctl = new AbortController();
+    const timeoutId = setTimeout(() => ctl.abort(), PING_TIMEOUT_MS);
+    const res = await fetch(`${PING_URL}?t=${Date.now()}`, {
+      method: "HEAD",
+      cache: "no-store",
+      signal: ctl.signal,
+      credentials: "omit",
+    }).catch(() => null);
+    clearTimeout(timeoutId);
+    return !!res; // cualquier respuesta = hay red
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Sincroniza UN batch pendiente. Devuelve el resultado o false si lo
@@ -106,7 +135,9 @@ export function useOfflineSync(): {
   reloadList: () => Promise<void>;
 } {
   const [status, setStatus] = useState<SyncStatus>({
-    online: typeof navigator !== "undefined" ? navigator.onLine : true,
+    // Por default asumimos online; el primer ping al montar lo confirma o desmiente.
+    // No nos basamos en navigator.onLine porque es notoriamente poco fiable en móviles 4G/5G.
+    online: true,
     pendientes: 0,
     errores: 0,
     syncing: false,
@@ -144,41 +175,65 @@ export function useOfflineSync(): {
     }
   }, [reloadList]);
 
-  // Listeners online/offline
+  // Listeners online/offline + verificación real con ping al servidor
   useEffect(() => {
     if (typeof window === "undefined") return;
+
+    let pingInFlight = false;
+
+    async function verificarConPing() {
+      if (pingInFlight) return;
+      pingInFlight = true;
+      const hayRed = await pingServer();
+      pingInFlight = false;
+      setStatus((s) => (s.online === hayRed ? s : { ...s, online: hayRed }));
+      if (hayRed) {
+        // Hay red real → intentar sync de lo que esté pendiente
+        setTimeout(() => { syncNow().catch(() => {}); }, 800);
+      }
+    }
+
     function onOnline() {
-      setStatus((s) => ({ ...s, online: true }));
-      // Auto-sync al volver online (timeout para permitir reconexión)
-      setTimeout(() => { syncNow().catch(() => {}); }, 1500);
+      // navigator dice online → confirmamos (en algunos móviles el "online"
+      // dispara antes de que la red esté realmente lista, así que verificamos).
+      verificarConPing();
     }
     function onOffline() {
-      setStatus((s) => ({ ...s, online: false }));
+      // navigator dice offline → NO marcamos offline inmediatamente.
+      // Hacemos un ping rápido: si responde, era falso positivo del browser
+      // (común en 4G/5G/Wi-Fi inestable). Solo si falla el ping → offline real.
+      verificarConPing();
     }
+
     window.addEventListener("online", onOnline);
     window.addEventListener("offline", onOffline);
-    // Initial load + initial sync attempt
+
+    // Initial: cargar pendientes y verificar conexión real al montar
     reloadList();
-    if (navigator.onLine) {
-      setTimeout(() => { syncNow().catch(() => {}); }, 2000);
-    }
+    verificarConPing();
+
     return () => {
       window.removeEventListener("online", onOnline);
       window.removeEventListener("offline", onOffline);
     };
   }, [reloadList, syncNow]);
 
-  // Poll periódico cada 30s para retry de errores (si vuelve la red rápido)
+  // Poll periódico cada 30s:
+  //  - verificar conexión con ping real (re-sincroniza estado online si cambió)
+  //  - reintentar pendientes si hay red
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const id = setInterval(() => {
-      if (navigator.onLine && !syncingRef.current) {
-        listarPendientes().then((lst) => {
+    const id = setInterval(async () => {
+      const hayRed = await pingServer();
+      setStatus((s) => (s.online === hayRed ? s : { ...s, online: hayRed }));
+      if (hayRed && !syncingRef.current) {
+        try {
+          const lst = await listarPendientes();
           const tienePendientes = lst.some(
             (p) => p.status === "pending" || (p.status === "error" && p.attempts < MAX_REINTENTOS),
           );
           if (tienePendientes) syncNow().catch(() => {});
-        }).catch(() => {});
+        } catch { /* ignore */ }
       }
     }, 30_000);
     return () => clearInterval(id);
@@ -190,22 +245,25 @@ export function useOfflineSync(): {
     jornada: string;
     marcas: { empleado_id: string; codigo: string }[];
   }): Promise<GuardarResult & { offline?: boolean }> => {
-    const online = typeof navigator === "undefined" ? true : navigator.onLine;
-
-    if (online) {
-      // Intentar guardar directo. Si falla por red, caer a offline.
-      try {
-        const r = await guardarPaseListaAction({
-          fecha: input.fecha,
-          sede_id: input.sedeId,
-          jornada: input.jornada,
-          marcas: input.marcas as never,
-        });
-        return r;
-      } catch (e) {
-        console.warn("[offline-sync] guardar fallback a offline:", e);
-        // cae a guardado offline ↓
-      }
+    // SIEMPRE intentamos primero el server (no confiamos en navigator.onLine,
+    // que en 4G/5G da falsos positivos). Solo si el fetch falla por red,
+    // caemos a guardado offline en IndexedDB.
+    try {
+      const r = await guardarPaseListaAction({
+        fecha: input.fecha,
+        sede_id: input.sedeId,
+        jornada: input.jornada,
+        marcas: input.marcas as never,
+      });
+      // Si llegamos aquí con respuesta del server, marcamos online (por si
+      // el badge decía offline por un blip previo).
+      setStatus((s) => (s.online ? s : { ...s, online: true }));
+      return r;
+    } catch (e) {
+      console.warn("[offline-sync] server inalcanzable, cae a offline:", e);
+      // Marcar offline en el badge para feedback inmediato
+      setStatus((s) => (!s.online ? s : { ...s, online: false }));
+      // cae a guardado offline ↓
     }
 
     // Sin red o falló → guardar en IndexedDB
