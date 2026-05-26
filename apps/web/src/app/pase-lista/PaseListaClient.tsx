@@ -5,7 +5,8 @@ import { VortexLoader } from "@/components/VortexLoader";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CODIGO_SPEC, CODIGOS, type CodigoAsistencia } from "@vertice/shared/codes";
 import { Icon } from "@/components/Icon";
-import { guardarPaseListaAction, type GuardarResult } from "./actions";
+import { type GuardarResult } from "./actions";
+import { useOfflineSync } from "@/lib/offline-sync";
 import { liberarFechaQuickAction } from "../soporte/actions";
 
 export interface SedeShape {
@@ -106,6 +107,8 @@ export function PaseListaClient(props: Props) {
   const [showReview, setShowReview] = useState(false);
   const [bulkFeedback, setBulkFeedback] = useState<string | null>(null);
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
+  // Hook offline: maneja sin red guardando en IndexedDB y syncing automático
+  const offline = useOfflineSync();
 
   function setMarca(empId: string, codigo: CodigoAsistencia) {
     if (!props.canEdit) return;
@@ -278,13 +281,23 @@ export function PaseListaClient(props: Props) {
     const marcas = Object.entries(pendientes).map(([empleado_id, codigo]) => ({ empleado_id, codigo }));
     setBusyAction("save");
     startTransition(async () => {
-      const r = await guardarPaseListaAction({
+      const r = await offline.guardar({
         fecha: props.fecha,
-        sede_id: props.sedeId,
+        sedeId: props.sedeId,
         jornada: props.jornada,
         marcas,
       });
-      setResultado(r);
+      // Si fue offline, mostramos mensaje específico
+      if (r.ok && (r as { offline?: boolean }).offline) {
+        setResultado({
+          ok: true,
+          saved: r.saved,
+          skipped: r.skipped,
+          mensaje: "Sin red — guardado local. Se sincronizará al volver online.",
+        } as GuardarResult);
+      } else {
+        setResultado(r);
+      }
       setBusyAction(null);
       if (r.ok) {
         setPendientes({});
