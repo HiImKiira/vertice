@@ -68,7 +68,7 @@ as $$
     coalesce(c.n_cap, 0),
     case when coalesce(t.n, 0) > 0
          then least(100, round(coalesce(c.n_cap, 0)::numeric * 100 / t.n))::int
-         else 0 end,
+         else 0 end as pct,
     coalesce(t.n, 0) - coalesce(c.n_cap, 0),
     c.ultima
   from usuarios u
@@ -76,7 +76,7 @@ as $$
   left join totales t on t.usuario_id = u.id
   left join capturadas_x_sup c on c.usuario_id = u.id
   where u.activo = true and u.rol = 'USER'
-  order by pct_cobertura asc, u.nombre;
+  order by pct asc, u.nombre;
 $$;
 
 grant execute on function cobertura_supervisores(date) to authenticated;
