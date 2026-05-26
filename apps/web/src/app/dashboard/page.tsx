@@ -32,6 +32,15 @@ interface Modulo {
 function modulosFor(rol: string): Modulo[] {
   const all: Modulo[] = [
     {
+      href: "/live",
+      icon: "🟢",
+      iconBg: "rgba(103,232,249,0.15)",
+      iconBorder: "rgba(103,232,249,0.4)",
+      title: "Centro LIVE",
+      sub: "Pulso en vivo: captura, tickets, incapacidades, alertas. Auto-refresh 30s.",
+      badge: { label: "ADMIN+", cls: "pill pill-cyan" },
+    },
+    {
       href: "/pase-lista",
       icon: "📋",
       iconBg: "rgba(16,185,129,0.12)",
@@ -160,7 +169,7 @@ function modulosFor(rol: string): Modulo[] {
   ];
 
   const adminLike = ["ADMIN", "SUPERADMIN", "CEO", "SOPORTE"].includes(rol);
-  const adminOnly = new Set(["/rh-pro", "/rh-pro/empleados", "/rh-pro/contratos", "/rh-pro/sedes", "/rh-pro/descansos-semanales", "/rh-pro/consulta", "/reportes"]);
+  const adminOnly = new Set(["/live", "/rh-pro", "/rh-pro/empleados", "/rh-pro/contratos", "/rh-pro/sedes", "/rh-pro/descansos-semanales", "/rh-pro/consulta", "/reportes"]);
   return all.filter((m) => (adminOnly.has(m.href) ? adminLike : true));
 }
 
