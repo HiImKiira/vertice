@@ -311,7 +311,7 @@ export async function toggleAccesoFacturacionAction(
 // ─────────────────────────────────────────────────────────────────────
 // CREAR / EDITAR / ELIMINAR supervisor (usuario)
 // ─────────────────────────────────────────────────────────────────────
-const ROLES_VALIDOS = ["USER", "ADMIN", "SUPERADMIN", "CEO", "SOPORTE"] as const;
+const ROLES_VALIDOS = ["USER", "ADMIN", "SUPERADMIN", "CEO", "SOPORTE", "FACTURACION"] as const;
 type RolValido = (typeof ROLES_VALIDOS)[number];
 
 export type CrearSupResult =

@@ -29,3 +29,8 @@ export function isAdminLike(rol: TopbarUser["rol"]): boolean {
 export function requireAdminLike(rol: TopbarUser["rol"]): void {
   if (!isAdminLike(rol)) redirect("/dashboard");
 }
+
+/** El rol FACTURACION es exclusivo del módulo de facturación. */
+export function isFacturacion(rol: TopbarUser["rol"]): boolean {
+  return rol === "FACTURACION";
+}

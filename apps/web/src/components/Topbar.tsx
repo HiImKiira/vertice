@@ -9,25 +9,28 @@ import { logoutAction } from "@/app/login/actions";
 export interface TopbarUser {
   username: string;
   nombre: string;
-  rol: "USER" | "ADMIN" | "SUPERADMIN" | "CEO" | "SOPORTE";
+  rol: "USER" | "ADMIN" | "SUPERADMIN" | "CEO" | "SOPORTE" | "FACTURACION";
 }
 
 interface NavItem {
   href: string;
   icon: string;
   label: string;
-  /** Roles que pueden ver este tab. Si no se especifica, todos. */
+  /** Roles que pueden ver este tab. Si no se especifica, todos EXCEPTO FACTURACION (que es restringido). */
   roles?: TopbarUser["rol"][];
+  /** Si true, se muestra también a FACTURACION. */
+  facturacion?: boolean;
 }
 
 const NAV: NavItem[] = [
-  { href: "/pase-lista",  icon: "📋", label: "Pase de lista" },
-  { href: "/incidencias", icon: "🧾", label: "Incidencias" },
-  { href: "/eventuales",  icon: "🔄", label: "Eventuales" },
-  { href: "/descansos",   icon: "🛌", label: "Descansos" },
-  { href: "/rh-pro",      icon: "👥", label: "RH Pro",       roles: ["ADMIN", "SUPERADMIN", "CEO", "SOPORTE"] },
-  { href: "/soporte",     icon: "💬", label: "Soporte" },
-  { href: "/reportes",    icon: "📄", label: "Reportes PDF", roles: ["ADMIN", "SUPERADMIN", "CEO"] },
+  { href: "/pase-lista",   icon: "📋", label: "Pase de lista" },
+  { href: "/incidencias",  icon: "🧾", label: "Incidencias" },
+  { href: "/eventuales",   icon: "🔄", label: "Eventuales" },
+  { href: "/descansos",    icon: "🛌", label: "Descansos" },
+  { href: "/rh-pro",       icon: "👥", label: "RH Pro",       roles: ["ADMIN", "SUPERADMIN", "CEO", "SOPORTE"] },
+  { href: "/facturacion",  icon: "🏦", label: "Facturación",  roles: ["ADMIN", "SUPERADMIN", "CEO", "SOPORTE", "FACTURACION"], facturacion: true },
+  { href: "/soporte",      icon: "💬", label: "Soporte", facturacion: true },
+  { href: "/reportes",     icon: "📄", label: "Reportes PDF", roles: ["ADMIN", "SUPERADMIN", "CEO"] },
 ];
 
 interface SignOutButtonProps { compact?: boolean }
@@ -49,7 +52,10 @@ function SignOutBtn({ compact }: SignOutButtonProps) {
 
 export function Topbar({ user }: { user: TopbarUser }) {
   const pathname = usePathname();
-  const visible = NAV.filter((n) => !n.roles || n.roles.includes(user.rol));
+  // FACTURACION solo ve items con .facturacion=true. Para los demás, regla normal.
+  const visible = user.rol === "FACTURACION"
+    ? NAV.filter((n) => n.facturacion === true && (!n.roles || n.roles.includes(user.rol)))
+    : NAV.filter((n) => !n.roles || n.roles.includes(user.rol));
 
   return (
     <header className="topbar">

@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation";
 import { Icon } from "@/components/Icon";
 import { actualizarSupervisorAction, eliminarSupervisorAction } from "../actions";
 
-type Rol = "USER" | "ADMIN" | "SUPERADMIN" | "CEO" | "SOPORTE";
+type Rol = "USER" | "ADMIN" | "SUPERADMIN" | "CEO" | "SOPORTE" | "FACTURACION";
 
-const ROLES: Rol[] = ["USER", "ADMIN", "SUPERADMIN", "CEO", "SOPORTE"];
+const ROLES: Rol[] = ["USER", "FACTURACION", "ADMIN", "SUPERADMIN", "CEO", "SOPORTE"];
 
 interface Props {
   supervisorId: string;

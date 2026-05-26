@@ -55,9 +55,25 @@ export default async function ComprasPage() {
             {rows.length} solicitud{rows.length === 1 ? "" : "es"} · cualquier supervisor puede levantar una
           </p>
         </div>
-        <Link href="/facturacion/compras/nueva" className="btn btn-primary btn-sm">
-          <Icon name="plus" size={12} /> Nueva solicitud
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <a
+            href="/api/facturacion/compras/xlsx"
+            className="inline-flex items-center gap-1.5 rounded-md border border-emerald-400/40 bg-emerald-500/15 px-3 py-2 text-xs font-semibold text-emerald-200 hover:bg-emerald-500/30"
+            title="Exporta todas las solicitudes a Excel (con detalle de items)"
+          >
+            📗 Exportar a Excel
+          </a>
+          <a
+            href="/api/facturacion/compras/xlsx?estado=SOLICITADA"
+            className="inline-flex items-center gap-1.5 rounded-md border border-amber-400/40 bg-amber-500/15 px-3 py-2 text-xs font-semibold text-amber-200 hover:bg-amber-500/30"
+            title="Solo solicitudes pendientes de aprobar"
+          >
+            📗 Solo pendientes
+          </a>
+          <Link href="/facturacion/compras/nueva" className="btn btn-primary btn-sm">
+            <Icon name="plus" size={12} /> Nueva solicitud
+          </Link>
+        </div>
       </header>
 
       {rows.length === 0 ? (

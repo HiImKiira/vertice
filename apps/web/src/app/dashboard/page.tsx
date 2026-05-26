@@ -217,11 +217,13 @@ export default async function DashboardPage() {
 
   const tieneAccesoFacturacion = perfilFacRes.data?.acceso_facturacion === true;
   const esAdminLike = isAdminLike(profile.rol);
+  const esFacturacion = profile.rol === "FACTURACION";
 
-  // Redirect: si el usuario SOLO tiene acceso_facturacion (sin asignaciones de
-  // supervisor y sin rol admin-like), no tiene nada que hacer en el dashboard.
-  // Lo llevamos directo a /facturacion donde sí tiene flujo de trabajo.
-  if (tieneAccesoFacturacion && !esAdminLike && sedesAgrupadas.length === 0) {
+  // Redirect a /facturacion en dos casos:
+  //   1) Rol FACTURACION (siempre — es su único módulo).
+  //   2) acceso_facturacion sin admin-like ni asignaciones (un USER que solo
+  //      tiene el flag por compras y no tiene nada más que hacer aquí).
+  if (esFacturacion || (tieneAccesoFacturacion && !esAdminLike && sedesAgrupadas.length === 0)) {
     redirect("/facturacion");
   }
 

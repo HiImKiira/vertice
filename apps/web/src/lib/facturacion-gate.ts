@@ -25,8 +25,9 @@ export async function requireAccesoFacturacion(): Promise<{
   if (!perfil) redirect("/login");
 
   const esAdminLike = ["SUPERADMIN", "SOPORTE", "CEO"].includes(perfil.rol);
+  const esFacturacion = perfil.rol === "FACTURACION";
   const tieneFlag = perfil.acceso_facturacion === true;
-  if (!esAdminLike && !tieneFlag) redirect("/dashboard");
+  if (!esAdminLike && !esFacturacion && !tieneFlag) redirect("/dashboard");
 
   return { userId: user.id, rol: perfil.rol, nombre: perfil.nombre, esAdminLike };
 }

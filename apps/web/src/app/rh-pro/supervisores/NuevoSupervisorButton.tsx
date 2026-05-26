@@ -5,14 +5,15 @@ import { useRouter } from "next/navigation";
 import { Icon } from "@/components/Icon";
 import { crearSupervisorAction } from "./actions";
 
-type Rol = "USER" | "ADMIN" | "SUPERADMIN" | "CEO" | "SOPORTE";
+type Rol = "USER" | "ADMIN" | "SUPERADMIN" | "CEO" | "SOPORTE" | "FACTURACION";
 
 const ROLES_OPTS: Array<{ value: Rol; label: string; description: string }> = [
-  { value: "USER",       label: "USER (supervisor de campo)", description: "Captura pase de lista en sus sedes asignadas" },
-  { value: "ADMIN",      label: "ADMIN (RH operativo)",       description: "Gestiona empleados, contratos, ve todo" },
-  { value: "SUPERADMIN", label: "SUPERADMIN",                 description: "Acceso total, incluye finanzas/facturación" },
-  { value: "CEO",        label: "CEO",                        description: "Acceso ejecutivo" },
-  { value: "SOPORTE",    label: "SOPORTE (IT)",               description: "Igual que admin + reset passwords + acceso técnico" },
+  { value: "USER",        label: "USER (supervisor de campo)", description: "Captura pase de lista en sus sedes asignadas" },
+  { value: "FACTURACION", label: "FACTURACIÓN (Diego, Brenda, Alex)", description: "Solo módulo de facturación: cotizaciones, productos, solicitudes de compra y datos bancarios. NO accede a RH/asistencias." },
+  { value: "ADMIN",       label: "ADMIN (RH operativo)",       description: "Gestiona empleados, contratos, ve todo" },
+  { value: "SUPERADMIN",  label: "SUPERADMIN",                 description: "Acceso total, incluye finanzas/facturación" },
+  { value: "CEO",         label: "CEO",                        description: "Acceso ejecutivo" },
+  { value: "SOPORTE",     label: "SOPORTE (IT)",               description: "Igual que admin + reset passwords + acceso técnico" },
 ];
 
 interface Props { callerRol: string }
@@ -110,13 +111,19 @@ export function NuevoSupervisorButton({ callerRol }: Props) {
                       {ROLES_OPTS.find((r) => r.value === rol)?.description}
                     </p>
                   </div>
-                  <label className="flex cursor-pointer items-center gap-2 rounded-md border border-white/10 bg-white/[0.02] p-2.5 text-xs">
-                    <input type="checkbox" checked={accesoFac} onChange={(e) => setAccesoFac(e.target.checked)} disabled={pending} />
-                    <span>
-                      <span className="font-semibold text-amber-200">Activar acceso a Facturación</span>
-                      <span className="ml-1 text-muted">— podrá ver cotizaciones, productos, solicitudes de compra</span>
-                    </span>
-                  </label>
+                  {rol === "FACTURACION" ? (
+                    <div className="rounded-md border border-blue-400/30 bg-blue-500/[0.08] p-2.5 text-[11px] text-blue-200">
+                      <strong>Acceso a Facturación incluido automáticamente</strong> — el rol FACTURACION ya implica acceso al módulo. No verá el resto de Vortex (asistencias, RH).
+                    </div>
+                  ) : (
+                    <label className="flex cursor-pointer items-center gap-2 rounded-md border border-white/10 bg-white/[0.02] p-2.5 text-xs">
+                      <input type="checkbox" checked={accesoFac} onChange={(e) => setAccesoFac(e.target.checked)} disabled={pending} />
+                      <span>
+                        <span className="font-semibold text-amber-200">Activar acceso a Facturación</span>
+                        <span className="ml-1 text-muted">— podrá ver cotizaciones, productos, solicitudes de compra además de su rol normal</span>
+                      </span>
+                    </label>
+                  )}
                 </div>
                 {err && <p className="mt-3 rounded-md border border-red-400/30 bg-red-500/[0.08] px-3 py-2 text-xs text-red-200">{err}</p>}
                 <div className="mt-5 flex justify-end gap-2">
