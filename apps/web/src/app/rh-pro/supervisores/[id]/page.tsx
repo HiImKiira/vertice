@@ -93,7 +93,34 @@ export default async function SupervisorDetailPage({ params }: PageProps) {
   ]);
 
   const resumen = (resumenRes.data as ResumenRow[] | null)?.[0];
-  if (!resumen) notFound();
+  if (!resumen) {
+    // En vez de 404 ciego, mostramos error útil con la causa probable.
+    const causa = resumenRes.error
+      ? `RPC supervisor_resumen falló: ${resumenRes.error.message}. Probablemente la migración v19 / v20 no se aplicó en Supabase.`
+      : `No existe un supervisor con id=${id}, o RLS está bloqueando la lectura.`;
+    return (
+      <main className="min-h-screen overflow-x-hidden text-text">
+        <Topbar user={profile} />
+        <div className="relative z-10 mx-auto max-w-[800px] px-4 py-10 sm:px-6">
+          <Link href="/rh-pro/supervisores" className="inline-flex items-center gap-1 text-xs text-muted hover:text-text">
+            <Icon name="arrow-left" size={12} /> Centro de supervisores
+          </Link>
+          <div className="mt-6 rounded-xl border border-red-400/40 bg-red-500/[0.08] p-5 text-sm text-red-200">
+            <h1 className="mb-2 font-display text-xl">No se pudo cargar la ficha del supervisor</h1>
+            <p className="text-[12px] text-red-300/80">{causa}</p>
+            <p className="mt-3 text-[11px] text-muted">
+              Sugerencias:
+            </p>
+            <ul className="mt-1 list-inside list-disc space-y-1 text-[11px] text-muted">
+              <li>Aplica los SQL v19 y v20 en Supabase Studio si aún no lo hiciste.</li>
+              <li>Verifica que el id sea correcto: <code className="font-mono">{id}</code></li>
+              <li>Si el problema persiste, abre un ticket en /soporte.</li>
+            </ul>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   const asignaciones = (asignRes.data ?? []) as AsignRow[];
   const bitacora = (bitacoraRes.data ?? []) as BitacoraRow[];
