@@ -193,12 +193,14 @@ export function ImportarEmpleadosClient() {
                 <th className="px-2 py-2 font-mono text-[10px] uppercase">Jornada</th>
                 <th className="px-2 py-2 font-mono text-[10px] uppercase">Desc.</th>
                 <th className="px-2 py-2 text-right font-mono text-[10px] uppercase">Salario</th>
+                <th className="px-2 py-2 font-mono text-[10px] uppercase">RFC/NSS</th>
+                <th className="px-2 py-2 font-mono text-[10px] uppercase">Banco · CLABE</th>
                 <th className="px-2 py-2 font-mono text-[10px] uppercase">Notas</th>
               </tr>
             </thead>
             <tbody>
               {filasFiltradas.length === 0 ? (
-                <tr><td colSpan={9} className="px-3 py-6 text-center text-muted">Sin filas con este filtro.</td></tr>
+                <tr><td colSpan={11} className="px-3 py-6 text-center text-muted">Sin filas con este filtro.</td></tr>
               ) : filasFiltradas.slice(0, 200).map((f) => (
                 <FilaRow key={f.rowNumber} f={f} />
               ))}
@@ -301,6 +303,16 @@ function FilaRow({ f }: { f: FilaPreview }) {
       <td className="px-2 py-1.5 font-mono text-[10px]">{f.jornada ?? <em className="text-red-300">?</em>}</td>
       <td className="px-2 py-1.5 font-mono text-[10px]">{f.dia_descanso.join(",")}</td>
       <td className="px-2 py-1.5 text-right font-mono">${f.salario_diario.toFixed(2)}</td>
+      <td className="px-2 py-1.5 font-mono text-[10px] text-muted">
+        {f.rfc && <div className="text-amber-200">{f.rfc}</div>}
+        {f.nss && <div className="text-muted-2">{f.nss}</div>}
+        {!f.rfc && !f.nss && <span className="text-muted-2">—</span>}
+      </td>
+      <td className="px-2 py-1.5 font-mono text-[10px]">
+        {f.banco && <div className="text-emerald-200">{f.banco}</div>}
+        {f.clabe && <div className="text-muted-2">{f.clabe}</div>}
+        {!f.banco && !f.clabe && <span className="text-muted-2">—</span>}
+      </td>
       <td className="px-2 py-1.5 text-[10px]">
         {f.errors.length > 0 && (
           <p className="text-red-300">{f.errors.join(" · ")}</p>

@@ -44,6 +44,15 @@ export async function GET() {
     { header: "dia_descanso", key: "diaDesc", width: 14 },
     { header: "salario_diario", key: "salario", width: 14 },
     { header: "fecha_alta", key: "fechaAlta", width: 14 },
+    { header: "rfc", key: "rfc", width: 16 },
+    { header: "nss", key: "nss", width: 14 },
+    { header: "curp", key: "curp", width: 20 },
+    { header: "telefono", key: "telefono", width: 14 },
+    { header: "email_personal", key: "email", width: 26 },
+    { header: "banco", key: "banco", width: 16 },
+    { header: "cuenta_bancaria", key: "cuenta", width: 20 },
+    { header: "clabe", key: "clabe", width: 22 },
+    { header: "direccion", key: "direccion", width: 36 },
   ];
 
   // Estilo header
@@ -62,6 +71,15 @@ export async function GET() {
     diaDesc: "(opcional, default DOM)",
     salario: "(opcional, default 315.04)",
     fechaAlta: "(opcional, default hoy)",
+    rfc: "(opcional)",
+    nss: "(opcional, 11 dígitos)",
+    curp: "(opcional, 18 chars)",
+    telefono: "(opcional)",
+    email: "(opcional)",
+    banco: "(opcional)",
+    cuenta: "(opcional)",
+    clabe: "(opcional, 18 dígitos)",
+    direccion: "(opcional)",
   });
   labelsRow.eachCell((cell) => {
     cell.font = { italic: true, size: 8, color: { argb: "FF85692A" } };
@@ -78,6 +96,15 @@ export async function GET() {
     diaDesc: "DOM",
     salario: 315.04,
     fechaAlta: new Date().toISOString().slice(0, 10),
+    rfc: "PEGJ900101AB1",
+    nss: "12345678901",
+    curp: "PEGJ900101HYNJRN05",
+    telefono: "9991234567",
+    email: "juan.perez@gmail.com",
+    banco: "BBVA",
+    cuenta: "0123456789",
+    clabe: "012914002012345678",
+    direccion: "Calle 60 #500 x 35 y 37, Centro, Mérida, Yucatán",
   });
   ws.addRow({
     numero: "501",
@@ -87,6 +114,15 @@ export async function GET() {
     diaDesc: "SAB",
     salario: 350,
     fechaAlta: new Date().toISOString().slice(0, 10),
+    rfc: "LOMM850612XYZ",
+    nss: "98765432109",
+    curp: "LOMM850612MYNPRR03",
+    telefono: "9997654321",
+    email: "",
+    banco: "Santander",
+    cuenta: "5544332211",
+    clabe: "014914002098765432",
+    direccion: "",
   });
 
   // Bordes ligeros
@@ -130,8 +166,18 @@ export async function GET() {
     ["6. Si dejas numero_empleado vacío, el sistema lo auto-asigna empezando en 400+."],
     ["7. Si proporcionas un numero_empleado que YA existe, se ACTUALIZARÁ ese empleado."],
     [""],
-    ["8. Guarda el archivo y súbelo en Vortex → RH Pro → Empleados → Import masivo."],
-    ["9. Verás un preview con validaciones antes de confirmar la importación."],
+    ["8. DATOS PERSONALES Y BANCARIOS (opcionales):"],
+    ["   · RFC: 13 chars con homoclave (ej. PEGJ900101AB1)"],
+    ["   · NSS: 11 dígitos del IMSS"],
+    ["   · CURP: 18 chars"],
+    ["   · banco / cuenta_bancaria / clabe: para depósitos de nómina"],
+    ["   · El módulo de Facturación podrá exportar estos datos por sede para emitir pagos."],
+    [""],
+    ["9. Si ya importaste antes a un empleado, puedes dejar las columnas vacías en otra"],
+    ["   importación — los datos previos se conservan, NO se borran con NULL."],
+    [""],
+    ["10. Guarda el archivo y súbelo en Vortex → RH Pro → Empleados → Import masivo."],
+    ["11. Verás un preview con validaciones antes de confirmar la importación."],
     [""],
     ["Soporte: edy@vertice.mhs.local — by Vortex"],
   ];

@@ -26,6 +26,16 @@ export interface FilaPreview {
   dia_descanso: DiaValido[];
   salario_diario: number;
   fecha_alta: string; // YYYY-MM-DD
+  // Datos personales / fiscales / bancarios (todos opcionales)
+  rfc: string | null;
+  nss: string | null;
+  curp: string | null;
+  telefono: string | null;
+  email_personal: string | null;
+  banco: string | null;
+  cuenta_bancaria: string | null;
+  clabe: string | null;
+  direccion: string | null;
   // Estado
   status: "ok" | "warn" | "error";
   warnings: string[];
@@ -224,6 +234,16 @@ export async function previewImportarEmpleadosAction(formData: FormData): Promis
   const colDiaDesc = findCol("dia_descanso", "descanso", "día_descanso");
   const colSalario = findCol("salario_diario", "salario", "sueldo_diario", "sueldo");
   const colFechaAlta = findCol("fecha_alta", "alta", "ingreso", "fecha_ingreso");
+  // Datos personales / bancarios (todos opcionales)
+  const colRFC = findCol("rfc");
+  const colNSS = findCol("nss", "imss", "seguro_social");
+  const colCURP = findCol("curp");
+  const colTelefono = findCol("telefono", "teléfono", "tel", "celular", "movil", "móvil");
+  const colEmail = findCol("email_personal", "email", "correo", "correo_personal");
+  const colBanco = findCol("banco", "banco_nombre");
+  const colCuenta = findCol("cuenta_bancaria", "cuenta", "no_cuenta", "numero_cuenta", "número_cuenta");
+  const colClabe = findCol("clabe", "clabe_interbancaria", "clabe_spei");
+  const colDireccion = findCol("direccion", "dirección", "domicilio");
 
   if (!colNombre) return { ok: false, error: "Falta la columna 'nombre' (o 'nombre_trabajador') en el archivo" };
   if (!colSede) return { ok: false, error: "Falta la columna 'sede' (o 'sede_abrev') en el archivo" };
@@ -312,6 +332,39 @@ export async function previewImportarEmpleadosAction(formData: FormData): Promis
     // Fecha alta
     const fecha_alta = colFechaAlta ? parseFecha(row.getCell(colFechaAlta).value) : new Date().toISOString().slice(0, 10);
 
+    // ─── Datos personales / fiscales / bancarios (opcionales) ───
+    const cellText = (col: number | null): string | null => {
+      if (!col) return null;
+      const v = normalizar(row.getCell(col).value);
+      return v ? v : null;
+    };
+    const rfc = cellText(colRFC)?.toUpperCase().replace(/\s+/g, "") ?? null;
+    const nss = cellText(colNSS)?.replace(/\D/g, "") ?? null;
+    const curp = cellText(colCURP)?.toUpperCase().replace(/\s+/g, "") ?? null;
+    const telefono = cellText(colTelefono);
+    const email_personal = cellText(colEmail)?.toLowerCase() ?? null;
+    const banco = cellText(colBanco);
+    const cuenta_bancaria = cellText(colCuenta)?.replace(/\s+/g, "") ?? null;
+    const clabe = cellText(colClabe)?.replace(/\D/g, "") ?? null;
+    const direccion = cellText(colDireccion);
+
+    // Validaciones suaves (warnings, no errores) para formato
+    if (rfc && !/^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{0,3}$/.test(rfc)) {
+      warnings.push(`RFC "${rfc}" no tiene formato estándar`);
+    }
+    if (nss && nss.length !== 11) {
+      warnings.push(`NSS debe ser 11 dígitos (tiene ${nss.length})`);
+    }
+    if (curp && curp.length !== 18) {
+      warnings.push(`CURP debe ser 18 caracteres (tiene ${curp.length})`);
+    }
+    if (clabe && clabe.length !== 18) {
+      warnings.push(`CLABE debe ser 18 dígitos (tiene ${clabe.length})`);
+    }
+    if (email_personal && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email_personal)) {
+      warnings.push(`Email "${email_personal}" no tiene formato válido`);
+    }
+
     filas.push({
       rowNumber: r,
       numero_empleado,
@@ -322,6 +375,15 @@ export async function previewImportarEmpleadosAction(formData: FormData): Promis
       dia_descanso: dia_descanso as DiaValido[],
       salario_diario: salario_diario > 0 ? salario_diario : 315.04,
       fecha_alta,
+      rfc,
+      nss,
+      curp,
+      telefono,
+      email_personal,
+      banco,
+      cuenta_bancaria,
+      clabe,
+      direccion,
       status: errors.length > 0 ? "error" : warnings.length > 0 ? "warn" : "ok",
       warnings,
       errors,
@@ -387,6 +449,17 @@ export async function confirmarImportarEmpleadosAction(
       salario_diario: f.salario_diario,
       fecha_alta: f.fecha_alta,
     };
+    // Solo asignamos los datos personales/bancarios que el archivo trajo,
+    // para no sobrescribir con NULL en updates si la columna no estaba en el xlsx.
+    if (f.rfc) payload.rfc = f.rfc;
+    if (f.nss) payload.nss = f.nss;
+    if (f.curp) payload.curp = f.curp;
+    if (f.telefono) payload.telefono = f.telefono;
+    if (f.email_personal) payload.email_personal = f.email_personal;
+    if (f.banco) payload.banco = f.banco;
+    if (f.cuenta_bancaria) payload.cuenta_bancaria = f.cuenta_bancaria;
+    if (f.clabe) payload.clabe = f.clabe;
+    if (f.direccion) payload.direccion = f.direccion;
 
     if (f.matchedEmpleadoId) {
       const { error } = await admin

@@ -6,6 +6,7 @@ import { Topbar } from "@/components/Topbar";
 import { Icon } from "@/components/Icon";
 import { CODIGO_SPEC, type CodigoAsistencia } from "@vertice/shared/codes";
 import { NotasEditor } from "./NotasEditor";
+import { DatosPersonalesEditor } from "./DatosPersonalesEditor";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Empleado · Consulta" };
@@ -29,6 +30,16 @@ interface RawEmp {
   notas_actualizado_en: string | null;
   notas_actualizado_por: string | null;
   sede_id: string;
+  // Datos personales / fiscales / bancarios (v25)
+  rfc: string | null;
+  nss: string | null;
+  curp: string | null;
+  telefono: string | null;
+  email_personal: string | null;
+  direccion: string | null;
+  banco: string | null;
+  cuenta_bancaria: string | null;
+  clabe: string | null;
   sedes: { abrev: string; nombre: string } | { abrev: string; nombre: string }[] | null;
   notas_autor: { username: string } | { username: string }[] | null;
   baja_capturado_por_user: { username: string; nombre: string } | { username: string; nombre: string }[] | null;
@@ -50,6 +61,8 @@ export default async function EmpleadoDetailPage({ params }: PageProps) {
       id, numero_empleado, nombre, jornada, dia_descanso, fecha_alta, fecha_baja,
       motivo_baja, salario_diario, segmento_original, notas, notas_actualizado_en,
       notas_actualizado_por, sede_id,
+      rfc, nss, curp, telefono, email_personal, direccion,
+      banco, cuenta_bancaria, clabe,
       sedes(abrev, nombre),
       notas_autor:notas_actualizado_por(username),
       baja_capturado_por_user:baja_capturado_por(username, nombre)
@@ -181,6 +194,24 @@ export default async function EmpleadoDetailPage({ params }: PageProps) {
             <StatsBlock title={`Últimos 60 días (${last60.total} capturados)`} stats={last60} />
             <StatsBlock title={`Histórico total (${lifetime.total} capturados)`} stats={lifetime} showOtros />
           </div>
+        </section>
+
+        {/* Datos personales / fiscales / bancarios */}
+        <section className="mb-6">
+          <DatosPersonalesEditor
+            empleadoId={emp.id}
+            initial={{
+              rfc: emp.rfc,
+              nss: emp.nss,
+              curp: emp.curp,
+              telefono: emp.telefono,
+              email_personal: emp.email_personal,
+              direccion: emp.direccion,
+              banco: emp.banco,
+              cuenta_bancaria: emp.cuenta_bancaria,
+              clabe: emp.clabe,
+            }}
+          />
         </section>
 
         {/* Notas internas RH */}

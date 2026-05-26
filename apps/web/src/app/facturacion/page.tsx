@@ -175,6 +175,13 @@ export default async function FacturacionDashboard() {
             <div className="text-[10px] text-muted">{kpis.productos_activos} activos · {kpis.productos_bajo_stock} bajo stock</div>
           </div>
         </Link>
+        <Link href="/facturacion/empleados-bancarios" className="surface-card group flex items-center gap-3 p-4 hover:border-blue-400/40">
+          <Icon name="dollar" size={20} className="text-blue-300" />
+          <div>
+            <div className="text-sm font-semibold">Empleados · Datos bancarios</div>
+            <div className="text-[10px] text-muted">Layout SPEI listo para tu banco</div>
+          </div>
+        </Link>
       </section>
     </div>
   );
