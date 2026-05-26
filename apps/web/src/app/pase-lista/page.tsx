@@ -68,24 +68,33 @@ export default async function PaseListaPage({ searchParams }: PageProps) {
 
   const sedeId = params.sede || asignaciones[0]?.sede.id || "";
   const sedeActual = asignaciones.find((a) => a.sede.id === sedeId);
-  const jornadaActual = params.jornada || sedeActual?.jornadas[0] || "MATUTINO";
+  // jornadaActual puede ser "ALL" (todas las jornadas asignadas) o una específica
+  const jornadaActual = params.jornada || "ALL";
+  const jornadasAsignadas = sedeActual?.jornadas ?? ["MATUTINO", "VESPERTINO", "NOCTURNO"];
 
-  // Empleados activos
+  // Empleados activos — filtrados a las jornadas asignadas del supervisor
   let empleados: Empleado[] = [];
   const marcasExistentes: Record<string, string> = {};
   const marcasAnteriores: Record<string, string> = {};
   const marcasMeta: Record<string, { nombre: string; username: string; rol: string; ts: string | null }> = {};
 
   if (sedeId) {
-    // Mostramos TODOS los empleados activos de la sede sin filtrar por jornada —
-    // la jornada se ve como chip en cada renglón. Esto permite a supervisores
-    // capturar también gente de otras jornadas que llega a cubrir o que se
-    // ajusta el turno sin tener que cambiar el selector.
-    const { data: emps } = await supabase
+    // Filtramos a las jornadas que el supervisor tiene asignadas en esta sede.
+    // Si jornadaActual = "ALL", mostramos todas sus jornadas combinadas.
+    // Si jornadaActual es específica (MAT/VES/NOC), filtramos solo a esa.
+    let empleadosQuery = supabase
       .from("empleados")
       .select("id, numero_empleado, nombre, jornada, dia_descanso")
       .eq("sede_id", sedeId)
-      .is("fecha_baja", null)
+      .is("fecha_baja", null);
+
+    if (jornadaActual === "ALL") {
+      empleadosQuery = empleadosQuery.in("jornada", jornadasAsignadas);
+    } else {
+      empleadosQuery = empleadosQuery.eq("jornada", jornadaActual);
+    }
+
+    const { data: emps } = await empleadosQuery
       .order("jornada")
       .order("numero_empleado");
     empleados = (emps ?? []) as Empleado[];

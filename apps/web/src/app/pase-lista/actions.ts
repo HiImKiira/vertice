@@ -44,14 +44,28 @@ export async function guardarPaseListaAction(input: {
   const rol = perfil?.rol;
   const esAdminLike = ["ADMIN", "SUPERADMIN", "CEO", "SOPORTE"].includes(rol ?? "");
 
-  // Validar asignación
-  const { data: tieneAsign, error: errAsign } = await supabase.rpc("usuario_tiene_asignacion", {
-    p_sede: input.sede_id,
-    p_jornada: input.jornada,
-  });
-  if (errAsign) return { ok: false, error: `RPC asignación: ${errAsign.message}` };
-  if (!tieneAsign && !esAdminLike) {
-    return { ok: false, error: "No tienes asignada esta sede / jornada." };
+  // Validar asignación. Si jornada = "ALL", chequeamos solo que tenga
+  // CUALQUIER asignación en la sede (multi-jornada). Si es específica,
+  // validamos la combo exacta vía RPC.
+  if (input.jornada === "ALL") {
+    const { count: nAsign } = await supabase
+      .from("asignaciones_supervisor")
+      .select("id", { count: "exact", head: true })
+      .eq("usuario_id", user.id)
+      .eq("sede_id", input.sede_id)
+      .eq("activo", true);
+    if ((nAsign ?? 0) === 0 && !esAdminLike) {
+      return { ok: false, error: "No tienes asignaciones en esta sede." };
+    }
+  } else {
+    const { data: tieneAsign, error: errAsign } = await supabase.rpc("usuario_tiene_asignacion", {
+      p_sede: input.sede_id,
+      p_jornada: input.jornada,
+    });
+    if (errAsign) return { ok: false, error: `RPC asignación: ${errAsign.message}` };
+    if (!tieneAsign && !esAdminLike) {
+      return { ok: false, error: "No tienes asignada esta sede / jornada." };
+    }
   }
 
   // Validar ventana de gracia

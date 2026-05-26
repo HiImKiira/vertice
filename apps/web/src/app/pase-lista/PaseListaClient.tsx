@@ -315,17 +315,36 @@ export function PaseListaClient(props: Props) {
           <h1 className="truncate font-serif text-2xl leading-none sm:text-3xl">
             {sedeActual?.abrev ?? "—"}
             <span className="mx-1 text-gradient-blue serif-italic">·</span>
-            <span className="text-gradient-blue">{props.jornada}</span>
+            <span className="text-gradient-blue">
+              {props.jornada === "ALL" ? "Todos mis turnos" : props.jornada}
+            </span>
           </h1>
           <p className="mt-1 truncate text-[11px] text-muted sm:text-xs">
-            {sedeActual?.nombre ?? "—"} · {stats.total} empleado{stats.total === 1 ? "" : "s"} (todas las jornadas)
+            {sedeActual?.nombre ?? "—"} · {stats.total} empleado{stats.total === 1 ? "" : "s"}
+            {props.jornada === "ALL" && jornadasDeSede.length > 1 && <> (todos tus turnos)</>}
           </p>
-          {/* Jornadas asignadas en RH — chips con la activa resaltada */}
+          {/* Filtro de jornada — chips de jornadas asignadas + "Todas mis" */}
           {jornadasDeSede.length > 0 && (
             <div className="mt-2 flex flex-wrap items-center gap-1 sm:justify-end">
               <span className="text-[9px] uppercase tracking-tagline text-muted-2">
-                Tus turnos asignados ({jornadasDeSede.length}):
+                Tus turnos ({jornadasDeSede.length}):
               </span>
+              {/* Chip "Todas mis jornadas" — solo aparece si tiene más de 1 */}
+              {jornadasDeSede.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => updateUrl({ jornada: "ALL" })}
+                  disabled={operacionEnCurso}
+                  className={`shrink-0 rounded px-1.5 py-0.5 font-mono text-[10px] font-bold transition disabled:opacity-50 ${
+                    props.jornada === "ALL"
+                      ? "bg-blue-500/80 text-white ring-2 ring-blue-400/60 ring-offset-1 ring-offset-[color:var(--bg)]"
+                      : "border border-blue-400/30 bg-blue-500/10 text-blue-200 opacity-70 hover:opacity-100"
+                  }`}
+                  title="Ver empleados de todas mis jornadas"
+                >
+                  TODAS
+                </button>
+              )}
               {jornadasDeSede.map((j) => {
                 const style = jornadaChip(j);
                 const isActive = j === props.jornada;
@@ -339,7 +358,7 @@ export function PaseListaClient(props: Props) {
                       isActive ? "ring-2 ring-blue-400/60 ring-offset-1 ring-offset-[color:var(--bg)]" : "opacity-60 hover:opacity-100"
                     }`}
                     style={{ background: style.bg, color: style.text, border: `1px solid ${style.border}` }}
-                    title={isActive ? `Activo: ${j}` : `Cambiar a ${j}`}
+                    title={isActive ? `Filtrando por ${j}` : `Ver solo ${j}`}
                   >
                     {style.label}
                   </button>
@@ -449,6 +468,11 @@ export function PaseListaClient(props: Props) {
               disabled={operacionEnCurso}
               className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2.5 text-sm text-text focus:border-blue-400 focus:outline-none disabled:opacity-50"
             >
+              {jornadasDeSede.length > 1 && (
+                <option value="ALL" className="bg-[color:var(--surface)]">
+                  Todas mis jornadas ({jornadasDeSede.length})
+                </option>
+              )}
               {(jornadasDeSede.length ? jornadasDeSede : ["MATUTINO", "VESPERTINO", "NOCTURNO"]).map((j) => (
                 <option key={j} value={j} className="bg-[color:var(--surface)]">{j}</option>
               ))}
