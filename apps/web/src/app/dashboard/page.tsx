@@ -41,6 +41,15 @@ function modulosFor(rol: string): Modulo[] {
       badge: { label: "Todos", cls: "pill" },
     },
     {
+      href: "/incapacidades",
+      icon: "🏥",
+      iconBg: "rgba(239,68,68,0.12)",
+      iconBorder: "rgba(239,68,68,0.3)",
+      title: "Incapacidades IMSS",
+      sub: "Flujo completo: enfermedad, riesgo de trabajo, trayecto, ST-9. Notifica a RH automático.",
+      badge: { label: "Todos", cls: "pill pill-red" },
+    },
+    {
       href: "/incidencias",
       icon: "🧾",
       iconBg: "rgba(245,158,11,0.12)",
