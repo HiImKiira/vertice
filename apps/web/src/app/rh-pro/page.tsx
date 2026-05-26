@@ -184,9 +184,29 @@ export default async function RHProPage() {
               iconBg="rgba(245,158,11,0.12)"
               iconBorder="rgba(245,158,11,0.3)"
               title="Consulta de empleados"
-              sub="Busca por nombre o ID. Histórico de asistencias, estadísticas y notas internas de RH."
+              sub="Busca por nombre o ID. Histórico, datos personales/bancarios editables, estadísticas y notas internas."
               badge="ADMIN / SUPERADMIN / SOPORTE"
               badgeCls="pill pill-amber"
+            />
+            <ActionCard
+              href="/rh-pro/empleados/importar"
+              icon="📥"
+              iconBg="rgba(16,185,129,0.12)"
+              iconBorder="rgba(16,185,129,0.3)"
+              title="Import masivo (xlsx)"
+              sub="Crea o actualiza empleados en lote desde un Excel. Valida sede/jornada/RFC/CLABE antes de confirmar. Template descargable."
+              badge="ADMIN / SUPERADMIN / SOPORTE"
+              badgeCls="pill pill-green"
+            />
+            <ActionCard
+              href="/facturacion/empleados-bancarios"
+              icon="🏦"
+              iconBg="rgba(59,130,246,0.12)"
+              iconBorder="rgba(59,130,246,0.3)"
+              title="Datos bancarios · SPEI"
+              sub="Vista de empleados con RFC/NSS/banco/CLABE. Exporta layout listo para subir al banco. Filtra por sede."
+              badge="Facturación / Admin-like"
+              badgeCls="pill pill-blue"
             />
             <ActionCard
               href="/rh-pro/liberacion-global"

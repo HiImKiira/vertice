@@ -83,16 +83,34 @@ export default async function ConsultaPage({ searchParams }: PageProps) {
       <Topbar user={profile} />
 
       <div className="relative z-10 mx-auto max-w-[1280px] px-4 py-8 sm:px-6 sm:py-10">
-        <header className="mb-6 animate-fade-up">
-          <Link href="/rh-pro" className="inline-flex items-center gap-1 text-xs text-muted hover:text-text">
-            <Icon name="arrow-left" size={12} /> RH Pro
-          </Link>
-          <p className="role-badge role-ADMIN mt-2 mb-2">Consulta · ADMIN/SUPERADMIN/SOPORTE</p>
-          <h1 className="font-display text-3xl sm:text-4xl">Consulta de empleados</h1>
-          <p className="mt-1 max-w-2xl text-sm text-muted">
-            Busca por nombre o ID. Click en un resultado para ver su histórico de asistencias,
-            estadísticas y notas internas de RH.
-          </p>
+        <header className="mb-6 flex flex-wrap items-end justify-between gap-3 animate-fade-up">
+          <div>
+            <Link href="/rh-pro" className="inline-flex items-center gap-1 text-xs text-muted hover:text-text">
+              <Icon name="arrow-left" size={12} /> RH Pro
+            </Link>
+            <p className="role-badge role-ADMIN mt-2 mb-2">Consulta · ADMIN/SUPERADMIN/SOPORTE</p>
+            <h1 className="font-display text-3xl sm:text-4xl">Consulta de empleados</h1>
+            <p className="mt-1 max-w-2xl text-sm text-muted">
+              Busca por nombre o ID. Click en un resultado para ver su histórico de asistencias,
+              datos personales/bancarios editables y notas internas.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href="/rh-pro/empleados/importar"
+              className="inline-flex items-center gap-1.5 rounded-md border border-emerald-400/40 bg-emerald-500/15 px-3 py-2 text-xs font-semibold text-emerald-200 hover:bg-emerald-500/30"
+              title="Crear o actualizar empleados en lote desde un xlsx"
+            >
+              📥 Import masivo (xlsx)
+            </Link>
+            <Link
+              href="/facturacion/empleados-bancarios"
+              className="inline-flex items-center gap-1.5 rounded-md border border-blue-400/40 bg-blue-500/15 px-3 py-2 text-xs font-semibold text-blue-200 hover:bg-blue-500/30"
+              title="Vista para exportar layout SPEI por sede"
+            >
+              🏦 Datos bancarios
+            </Link>
+          </div>
         </header>
 
         <ConsultaSearch
