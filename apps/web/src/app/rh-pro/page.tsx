@@ -159,6 +159,16 @@ export default async function RHProPage() {
               badgeCls="pill pill-blue"
             />
             <ActionCard
+              href="/rh-pro/supervisores"
+              icon="👥"
+              iconBg="rgba(103,232,249,0.12)"
+              iconBorder="rgba(103,232,249,0.3)"
+              title="Centro de supervisores"
+              sub="Monitoreo, cobertura por persona, notas internas, mensaje directo y notificación masiva."
+              badge="ADMIN / SUPERADMIN / SOPORTE"
+              badgeCls="pill pill-cyan"
+            />
+            <ActionCard
               href="/rh-pro/consulta"
               icon="🔍"
               iconBg="rgba(245,158,11,0.12)"
