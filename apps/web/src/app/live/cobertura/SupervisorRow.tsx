@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { Icon } from "@/components/Icon";
+import { notificarSupervisorPendientesAction } from "./actions";
 
 interface Detalle {
   sede_abrev: string;
@@ -57,6 +58,25 @@ export function SupervisorRow({
   const [detalle, setDetalle] = useState<Detalle[] | null>(null);
   const [mensual, setMensual] = useState<Mensual | null>(null);
   const [loading, setLoading] = useState(false);
+  const [notifyPending, startNotify] = useTransition();
+  const [notifyMsg, setNotifyMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+
+  async function notificarPendientes() {
+    if (faltantes <= 0) return;
+    if (!confirm(`Mandar push a ${nombre} con sus ${faltantes} pendiente${faltantes === 1 ? "" : "s"} del ${fecha}?`)) return;
+    setNotifyMsg(null);
+    startNotify(async () => {
+      const r = await notificarSupervisorPendientesAction(usuarioId, fecha);
+      if (!r.ok) {
+        setNotifyMsg({ kind: "err", text: r.error });
+        return;
+      }
+      setNotifyMsg({
+        kind: "ok",
+        text: `Push enviado a ${r.enviados} dispositivo${r.enviados === 1 ? "" : "s"} · ${r.resumen}${r.fallidos > 0 ? ` · ${r.fallidos} fallidos` : ""}`,
+      });
+    });
+  }
 
   async function toggle() {
     if (!expanded && !detalle) {
@@ -84,32 +104,56 @@ export function SupervisorRow({
 
   return (
     <li className="rounded-xl border border-white/5 bg-[color:var(--card)] overflow-hidden">
-      <button
-        type="button"
-        onClick={toggle}
-        className="flex w-full items-center gap-3 p-3 text-left transition hover:bg-white/[0.03]"
-      >
-        <div className="min-w-0 flex-1">
-          <div className="flex items-baseline gap-2">
-            <p className="truncate text-sm font-semibold text-text">{nombre}</p>
-            <span className="font-mono text-[10px] text-muted-2">@{username}</span>
+      <div className="flex items-stretch">
+        <button
+          type="button"
+          onClick={toggle}
+          className="flex min-w-0 flex-1 items-center gap-3 p-3 text-left transition hover:bg-white/[0.03]"
+        >
+          <div className="min-w-0 flex-1">
+            <div className="flex items-baseline gap-2">
+              <p className="truncate text-sm font-semibold text-text">{nombre}</p>
+              <span className="font-mono text-[10px] text-muted-2">@{username}</span>
+            </div>
+            <p className="text-[10px] text-muted-2">
+              {sedesN} sede{sedesN === 1 ? "" : "s"} · {jornadasN} jornada{jornadasN === 1 ? "" : "s"} · {empTotal} empleado{empTotal === 1 ? "" : "s"}
+              {ultimaCaptura && <> · última {ultima}</>}
+            </p>
           </div>
-          <p className="text-[10px] text-muted-2">
-            {sedesN} sede{sedesN === 1 ? "" : "s"} · {jornadasN} jornada{jornadasN === 1 ? "" : "s"} · {empTotal} empleado{empTotal === 1 ? "" : "s"}
-            {ultimaCaptura && <> · última {ultima}</>}
-          </p>
+          <div className="shrink-0 text-right">
+            <p className="font-display text-xl font-bold leading-none" style={{ color }}>
+              {pct}%
+            </p>
+            <p className="font-mono text-[10px] text-muted">
+              {capturadas}/{empTotal}
+              {faltantes > 0 && <span className="text-red-300"> · {faltantes} falta{faltantes === 1 ? "" : "n"}</span>}
+            </p>
+          </div>
+          <Icon name="arrow-right" size={12} className={`shrink-0 text-muted-2 transition-transform ${expanded ? "rotate-90" : ""}`} />
+        </button>
+        {faltantes > 0 && (
+          <button
+            type="button"
+            onClick={notificarPendientes}
+            disabled={notifyPending}
+            className="shrink-0 border-l border-white/5 px-3 text-amber-200 transition hover:bg-amber-500/15 disabled:opacity-40"
+            title={`Mandar push a ${nombre} con sus ${faltantes} pendientes`}
+          >
+            <Icon name="send" size={14} />
+          </button>
+        )}
+      </div>
+
+      {/* Mensaje de feedback del notify */}
+      {notifyMsg && (
+        <div className={`border-y px-3 py-1.5 text-[10px] ${
+          notifyMsg.kind === "ok"
+            ? "border-emerald-400/20 bg-emerald-500/[0.06] text-emerald-200"
+            : "border-red-400/20 bg-red-500/[0.06] text-red-200"
+        }`}>
+          {notifyMsg.text}
         </div>
-        <div className="shrink-0 text-right">
-          <p className="font-display text-xl font-bold leading-none" style={{ color }}>
-            {pct}%
-          </p>
-          <p className="font-mono text-[10px] text-muted">
-            {capturadas}/{empTotal}
-            {faltantes > 0 && <span className="text-red-300"> · {faltantes} falta{faltantes === 1 ? "" : "n"}</span>}
-          </p>
-        </div>
-        <Icon name="arrow-right" size={12} className={`shrink-0 text-muted-2 transition-transform ${expanded ? "rotate-90" : ""}`} />
-      </button>
+      )}
 
       {/* Progress bar */}
       <div className="h-1 bg-white/5">
@@ -119,6 +163,21 @@ export function SupervisorRow({
       {expanded && (
         <div className="space-y-3 border-t border-white/5 bg-[color:var(--surface)]/40 p-3">
           {loading && <p className="text-xs text-muted">Cargando detalle…</p>}
+
+          {/* CTA notificar — grande, visible cuando hay pendientes */}
+          {faltantes > 0 && (
+            <button
+              type="button"
+              onClick={notificarPendientes}
+              disabled={notifyPending}
+              className="flex w-full items-center justify-center gap-2 rounded-lg border border-amber-400/40 bg-amber-500/15 px-3 py-2 text-xs font-semibold text-amber-100 transition hover:bg-amber-500/30 disabled:opacity-40"
+            >
+              <Icon name="send" size={14} />
+              {notifyPending
+                ? "Enviando push..."
+                : `Avisar a ${nombre.split(" ")[0]} que le faltan ${faltantes} captura${faltantes === 1 ? "" : "s"}`}
+            </button>
+          )}
 
           {/* Detalle por sede × jornada */}
           {detalle && detalle.length > 0 && (
