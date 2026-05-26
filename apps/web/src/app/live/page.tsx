@@ -96,6 +96,7 @@ export default async function CeoLivePage() {
     { data: liberacionesRaw },
     { data: ticketsActivos },
     { data: incapActivas },
+    { data: coberturaRaw },
   ] = await Promise.all([
     supabase.rpc("ceo_kpis_overview"),
     supabase.rpc("captura_por_sede_hoy"),
@@ -120,6 +121,7 @@ export default async function CeoLivePage() {
       .not("estado", "in", "(CERRADA,RECHAZADA,CANCELADA)")
       .order("creado_en", { ascending: false })
       .limit(8),
+    supabase.rpc("cobertura_supervisores"),
   ]);
 
   const kpis = (kpisRaw as KPIs[] | null)?.[0] ?? null;
@@ -127,6 +129,18 @@ export default async function CeoLivePage() {
   const liberaciones = (liberacionesRaw as LiberacionDetail[] | null) ?? [];
   const tickets = (ticketsActivos as unknown as TicketActivo[]) ?? [];
   const incaps = (incapActivas as unknown as IncapActiva[]) ?? [];
+  const cobertura = (coberturaRaw as Array<{
+    usuario_id: string;
+    nombre: string;
+    username: string;
+    empleados_total: number;
+    capturadas: number;
+    pct_cobertura: number;
+    faltantes: number;
+  }> | null) ?? [];
+  const incompletos = cobertura.filter((c) => c.pct_cobertura < 100 && c.empleados_total > 0);
+  const completos = cobertura.filter((c) => c.pct_cobertura >= 100 && c.empleados_total > 0);
+  const sinCapturar = cobertura.filter((c) => c.capturadas === 0 && c.empleados_total > 0);
 
   const pctCapturaHoy = kpis && kpis.asistencias_esperadas_hoy > 0
     ? Math.min(100, Math.round((kpis.asistencias_hoy / kpis.asistencias_esperadas_hoy) * 100))
@@ -137,7 +151,7 @@ export default async function CeoLivePage() {
   const sedesCompletadas = captura.filter((c) => c.pct_cobertura >= 80).length;
 
   // Alertas accionables
-  const alertas: { icon: "alert-triangle" | "lock-open" | "clock" | "life-buoy"; text: string; href: string; severity: "red" | "amber" | "blue" }[] = [];
+  const alertas: { icon: "alert-triangle" | "lock-open" | "clock" | "life-buoy" | "users"; text: string; href: string; severity: "red" | "amber" | "blue" }[] = [];
   if ((kpis?.tickets_urgentes ?? 0) > 0) {
     alertas.push({ icon: "alert-triangle", text: `${kpis!.tickets_urgentes} ticket(s) URGENTE(s) sin atender`, href: "/soporte", severity: "red" });
   }
@@ -152,6 +166,14 @@ export default async function CeoLivePage() {
   }
   if ((kpis?.liberaciones_globales_activas ?? 0) > 0) {
     alertas.push({ icon: "lock-open", text: "Liberación GLOBAL activa — todas las fechas capturables", href: "/rh-pro/liberacion-global", severity: "amber" });
+  }
+  if (sinCapturar.length > 0) {
+    alertas.push({
+      icon: "users",
+      text: `${sinCapturar.length} supervisor(es) sin capturar nada hoy`,
+      href: "/live/cobertura?filtro=cero",
+      severity: sinCapturar.length >= 3 ? "red" : "amber",
+    });
   }
 
   return (
@@ -228,8 +250,79 @@ export default async function CeoLivePage() {
         )}
 
         <div className="grid gap-6 lg:grid-cols-[3fr_2fr]">
-          {/* Columna izquierda: captura por sede + liberaciones */}
+          {/* Columna izquierda: cobertura supervisores + captura por sede + liberaciones */}
           <div className="space-y-6">
+            <section className="animate-fade-up delay-175">
+              <div className="section-label mb-3 flex items-center justify-between">
+                <span>Cobertura por supervisor HOY</span>
+                <Link href="/live/cobertura" className="text-[10px] text-muted hover:text-text">
+                  Ver detalle completo →
+                </Link>
+              </div>
+              <div className="mb-2 grid grid-cols-3 gap-2 text-center text-[10px]">
+                <div className="rounded-md bg-emerald-500/15 py-1.5 text-emerald-200">
+                  <div className="font-display text-base font-bold">{completos.length}</div>
+                  <div className="text-[9px] uppercase opacity-70">Completos (≥100%)</div>
+                </div>
+                <div className="rounded-md bg-amber-500/15 py-1.5 text-amber-200">
+                  <div className="font-display text-base font-bold">{incompletos.length}</div>
+                  <div className="text-[9px] uppercase opacity-70">Incompletos</div>
+                </div>
+                <div className="rounded-md bg-red-500/15 py-1.5 text-red-200">
+                  <div className="font-display text-base font-bold">{sinCapturar.length}</div>
+                  <div className="text-[9px] uppercase opacity-70">Sin capturar nada</div>
+                </div>
+              </div>
+              {incompletos.length === 0 ? (
+                <p className="rounded-md border border-emerald-400/30 bg-emerald-500/[0.06] p-3 text-center text-xs text-emerald-200">
+                  ✓ Todos los supervisores completaron sus capturas hoy.
+                </p>
+              ) : (
+                <ul className="space-y-1">
+                  {incompletos.slice(0, 6).map((c) => {
+                    const color = c.pct_cobertura >= 50 ? "#F59E0B" : "#EF4444";
+                    return (
+                      <li key={c.usuario_id}>
+                        <Link
+                          href={`/live/cobertura?filtro=incompletos`}
+                          className="block rounded-md border border-white/5 bg-[color:var(--card)] p-2 transition hover:border-amber-400/30"
+                        >
+                          <div className="mb-1 flex items-center justify-between gap-2 text-xs">
+                            <div className="min-w-0 flex-1 truncate">
+                              <span className="font-semibold">{c.nombre}</span>
+                              <span className="ml-1 font-mono text-[10px] text-muted-2">@{c.username}</span>
+                            </div>
+                            <div className="shrink-0 flex items-center gap-2">
+                              <span className="font-mono text-[10px] text-muted">{c.capturadas}/{c.empleados_total}</span>
+                              <span className="font-display text-sm font-bold" style={{ color }}>{c.pct_cobertura}%</span>
+                            </div>
+                          </div>
+                          <div className="h-1 overflow-hidden rounded-full bg-white/5">
+                            <div className="h-full transition-all duration-500" style={{ width: `${c.pct_cobertura}%`, background: color }} />
+                          </div>
+                          {c.faltantes > 0 && (
+                            <p className="mt-1 text-[9px] text-red-300">
+                              Falta capturar {c.faltantes} empleado{c.faltantes === 1 ? "" : "s"}
+                            </p>
+                          )}
+                        </Link>
+                      </li>
+                    );
+                  })}
+                  {incompletos.length > 6 && (
+                    <li>
+                      <Link
+                        href="/live/cobertura?filtro=incompletos"
+                        className="block rounded-md border border-dashed border-white/10 px-3 py-2 text-center text-[10px] text-muted hover:text-text"
+                      >
+                        + {incompletos.length - 6} más incompletos →
+                      </Link>
+                    </li>
+                  )}
+                </ul>
+              )}
+            </section>
+
             <section className="animate-fade-up delay-200">
               <div className="section-label mb-3 flex items-center justify-between">
                 <span>Captura por sede HOY ({captura.length})</span>
