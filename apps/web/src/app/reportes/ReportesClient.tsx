@@ -51,17 +51,18 @@ function NominaPanel({ sedes }: { sedes: Sede[] }) {
   const [sedeId, setSedeId] = useState(sedes[0]?.id ?? "");
   const [mes, setMes] = useState(currentYM());
   const [q, setQ] = useState<"Q1" | "Q2">(currentQ());
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState<"pdf" | "xlsx" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const sede = sedes.find((s) => s.id === sedeId);
 
-  async function descargar() {
+  async function descargar(formato: "pdf" | "xlsx") {
     if (!sedeId || !mes) return;
-    setLoading(true);
+    setLoading(formato);
     setError(null);
     try {
-      const url = `/api/reportes/nomina?sede=${sedeId}&mes=${mes}&q=${q}`;
+      const path = formato === "xlsx" ? "/api/reportes/nomina/xlsx" : "/api/reportes/nomina";
+      const url = `${path}?sede=${sedeId}&mes=${mes}&q=${q}`;
       const r = await fetch(url);
       if (!r.ok) {
         const e = await r.json().catch(() => ({ error: "Error desconocido" }));
@@ -70,7 +71,7 @@ function NominaPanel({ sedes }: { sedes: Sede[] }) {
       const blob = await r.blob();
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
-      link.download = `Vertice_Nomina_${sede?.abrev ?? ""}_${mes}_${q}.pdf`;
+      link.download = `Vortex_Nomina_${sede?.abrev ?? ""}_${mes}_${q}.${formato}`;
       document.body.appendChild(link);
       link.click();
       URL.revokeObjectURL(link.href);
@@ -78,7 +79,7 @@ function NominaPanel({ sedes }: { sedes: Sede[] }) {
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
-      setLoading(false);
+      setLoading(null);
     }
   }
 
@@ -120,14 +121,29 @@ function NominaPanel({ sedes }: { sedes: Sede[] }) {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <button type="button" className="btn btn-primary" onClick={descargar} disabled={loading || !sedeId}>
-            {loading ? (
+          <button type="button" className="btn btn-primary" onClick={() => descargar("pdf")} disabled={!!loading || !sedeId}>
+            {loading === "pdf" ? (
               <>
                 <span className="loader-gold loader-gold-sm" />
                 Generando PDF...
               </>
             ) : (
               <>📊 Descargar PDF</>
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={() => descargar("xlsx")}
+            disabled={!!loading || !sedeId}
+            className="inline-flex items-center gap-1.5 rounded-md border border-emerald-400/40 bg-emerald-500/15 px-3 py-2 text-sm font-semibold text-emerald-200 hover:bg-emerald-500/30 disabled:opacity-40"
+          >
+            {loading === "xlsx" ? (
+              <>
+                <span className="loader-gold loader-gold-sm" />
+                Generando Excel...
+              </>
+            ) : (
+              <>📗 Descargar Excel</>
             )}
           </button>
           <span className="pill pill-blue">ADMIN / SUPERADMIN / CEO</span>
@@ -145,14 +161,14 @@ function AsistenciasPanel({ sedes }: { sedes: Sede[] }) {
   const [mes, setMes] = useState(currentYM());
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState<"pdf" | "xlsx" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const sede = sedes.find((s) => s.id === sedeId);
 
-  async function descargar() {
+  async function descargar(formato: "pdf" | "xlsx") {
     if (!sedeId) return;
-    setLoading(true);
+    setLoading(formato);
     setError(null);
     try {
       const params = new URLSearchParams({ sede: sedeId, rango });
@@ -163,7 +179,8 @@ function AsistenciasPanel({ sedes }: { sedes: Sede[] }) {
       } else {
         params.set("mes", mes);
       }
-      const r = await fetch(`/api/reportes/asistencias?${params.toString()}`);
+      const path = formato === "xlsx" ? "/api/reportes/asistencias/xlsx" : "/api/reportes/asistencias";
+      const r = await fetch(`${path}?${params.toString()}`);
       if (!r.ok) {
         const e = await r.json().catch(() => ({ error: "Error desconocido" }));
         throw new Error(e.error || `HTTP ${r.status}`);
@@ -171,7 +188,7 @@ function AsistenciasPanel({ sedes }: { sedes: Sede[] }) {
       const blob = await r.blob();
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
-      link.download = `Vertice_Asistencias_${sede?.abrev ?? ""}.pdf`;
+      link.download = `Vortex_Asistencias_${sede?.abrev ?? ""}.${formato}`;
       document.body.appendChild(link);
       link.click();
       URL.revokeObjectURL(link.href);
@@ -179,7 +196,7 @@ function AsistenciasPanel({ sedes }: { sedes: Sede[] }) {
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
-      setLoading(false);
+      setLoading(null);
     }
   }
 
@@ -236,14 +253,29 @@ function AsistenciasPanel({ sedes }: { sedes: Sede[] }) {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <button type="button" className="btn btn-primary" onClick={descargar} disabled={loading || !sedeId}>
-            {loading ? (
+          <button type="button" className="btn btn-primary" onClick={() => descargar("pdf")} disabled={!!loading || !sedeId}>
+            {loading === "pdf" ? (
               <>
                 <span className="loader-gold loader-gold-sm" />
                 Generando PDF...
               </>
             ) : (
               <>📋 Descargar PDF</>
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={() => descargar("xlsx")}
+            disabled={!!loading || !sedeId}
+            className="inline-flex items-center gap-1.5 rounded-md border border-emerald-400/40 bg-emerald-500/15 px-3 py-2 text-sm font-semibold text-emerald-200 hover:bg-emerald-500/30 disabled:opacity-40"
+          >
+            {loading === "xlsx" ? (
+              <>
+                <span className="loader-gold loader-gold-sm" />
+                Generando Excel...
+              </>
+            ) : (
+              <>📗 Descargar Excel</>
             )}
           </button>
           <span className="pill pill-blue">ADMIN / SUPERADMIN / CEO / SOPORTE</span>

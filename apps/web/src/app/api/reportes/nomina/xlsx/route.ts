@@ -1,7 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { renderToBuffer } from "@react-pdf/renderer";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { NominaDoc } from "@/lib/pdf/NominaDoc";
 import {
   fetchSede,
   fetchEmpleadosPorSedePeriodo,
@@ -9,15 +7,14 @@ import {
   quincenaRange,
   rangeDates,
 } from "@/lib/pdf/fetchPeriodData";
+import { buildNominaXlsx } from "@/lib/xlsx/reportes";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Sin sesión" }, { status: 401 });
 
   const { data: perfil } = await supabase
@@ -31,7 +28,7 @@ export async function GET(req: NextRequest) {
 
   const url = new URL(req.url);
   const sedeId = url.searchParams.get("sede");
-  const mes = url.searchParams.get("mes"); // YYYY-MM
+  const mes = url.searchParams.get("mes");
   const q = (url.searchParams.get("q") || "Q1") as "Q1" | "Q2";
 
   if (!sedeId || !mes?.match(/^\d{4}-\d{2}$/)) {
@@ -43,8 +40,6 @@ export async function GET(req: NextRequest) {
 
   const { start, end } = quincenaRange(mes, q);
   const fechas = rangeDates(start, end);
-  // Snapshot histórico: si alguien se cambió de sede a mitad de quincena,
-  // aparece en el reporte de la sede donde estuvo, con flag de cambio.
   const empleados = await fetchEmpleadosPorSedePeriodo(supabase, sedeId, start, end);
   const marcas = await fetchMarcasConSnapshot(
     supabase,
@@ -54,26 +49,24 @@ export async function GET(req: NextRequest) {
     end,
   );
 
-  const buffer = await renderToBuffer(
-    NominaDoc({
-      sedeNombre: sede.nombre,
-      sedeAbrev: sede.abrev,
-      periodoLabel: `${mes} · ${q}`,
-      fechaInicio: start,
-      fechaFin: end,
-      fechas,
-      empleados,
-      marcas,
-      generadoPor: perfil.nombre || perfil.username,
-      generadoEn: new Date().toISOString(),
-    }),
-  );
+  const buffer = await buildNominaXlsx({
+    sedeNombre: sede.nombre,
+    sedeAbrev: sede.abrev,
+    periodoLabel: `${mes} · ${q}`,
+    fechaInicio: start,
+    fechaFin: end,
+    fechas,
+    empleados,
+    marcas,
+    generadoPor: perfil.nombre || perfil.username,
+    generadoEn: new Date().toISOString(),
+  });
 
-  const filename = `Vortex_Nomina_${sede.abrev}_${mes}_${q}.pdf`;
+  const filename = `Vortex_Nomina_${sede.abrev}_${mes}_${q}.xlsx`;
   return new NextResponse(new Uint8Array(buffer), {
     status: 200,
     headers: {
-      "Content-Type": "application/pdf",
+      "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       "Content-Disposition": `attachment; filename="${filename}"`,
       "Cache-Control": "no-store",
     },

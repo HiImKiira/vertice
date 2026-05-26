@@ -1,8 +1,13 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { renderToBuffer } from "@react-pdf/renderer";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { AsistenciasDoc } from "@/lib/pdf/AsistenciasDoc";
-import { fetchSede, fetchEmpleadosPorSedePeriodo, fetchMarcasConSnapshot, rangeDates, quincenaRange } from "@/lib/pdf/fetchPeriodData";
+import {
+  fetchSede,
+  fetchEmpleadosPorSedePeriodo,
+  fetchMarcasConSnapshot,
+  rangeDates,
+  quincenaRange,
+} from "@/lib/pdf/fetchPeriodData";
+import { buildAsistenciasXlsx } from "@/lib/xlsx/reportes";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,18 +28,14 @@ export async function GET(req: NextRequest) {
 
   const url = new URL(req.url);
   const sedeId = url.searchParams.get("sede");
-  const rango = url.searchParams.get("rango") || "Q1"; // "Q1" | "Q2" | "MES" | "CUSTOM"
+  const rango = url.searchParams.get("rango") || "Q1";
   const mes = url.searchParams.get("mes");
   const startParam = url.searchParams.get("start");
   const endParam = url.searchParams.get("end");
 
-  if (!sedeId) {
-    return NextResponse.json({ error: "Falta parámetro sede" }, { status: 400 });
-  }
+  if (!sedeId) return NextResponse.json({ error: "Falta parámetro sede" }, { status: 400 });
 
-  let start = "";
-  let end = "";
-  let rangoLabel = "";
+  let start = "", end = "", rangoLabel = "";
 
   if (rango === "CUSTOM") {
     if (!startParam || !endParam) {
@@ -70,31 +71,27 @@ export async function GET(req: NextRequest) {
   if (fechas.length > 62) {
     return NextResponse.json({ error: "Rango máximo: 62 días" }, { status: 400 });
   }
-  // Snapshot histórico: incluye empleados que estuvieron en esta sede
-  // durante el periodo, aunque hoy ya no estén ahí.
   const empleados = await fetchEmpleadosPorSedePeriodo(supabase, sedeId, start, end);
   const marcas = await fetchMarcasConSnapshot(supabase, empleados.map((e) => e.id), sedeId, start, end);
 
-  const buffer = await renderToBuffer(
-    AsistenciasDoc({
-      sedeNombre: sede.nombre,
-      sedeAbrev: sede.abrev,
-      fechaInicio: start,
-      fechaFin: end,
-      rangoLabel,
-      fechas,
-      empleados,
-      marcas,
-      generadoPor: perfil.nombre || perfil.username,
-      generadoEn: new Date().toISOString(),
-    }),
-  );
+  const buffer = await buildAsistenciasXlsx({
+    sedeNombre: sede.nombre,
+    sedeAbrev: sede.abrev,
+    fechaInicio: start,
+    fechaFin: end,
+    fechas,
+    empleados,
+    marcas,
+    generadoPor: perfil.nombre || perfil.username,
+    generadoEn: new Date().toISOString(),
+    periodoLabel: rangoLabel,
+  });
 
-  const filename = `Vortex_Asistencias_${sede.abrev}_${start}_${end}.pdf`;
+  const filename = `Vortex_Asistencias_${sede.abrev}_${start}_${end}.xlsx`;
   return new NextResponse(new Uint8Array(buffer), {
     status: 200,
     headers: {
-      "Content-Type": "application/pdf",
+      "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       "Content-Disposition": `attachment; filename="${filename}"`,
       "Cache-Control": "no-store",
     },

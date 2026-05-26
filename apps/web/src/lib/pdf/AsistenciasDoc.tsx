@@ -158,7 +158,7 @@ export function AsistenciasDoc(props: AsistenciasDocProps) {
   }
 
   return (
-    <Document title={`Vertice Asistencias ${props.sedeAbrev} ${props.rangoLabel}`} author="Vortex">
+    <Document title={`Vortex · Asistencias ${props.sedeAbrev} ${props.rangoLabel}`} author="Vortex · MHS Integradora" subject={`Asistencias ${props.sedeAbrev} ${props.rangoLabel}`}>
       <Page size="A4" orientation="landscape" style={styles.page} wrap>
         <View style={styles.header}>
           <View style={styles.brand}>

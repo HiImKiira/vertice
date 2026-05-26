@@ -197,7 +197,7 @@ export function NominaDoc(props: NominaDocProps) {
   const colDateW = Math.max(14, Math.min(20, 200 / fechasObj.length));
 
   return (
-    <Document title={`Vertice Nomina ${props.sedeAbrev} ${props.periodoLabel}`} author="Vortex">
+    <Document title={`Vortex · Nómina ${props.sedeAbrev} ${props.periodoLabel}`} author="Vortex · MHS Integradora" subject={`Nómina ${props.sedeAbrev} ${props.periodoLabel}`}>
       <Page size="A4" orientation="landscape" style={styles.page} wrap>
         {/* Header */}
         <View style={styles.header}>
