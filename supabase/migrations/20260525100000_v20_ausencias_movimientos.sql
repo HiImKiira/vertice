@@ -168,9 +168,11 @@ $$;
 grant execute on function supervisor_actividad(uuid) to authenticated;
 
 -- ─────────────────────────────────────────────────────────────────────
--- 6) Extender supervisor_resumen() para incluir info de ausencia
+-- 6) Extender supervisor_resumen() para incluir info de ausencia.
+-- Postgres no permite cambiar columnas OUT con OR REPLACE → drop primero.
 -- ─────────────────────────────────────────────────────────────────────
-create or replace function supervisor_resumen(p_usuario_id uuid)
+drop function if exists supervisor_resumen(uuid);
+create function supervisor_resumen(p_usuario_id uuid)
 returns table (
   id uuid,
   nombre text,
