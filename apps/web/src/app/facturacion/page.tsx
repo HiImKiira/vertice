@@ -28,19 +28,39 @@ export default async function FacturacionDashboard() {
   const supabase = await createSupabaseServerClient();
   const hoy = new Date().toISOString().slice(0, 10);
 
-  const [{ data: kpisData }, { data: ultimasCot }, { data: ultimasSol }] = await Promise.all([
+  const [
+    { data: kpisData },
+    { data: ultimasCot },
+    { data: ultimasSol },
+    { data: empleadosTotalRaw, count: empleadosTotal },
+    { count: empleadosListos },
+  ] = await Promise.all([
     supabase.rpc("facturacion_kpis_mes", { p_mes: hoy }),
     supabase
       .from("cotizaciones")
       .select("id, folio, fecha, estado, total, clientes_cotizacion(razon_social)")
       .order("creado_en", { ascending: false })
-      .limit(8),
+      .limit(6),
     supabase
       .from("solicitudes_compra")
       .select("id, folio, motivo, prioridad, estado, solicitado_en, total_estimado, usuarios:solicitante_id(nombre)")
       .order("solicitado_en", { ascending: false })
-      .limit(8),
+      .limit(6),
+    supabase
+      .from("empleados")
+      .select("id", { count: "exact", head: true })
+      .is("fecha_baja", null),
+    supabase
+      .from("empleados")
+      .select("id", { count: "exact", head: true })
+      .is("fecha_baja", null)
+      .not("banco", "is", null)
+      .not("cuenta_bancaria", "is", null)
+      .not("clabe", "is", null),
   ]);
+
+  // El segundo dato no se usa, solo el count del primero
+  void empleadosTotalRaw;
 
   const kpis = (kpisData as KPIs[] | null)?.[0] ?? {
     total_cotizaciones: 0,
@@ -55,15 +75,61 @@ export default async function FacturacionDashboard() {
     productos_bajo_stock: 0,
   };
 
+  const empleadosTotalN = empleadosTotal ?? 0;
+  const empleadosListosN = empleadosListos ?? 0;
+  const pctListo = empleadosTotalN > 0 ? Math.round((empleadosListosN / empleadosTotalN) * 100) : 0;
+  const empleadosIncompletos = empleadosTotalN - empleadosListosN;
+
   return (
-    <div className="space-y-8 animate-fade-up">
+    <div className="space-y-6 animate-fade-up">
       <header>
         <h1 className="font-display text-2xl sm:text-3xl">Facturación</h1>
         <p className="mt-1 text-xs text-muted">
-          Centro comercial · cotizaciones, productos y solicitudes de compra · {new Date(hoy).toLocaleDateString("es-MX", { month: "long", year: "numeric" })}
+          Centro comercial · cotizaciones, productos, solicitudes de compra y nómina · {new Date(hoy).toLocaleDateString("es-MX", { month: "long", year: "numeric" })}
         </p>
       </header>
 
+      {/* ─── HERO: Empleados Bancarios (destacado siempre) ─── */}
+      <Link
+        href="/facturacion/empleados-bancarios"
+        className="group block rounded-2xl border border-blue-400/30 bg-gradient-to-br from-blue-500/[0.08] via-blue-500/[0.04] to-transparent p-5 transition hover:border-blue-400/60 hover:from-blue-500/[0.12]"
+      >
+        <div className="flex items-start gap-4">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-blue-400/40 bg-blue-500/20 text-blue-200">
+            <Icon name="dollar" size={28} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-baseline gap-3">
+              <h2 className="font-display text-xl text-blue-100">Empleados · Datos bancarios</h2>
+              <span className="rounded-full bg-blue-500/20 px-2 py-0.5 text-[10px] font-bold text-blue-200">
+                {empleadosListosN} / {empleadosTotalN} listos · {pctListo}%
+              </span>
+              {empleadosIncompletos > 0 && (
+                <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold text-amber-200">
+                  {empleadosIncompletos} incompletos
+                </span>
+              )}
+            </div>
+            <p className="mt-1 text-sm text-muted">
+              Exporta el <strong className="text-blue-200">Layout SPEI</strong> filtrado por sede, listo para subir a tu banco. Incluye RFC, NSS, CLABE y cuenta.
+            </p>
+            <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/5">
+              <div
+                className="h-full transition-all duration-500"
+                style={{
+                  width: `${pctListo}%`,
+                  background: pctListo >= 90 ? "#10B981" : pctListo >= 50 ? "#3B82F6" : "#F59E0B",
+                }}
+              />
+            </div>
+          </div>
+          <div className="hidden shrink-0 self-center text-blue-300 sm:block">
+            <Icon name="arrow-right" size={20} />
+          </div>
+        </div>
+      </Link>
+
+      {/* ─── KPIs cotizaciones / compras ─── */}
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <KPI label="Cotizaciones mes" value={String(kpis.total_cotizaciones)} sub={money(kpis.monto_cotizado)} color="amber" icon="receipt" />
         <KPI label="Aceptadas mes" value={String(kpis.cotizaciones_aceptadas)} sub={money(kpis.monto_aceptado)} color="emerald" icon="check" />
@@ -71,8 +137,33 @@ export default async function FacturacionDashboard() {
         <KPI label="Solicitudes compra" value={String(kpis.solicitudes_compra_pendientes)} sub={`${kpis.solicitudes_compra_aprobadas} en curso`} color={kpis.solicitudes_compra_pendientes > 0 ? "red" : "violet"} icon="shopping-cart" />
       </section>
 
+      {/* ─── Accesos rápidos ─── */}
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <Link href="/facturacion/cotizaciones/nueva" className="surface-card group flex items-center gap-3 p-4 hover:border-amber-400/40">
+          <Icon name="plus" size={20} className="text-amber-300" />
+          <div>
+            <div className="text-sm font-semibold">Nueva cotización</div>
+            <div className="text-[10px] text-muted">PDF "MHS by Vortex"</div>
+          </div>
+        </Link>
+        <Link href="/facturacion/compras/nueva" className="surface-card group flex items-center gap-3 p-4 hover:border-violet-400/40">
+          <Icon name="shopping-cart" size={20} className="text-violet-300" />
+          <div>
+            <div className="text-sm font-semibold">Solicitar compra</div>
+            <div className="text-[10px] text-muted">Notifica al equipo</div>
+          </div>
+        </Link>
+        <Link href="/facturacion/productos" className="surface-card group flex items-center gap-3 p-4 hover:border-emerald-400/40">
+          <Icon name="package" size={20} className="text-emerald-300" />
+          <div>
+            <div className="text-sm font-semibold">Catálogo de productos</div>
+            <div className="text-[10px] text-muted">{kpis.productos_activos} activos · {kpis.productos_bajo_stock} bajo stock</div>
+          </div>
+        </Link>
+      </section>
+
+      {/* ─── Listas: últimas cotizaciones + compras ─── */}
       <section className="grid gap-6 lg:grid-cols-2">
-        {/* Últimas cotizaciones */}
         <div>
           <div className="mb-3 flex items-center justify-between">
             <div className="section-label flex items-center gap-2">
@@ -110,7 +201,6 @@ export default async function FacturacionDashboard() {
           )}
         </div>
 
-        {/* Últimas solicitudes de compra */}
         <div>
           <div className="mb-3 flex items-center justify-between">
             <div className="section-label flex items-center gap-2">
@@ -151,37 +241,6 @@ export default async function FacturacionDashboard() {
             </ul>
           )}
         </div>
-      </section>
-
-      <section className="grid gap-3 sm:grid-cols-3">
-        <Link href="/facturacion/cotizaciones/nueva" className="surface-card group flex items-center gap-3 p-4 hover:border-amber-400/40">
-          <Icon name="plus" size={20} className="text-amber-300" />
-          <div>
-            <div className="text-sm font-semibold">Nueva cotización</div>
-            <div className="text-[10px] text-muted">Generar PDF MHS by Vortex</div>
-          </div>
-        </Link>
-        <Link href="/facturacion/compras/nueva" className="surface-card group flex items-center gap-3 p-4 hover:border-violet-400/40">
-          <Icon name="shopping-cart" size={20} className="text-violet-300" />
-          <div>
-            <div className="text-sm font-semibold">Solicitar compra</div>
-            <div className="text-[10px] text-muted">Tu solicitud notifica al equipo</div>
-          </div>
-        </Link>
-        <Link href="/facturacion/productos" className="surface-card group flex items-center gap-3 p-4 hover:border-emerald-400/40">
-          <Icon name="package" size={20} className="text-emerald-300" />
-          <div>
-            <div className="text-sm font-semibold">Catálogo de productos</div>
-            <div className="text-[10px] text-muted">{kpis.productos_activos} activos · {kpis.productos_bajo_stock} bajo stock</div>
-          </div>
-        </Link>
-        <Link href="/facturacion/empleados-bancarios" className="surface-card group flex items-center gap-3 p-4 hover:border-blue-400/40">
-          <Icon name="dollar" size={20} className="text-blue-300" />
-          <div>
-            <div className="text-sm font-semibold">Empleados · Datos bancarios</div>
-            <div className="text-[10px] text-muted">Layout SPEI listo para tu banco</div>
-          </div>
-        </Link>
       </section>
     </div>
   );

@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireUser, isAdminLike } from "@/lib/session";
 import { Topbar } from "@/components/Topbar";
@@ -173,18 +174,38 @@ function modulosFor(rol: string): Modulo[] {
   return all.filter((m) => (adminOnly.has(m.href) ? adminLike : true));
 }
 
+function moduloFacturacion(): Modulo {
+  return {
+    href: "/facturacion",
+    icon: "🏦",
+    iconBg: "rgba(59,130,246,0.12)",
+    iconBorder: "rgba(59,130,246,0.4)",
+    title: "Facturación",
+    sub: "Cotizaciones MHS by Vortex, productos, solicitudes de compra y datos bancarios para depósito de nómina.",
+    badge: { label: "Acceso facturación", cls: "pill pill-blue" },
+  };
+}
+
 export default async function DashboardPage() {
   const { id, profile } = await requireUser();
   const supabase = await createSupabaseServerClient();
 
-  // Asignaciones del usuario
-  const { data: asignRaw } = await supabase
-    .from("asignaciones_supervisor")
-    .select("id, jornada, activo, sedes(id, codigo, abrev, nombre)")
-    .eq("usuario_id", id)
-    .eq("activo", true)
-    .order("jornada");
-  const rows = (asignRaw ?? []) as unknown as AsignacionRow[];
+  // Asignaciones del usuario + flag acceso_facturacion en paralelo
+  const [asignRes, perfilFacRes] = await Promise.all([
+    supabase
+      .from("asignaciones_supervisor")
+      .select("id, jornada, activo, sedes(id, codigo, abrev, nombre)")
+      .eq("usuario_id", id)
+      .eq("activo", true)
+      .order("jornada"),
+    supabase
+      .from("usuarios")
+      .select("acceso_facturacion")
+      .eq("id", id)
+      .maybeSingle<{ acceso_facturacion: boolean }>(),
+  ]);
+
+  const rows = (asignRes.data ?? []) as unknown as AsignacionRow[];
   const porSede = new Map<string, { sede: SedeJoin; jornadas: string[] }>();
   for (const a of rows) {
     const s = sedeOf(a);
@@ -194,8 +215,22 @@ export default async function DashboardPage() {
   }
   const sedesAgrupadas = [...porSede.values()];
 
+  const tieneAccesoFacturacion = perfilFacRes.data?.acceso_facturacion === true;
+  const esAdminLike = isAdminLike(profile.rol);
+
+  // Redirect: si el usuario SOLO tiene acceso_facturacion (sin asignaciones de
+  // supervisor y sin rol admin-like), no tiene nada que hacer en el dashboard.
+  // Lo llevamos directo a /facturacion donde sí tiene flujo de trabajo.
+  if (tieneAccesoFacturacion && !esAdminLike && sedesAgrupadas.length === 0) {
+    redirect("/facturacion");
+  }
+
   const modulos = modulosFor(profile.rol);
-  const showSedes = !isAdminLike(profile.rol);
+  // Insertamos la tarjeta de Facturación cerca del inicio si el user tiene acceso
+  if (tieneAccesoFacturacion) {
+    modulos.splice(1, 0, moduloFacturacion());
+  }
+  const showSedes = !esAdminLike;
 
   return (
     <main className="min-h-screen overflow-x-hidden text-text">

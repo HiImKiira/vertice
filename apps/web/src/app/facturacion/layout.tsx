@@ -37,6 +37,12 @@ export default async function FacturacionLayout({ children }: { children: React.
               <Link href="/facturacion" className="inline-flex items-center gap-1 rounded-md border border-white/10 px-3 py-1.5 hover:border-amber-400/40 hover:text-amber-200">
                 <Icon name="chart" size={12} /> Dashboard
               </Link>
+              <Link
+                href="/facturacion/empleados-bancarios"
+                className="inline-flex items-center gap-1 rounded-md border border-blue-400/40 bg-blue-500/15 px-3 py-1.5 font-semibold text-blue-200 hover:bg-blue-500/30"
+              >
+                <Icon name="dollar" size={12} /> Empleados bancarios
+              </Link>
               <Link href="/facturacion/cotizaciones" className="inline-flex items-center gap-1 rounded-md border border-white/10 px-3 py-1.5 hover:border-amber-400/40 hover:text-amber-200">
                 <Icon name="receipt" size={12} /> Cotizaciones
               </Link>
@@ -45,9 +51,6 @@ export default async function FacturacionLayout({ children }: { children: React.
               </Link>
               <Link href="/facturacion/clientes" className="inline-flex items-center gap-1 rounded-md border border-white/10 px-3 py-1.5 hover:border-amber-400/40 hover:text-amber-200">
                 <Icon name="users" size={12} /> Clientes
-              </Link>
-              <Link href="/facturacion/empleados-bancarios" className="inline-flex items-center gap-1 rounded-md border border-white/10 px-3 py-1.5 hover:border-emerald-400/40 hover:text-emerald-200">
-                <Icon name="dollar" size={12} /> Empleados bancario
               </Link>
             </>
           )}
