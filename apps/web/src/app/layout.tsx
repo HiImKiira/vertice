@@ -5,6 +5,7 @@ import { NavigationLoader } from "@/components/NavigationLoader";
 import { ZoomBlocker } from "@/components/ZoomBlocker";
 import { PWARegister } from "@/components/PWARegister";
 import { PushSoundListener } from "@/components/PushSoundListener";
+import { Heartbeat } from "@/components/Heartbeat";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -51,6 +52,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ZoomBlocker />
         <PWARegister />
         <PushSoundListener />
+        <Heartbeat />
         <ParticlesBg />
         <Suspense fallback={null}>
           <NavigationLoader />

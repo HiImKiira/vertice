@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { randomBytes } from "node:crypto";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { sendPush } from "@/lib/push";
@@ -13,13 +14,31 @@ export type NotifyMasivoResult =
 async function requireAdminLike() {
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { sb: null, userId: null, error: "Sin sesión" };
+  if (!user) return { sb: null, userId: null, rol: null, error: "Sin sesión" };
   const { data: perfil } = await supabase
     .from("usuarios").select("rol").eq("id", user.id).single<{ rol: string }>();
   if (!perfil || !["ADMIN", "SUPERADMIN", "CEO", "SOPORTE"].includes(perfil.rol)) {
-    return { sb: null, userId: null, error: "Solo admin/superadmin/soporte" };
+    return { sb: null, userId: null, rol: null, error: "Solo admin/superadmin/soporte" };
   }
-  return { sb: supabase, userId: user.id, error: null };
+  return { sb: supabase, userId: user.id, rol: perfil.rol, error: null };
+}
+
+async function requireSuperOrSoporte() {
+  const auth = await requireAdminLike();
+  if (!auth.sb) return auth;
+  if (!["SUPERADMIN", "SOPORTE"].includes(auth.rol ?? "")) {
+    return { sb: null, userId: null, rol: null, error: "Solo SUPERADMIN o SOPORTE" };
+  }
+  return auth;
+}
+
+function generarPassword(): string {
+  // 10 caracteres alfanuméricos seguros, fáciles de leer
+  const alfabeto = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+  const bytes = randomBytes(10);
+  let pwd = "";
+  for (let i = 0; i < bytes.length; i++) pwd += alfabeto[bytes[i]! % alfabeto.length];
+  return pwd;
 }
 
 /**
@@ -155,4 +174,99 @@ export async function notificarTodosIncompletosAction(): Promise<NotifyMasivoRes
   revalidatePath("/live/cobertura");
 
   return { ok: true, supervisoresNotificados, dispositivos, saltados };
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// VACACIONES / AUSENCIA
+// ─────────────────────────────────────────────────────────────────────
+export async function marcarAusenciaAction(input: {
+  supervisorId: string;
+  desde: string;   // YYYY-MM-DD
+  hasta: string;
+  motivo?: string;
+}): Promise<SupResult> {
+  const auth = await requireSuperOrSoporte();
+  if (!auth.sb || !auth.userId) return { ok: false, error: auth.error ?? "Sin permisos" };
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.desde) || !/^\d{4}-\d{2}-\d{2}$/.test(input.hasta)) {
+    return { ok: false, error: "Fechas inválidas (formato YYYY-MM-DD)" };
+  }
+  if (input.desde > input.hasta) {
+    return { ok: false, error: "'Desde' no puede ser mayor que 'Hasta'" };
+  }
+
+  const admin = supabaseAdmin();
+  const { error } = await admin
+    .from("usuarios")
+    .update({
+      ausente_desde: input.desde,
+      ausente_hasta: input.hasta,
+      ausente_motivo: input.motivo?.trim() || null,
+      ausencia_marcada_por: auth.userId,
+      ausencia_marcada_en: new Date().toISOString(),
+    })
+    .eq("id", input.supervisorId);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath(`/rh-pro/supervisores/${input.supervisorId}`);
+  revalidatePath("/rh-pro/supervisores");
+  return { ok: true };
+}
+
+export async function quitarAusenciaAction(supervisorId: string): Promise<SupResult> {
+  const auth = await requireSuperOrSoporte();
+  if (!auth.sb || !auth.userId) return { ok: false, error: auth.error ?? "Sin permisos" };
+
+  const admin = supabaseAdmin();
+  const { error } = await admin
+    .from("usuarios")
+    .update({
+      ausente_desde: null,
+      ausente_hasta: null,
+      ausente_motivo: null,
+      ausencia_marcada_por: null,
+      ausencia_marcada_en: null,
+    })
+    .eq("id", supervisorId);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath(`/rh-pro/supervisores/${supervisorId}`);
+  revalidatePath("/rh-pro/supervisores");
+  return { ok: true };
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// RESET PASSWORD
+// ─────────────────────────────────────────────────────────────────────
+export type ResetResult =
+  | { ok: true; password: string }
+  | { ok: false; error: string };
+
+export async function resetPasswordSupervisorAction(supervisorId: string): Promise<ResetResult> {
+  const auth = await requireSuperOrSoporte();
+  if (!auth.sb || !auth.userId) return { ok: false, error: auth.error ?? "Sin permisos" };
+
+  const admin = supabaseAdmin();
+  // Verificar que existe y traer username/email para feedback
+  const { data: target } = await admin
+    .from("usuarios").select("id, nombre, username, email").eq("id", supervisorId).single<{ id: string; nombre: string; username: string; email: string }>();
+  if (!target) return { ok: false, error: "Usuario no encontrado" };
+
+  const nueva = generarPassword();
+
+  const { error: authErr } = await admin.auth.admin.updateUserById(supervisorId, { password: nueva });
+  if (authErr) return { ok: false, error: `Auth: ${authErr.message}` };
+
+  // Log opcional (en notify_log para auditoría unificada)
+  await admin.from("notify_log").insert({
+    usuario_id: supervisorId,
+    tipo: "reset_password",
+    titulo: "Password reseteado",
+    cuerpo: `Reset por @${auth.userId}`,
+    resultado: "enviado",
+    detalle: `target=${target.username}`,
+  });
+
+  revalidatePath(`/rh-pro/supervisores/${supervisorId}`);
+  return { ok: true, password: nueva };
 }

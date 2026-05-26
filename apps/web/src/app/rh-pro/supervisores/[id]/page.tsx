@@ -6,6 +6,7 @@ import { Topbar } from "@/components/Topbar";
 import { Icon } from "@/components/Icon";
 import { NotasEditor } from "./NotasEditor";
 import { MensajePanel } from "./MensajePanel";
+import { GestionPanel } from "./GestionPanel";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Supervisor · RH Pro" };
@@ -36,6 +37,10 @@ interface ResumenRow {
   tickets_abiertos: number;
   push_dispositivos: number;
   ultima_captura: string | null;
+  ausente_desde: string | null;
+  ausente_hasta: string | null;
+  ausente_motivo: string | null;
+  esta_ausente: boolean;
 }
 
 interface AsignRow {
@@ -127,6 +132,11 @@ export default async function SupervisorDetailPage({ params }: PageProps) {
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <span className={`pill ${resumen.activo ? "pill-green" : "pill-red"}`}>{resumen.activo ? "ACTIVO" : "INACTIVO"}</span>
+                {resumen.esta_ausente && (
+                  <span className="pill pill-amber animate-glow">
+                    AUSENTE {resumen.ausente_hasta && `hasta ${resumen.ausente_hasta}`}
+                  </span>
+                )}
                 <span className={`role-badge role-${resumen.rol}`}>{resumen.rol}</span>
                 {resumen.push_dispositivos > 0 ? (
                   <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 font-mono text-[9px] font-bold text-emerald-300">
@@ -292,6 +302,15 @@ export default async function SupervisorDetailPage({ params }: PageProps) {
               pct_hoy={resumen.pct_hoy}
               faltantes={faltantes}
               fechaHoy={hoy}
+            />
+
+            <GestionPanel
+              supervisorId={resumen.id}
+              supervisorNombre={resumen.nombre}
+              callerRol={profile.rol}
+              ausenteDesde={resumen.ausente_desde}
+              ausenteHasta={resumen.ausente_hasta}
+              ausenteMotivo={resumen.ausente_motivo}
             />
 
             {/* Stats secundarios */}

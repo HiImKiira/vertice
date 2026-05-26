@@ -169,6 +169,16 @@ export default async function RHProPage() {
               badgeCls="pill pill-cyan"
             />
             <ActionCard
+              href="/rh-pro/cambio-sede"
+              icon="🔀"
+              iconBg="rgba(168,85,247,0.12)"
+              iconBorder="rgba(168,85,247,0.3)"
+              title="Cambio de sede"
+              sub="Reasigna uno o varios empleados a otra sede/jornada. Útil cuando se mueven de un hospital a otro. El supervisor receptor se entera por push."
+              badge="SUPERADMIN / SOPORTE"
+              badgeCls="pill pill-violet"
+            />
+            <ActionCard
               href="/rh-pro/consulta"
               icon="🔍"
               iconBg="rgba(245,158,11,0.12)"
