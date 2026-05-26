@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AsistenciasDoc } from "@/lib/pdf/AsistenciasDoc";
-import { fetchSede, fetchEmpleadosActivos, fetchMarcas, rangeDates, quincenaRange } from "@/lib/pdf/fetchPeriodData";
+import { fetchSede, fetchEmpleadosPorSedePeriodo, fetchMarcasConSnapshot, rangeDates, quincenaRange } from "@/lib/pdf/fetchPeriodData";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -70,8 +70,10 @@ export async function GET(req: NextRequest) {
   if (fechas.length > 62) {
     return NextResponse.json({ error: "Rango máximo: 62 días" }, { status: 400 });
   }
-  const empleados = await fetchEmpleadosActivos(supabase, sedeId);
-  const marcas = await fetchMarcas(supabase, empleados.map((e) => e.id), start, end);
+  // Snapshot histórico: incluye empleados que estuvieron en esta sede
+  // durante el periodo, aunque hoy ya no estén ahí.
+  const empleados = await fetchEmpleadosPorSedePeriodo(supabase, sedeId, start, end);
+  const marcas = await fetchMarcasConSnapshot(supabase, empleados.map((e) => e.id), sedeId, start, end);
 
   const buffer = await renderToBuffer(
     AsistenciasDoc({

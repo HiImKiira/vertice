@@ -14,6 +14,10 @@ export interface Empleado {
   nombre: string;
   jornada: string;
   salario_diario: number;
+  /** True si el empleado cambió de sede dentro del periodo del reporte */
+  cambio_durante_periodo?: boolean | undefined;
+  /** Días que efectivamente estuvo en la sede del reporte (post-snapshot) */
+  dias_en_sede?: number | undefined;
 }
 
 /** Genera el array de fechas YYYY-MM-DD entre start y end (inclusive). */
@@ -44,6 +48,10 @@ export async function fetchSede(sb: SupabaseClient, sedeId: string): Promise<Sed
   return data ?? null;
 }
 
+/**
+ * Empleados activos por sede actual — vista sin snapshot histórico.
+ * Útil para listados de hoy / pase de lista.
+ */
 export async function fetchEmpleadosActivos(sb: SupabaseClient, sedeId: string): Promise<Empleado[]> {
   const { data } = await sb
     .from("empleados")
@@ -54,6 +62,52 @@ export async function fetchEmpleadosActivos(sb: SupabaseClient, sedeId: string):
   return (data ?? []) as Empleado[];
 }
 
+/**
+ * Empleados que ESTUVIERON en la sede durante el periodo (snapshot histórico).
+ * Si Juanita se cambió de O'Horán a UNEME el día 10, en el reporte de O'Horán
+ * 1-15 aparecerá Juanita con flag cambio_durante_periodo=true y dias_en_sede=9
+ * (días 1-9). En el reporte de UNEME 1-15 también aparece, con dias_en_sede=6.
+ *
+ * Requiere v21 SQL (sede_efectiva + empleados_por_sede_periodo). Si la RPC
+ * falla por estar ausente, cae al método clásico (sede actual).
+ */
+export async function fetchEmpleadosPorSedePeriodo(
+  sb: SupabaseClient,
+  sedeId: string,
+  start: string,
+  end: string,
+): Promise<Empleado[]> {
+  const { data, error } = await sb.rpc("empleados_por_sede_periodo", {
+    p_sede: sedeId,
+    p_inicio: start,
+    p_fin: end,
+  });
+  if (error) {
+    console.error("[fetchEmpleadosPorSedePeriodo] fallback:", error.message);
+    return fetchEmpleadosActivos(sb, sedeId);
+  }
+  return ((data ?? []) as Array<{
+    empleado_id: string;
+    numero_empleado: string;
+    nombre: string;
+    jornada: string;
+    salario_diario: number;
+    cambio_durante_periodo: boolean;
+    dias_en_sede: number;
+  }>).map((r) => ({
+    id: r.empleado_id,
+    numero_empleado: r.numero_empleado,
+    nombre: r.nombre,
+    jornada: r.jornada,
+    salario_diario: r.salario_diario,
+    cambio_durante_periodo: r.cambio_durante_periodo,
+    dias_en_sede: r.dias_en_sede,
+  }));
+}
+
+/**
+ * Marcas de asistencia básicas (sin filtro por sede).
+ */
 export async function fetchMarcas(
   sb: SupabaseClient,
   empleadoIds: string[],
@@ -72,5 +126,41 @@ export async function fetchMarcas(
     if (!map[m.empleado_id]) map[m.empleado_id] = {};
     map[m.empleado_id]![m.fecha] = m.codigo;
   }
+  return map;
+}
+
+/**
+ * Marcas FILTRADAS por sede vigente cada día. Si Juanita estaba en O'Horán
+ * del 1 al 9 y luego se cambió a UNEME, este fetch:
+ *   - Para sedeId=O'Horán → devuelve sólo sus marcas del 1 al 9
+ *   - Para sedeId=UNEME → devuelve sólo sus marcas del 10 al 15
+ */
+export async function fetchMarcasConSnapshot(
+  sb: SupabaseClient,
+  empleadoIds: string[],
+  sedeId: string,
+  start: string,
+  end: string,
+): Promise<Record<string, Record<string, CodigoAsistencia>>> {
+  if (!empleadoIds.length) return {};
+  const map: Record<string, Record<string, CodigoAsistencia>> = {};
+  await Promise.all(
+    empleadoIds.map(async (empId) => {
+      const { data, error } = await sb.rpc("asistencias_empleado_en_sede", {
+        p_empleado: empId,
+        p_sede: sedeId,
+        p_inicio: start,
+        p_fin: end,
+      });
+      if (error) {
+        console.error("[fetchMarcasConSnapshot] empId=" + empId, error.message);
+        return;
+      }
+      const rows = (data ?? []) as Array<{ fecha: string; codigo: CodigoAsistencia }>;
+      if (rows.length === 0) return;
+      map[empId] = {};
+      for (const r of rows) map[empId]![r.fecha] = r.codigo;
+    }),
+  );
   return map;
 }

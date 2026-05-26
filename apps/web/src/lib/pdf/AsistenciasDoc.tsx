@@ -114,7 +114,14 @@ export interface AsistenciasDocProps {
   fechaFin: string;
   rangoLabel: string;
   fechas: string[];
-  empleados: { id: string; numero_empleado: string; nombre: string; jornada: string }[];
+  empleados: {
+    id: string;
+    numero_empleado: string;
+    nombre: string;
+    jornada: string;
+    cambio_durante_periodo?: boolean | undefined;
+    dias_en_sede?: number | undefined;
+  }[];
   marcas: Record<string, Record<string, CodigoAsistencia>>;
   generadoPor: string;
   generadoEn: string;
@@ -203,7 +210,14 @@ export function AsistenciasDoc(props: AsistenciasDocProps) {
             return (
               <View key={emp.id} style={[styles.tr, { backgroundColor: i % 2 === 0 ? "#fff" : "#FAFAFA" }]} wrap={false}>
                 <Text style={[styles.td, { width: 26, fontFamily: "Helvetica-Bold" }]}>{emp.numero_empleado}</Text>
-                <Text style={[styles.td, { width: 130 }, styles.tdLeft]}>{emp.nombre}</Text>
+                <View style={[styles.td, { width: 130, alignItems: "flex-start", justifyContent: "center" }]}>
+                  <Text style={styles.tdLeft}>{emp.nombre}</Text>
+                  {emp.cambio_durante_periodo && (
+                    <Text style={{ fontSize: 6, color: "#854F0B", fontFamily: "Helvetica-Bold", marginTop: 1 }}>
+                      ⚑ Se cambió de sede{typeof emp.dias_en_sede === "number" ? ` · ${emp.dias_en_sede}d aquí` : ""}
+                    </Text>
+                  )}
+                </View>
                 <Text style={[styles.td, { width: 42 }]}>{emp.jornada}</Text>
                 {fechasObj.map((d) => {
                   const cod = props.marcas[emp.id]?.[d.iso];

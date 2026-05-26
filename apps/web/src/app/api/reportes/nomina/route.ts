@@ -4,8 +4,8 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { NominaDoc } from "@/lib/pdf/NominaDoc";
 import {
   fetchSede,
-  fetchEmpleadosActivos,
-  fetchMarcas,
+  fetchEmpleadosPorSedePeriodo,
+  fetchMarcasConSnapshot,
   quincenaRange,
   rangeDates,
 } from "@/lib/pdf/fetchPeriodData";
@@ -43,10 +43,13 @@ export async function GET(req: NextRequest) {
 
   const { start, end } = quincenaRange(mes, q);
   const fechas = rangeDates(start, end);
-  const empleados = await fetchEmpleadosActivos(supabase, sedeId);
-  const marcas = await fetchMarcas(
+  // Snapshot histórico: si alguien se cambió de sede a mitad de quincena,
+  // aparece en el reporte de la sede donde estuvo, con flag de cambio.
+  const empleados = await fetchEmpleadosPorSedePeriodo(supabase, sedeId, start, end);
+  const marcas = await fetchMarcasConSnapshot(
     supabase,
     empleados.map((e) => e.id),
+    sedeId,
     start,
     end,
   );

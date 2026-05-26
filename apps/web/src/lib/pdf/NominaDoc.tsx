@@ -133,6 +133,10 @@ export interface NominaDocProps {
     nombre: string;
     jornada: string;
     salario_diario: number;
+    /** True si el empleado se cambió de sede en el periodo */
+    cambio_durante_periodo?: boolean | undefined;
+    /** Días que estuvo en la sede de este reporte */
+    dias_en_sede?: number | undefined;
   }[];
   marcas: Record<string, Record<string, CodigoAsistencia>>; // [empleado_id][fecha] = codigo
   generadoPor: string;
@@ -251,7 +255,14 @@ export function NominaDoc(props: NominaDocProps) {
           {filas.map((f, i) => (
             <View key={f.emp.id} style={[styles.tr, { backgroundColor: i % 2 === 0 ? "#fff" : "#FAFAFA" }]} wrap={false}>
               <Text style={[styles.td, { width: 28 }, styles.tdBold]}>{f.emp.numero_empleado}</Text>
-              <Text style={[styles.td, { width: 130 }, styles.tdLeft]}>{f.emp.nombre}</Text>
+              <View style={[styles.td, { width: 130, alignItems: "flex-start", justifyContent: "center" }]}>
+                <Text style={styles.tdLeft}>{f.emp.nombre}</Text>
+                {f.emp.cambio_durante_periodo && (
+                  <Text style={{ fontSize: 6, color: "#854F0B", fontFamily: "Helvetica-Bold", marginTop: 1 }}>
+                    ⚑ Se cambió de sede{typeof f.emp.dias_en_sede === "number" ? ` · ${f.emp.dias_en_sede}d aquí` : ""}
+                  </Text>
+                )}
+              </View>
               <Text style={[styles.td, { width: 42 }]}>{f.emp.jornada}</Text>
               {fechasObj.map((d) => {
                 const cod = props.marcas[f.emp.id]?.[d.iso];
