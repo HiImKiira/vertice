@@ -7,6 +7,7 @@ import {
   marcarAusenciaAction,
   quitarAusenciaAction,
   resetPasswordSupervisorAction,
+  toggleAccesoFacturacionAction,
 } from "../actions";
 
 interface Props {
@@ -16,6 +17,7 @@ interface Props {
   ausenteDesde: string | null;
   ausenteHasta: string | null;
   ausenteMotivo: string | null;
+  accesoFacturacion: boolean;
 }
 
 export function GestionPanel({
@@ -25,6 +27,7 @@ export function GestionPanel({
   ausenteDesde,
   ausenteHasta,
   ausenteMotivo,
+  accesoFacturacion,
 }: Props) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -72,6 +75,23 @@ export function GestionPanel({
       const r = await quitarAusenciaAction(supervisorId);
       if (!r.ok) { setMsg({ kind: "err", text: r.error }); return; }
       setMsg({ kind: "ok", text: "✓ Ausencia removida" });
+      router.refresh();
+    });
+  }
+
+  async function toggleFacturacion() {
+    const accion = accesoFacturacion ? "retirar" : "habilitar";
+    if (!confirm(`${accion === "habilitar" ? "Habilitar" : "Retirar"} acceso a Facturación para ${supervisorNombre}?`)) return;
+    setMsg(null);
+    start(async () => {
+      const r = await toggleAccesoFacturacionAction(supervisorId, !accesoFacturacion);
+      if (!r.ok) { setMsg({ kind: "err", text: r.error }); return; }
+      setMsg({
+        kind: "ok",
+        text: accesoFacturacion
+          ? "✓ Acceso a Facturación retirado"
+          : "✓ Acceso a Facturación habilitado · le llegó push de notificación",
+      });
       router.refresh();
     });
   }
@@ -188,6 +208,38 @@ export function GestionPanel({
             </div>
           </div>
         )}
+      </div>
+
+      {/* Acceso Facturación */}
+      <div className={`rounded-xl border p-3 ${
+        accesoFacturacion
+          ? "border-emerald-400/30 bg-emerald-500/[0.05]"
+          : "border-white/10 bg-[color:var(--card)]"
+      }`}>
+        <div className="mb-2 flex items-center gap-2">
+          <Icon name="receipt" size={14} className={accesoFacturacion ? "text-emerald-300" : "text-muted"} />
+          <p className="text-xs font-semibold">
+            Acceso a Facturación {accesoFacturacion && <span className="ml-1 text-[10px] text-emerald-300">· HABILITADO</span>}
+          </p>
+        </div>
+        <p className="mb-3 text-[11px] text-muted">
+          {accesoFacturacion
+            ? "Este supervisor puede entrar al módulo de Facturación (productos, cotizaciones, solicitudes de compra) y recibe push de nuevas solicitudes."
+            : "Habilita el acceso para que este supervisor pueda gestionar cotizaciones y reciba notificaciones de solicitudes de compra."}
+        </p>
+        <button
+          type="button"
+          onClick={toggleFacturacion}
+          disabled={pending}
+          className={`inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-semibold disabled:opacity-40 ${
+            accesoFacturacion
+              ? "border-red-400/30 bg-red-500/10 text-red-200 hover:bg-red-500/25"
+              : "border-emerald-400/30 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/25"
+          }`}
+        >
+          <Icon name={accesoFacturacion ? "x" : "check"} size={12} />
+          {pending ? "Guardando..." : accesoFacturacion ? "Retirar acceso" : "Habilitar acceso"}
+        </button>
       </div>
 
       {/* Reset password */}

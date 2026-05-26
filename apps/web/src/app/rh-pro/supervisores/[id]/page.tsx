@@ -70,8 +70,8 @@ export default async function SupervisorDetailPage({ params }: PageProps) {
   const { id } = await params;
   const supabase = await createSupabaseServerClient();
 
-  // Paralelo: resumen, asignaciones, bitácora, cobertura detalle
-  const [resumenRes, asignRes, bitacoraRes, coberturaDetRes, mensualRes] = await Promise.all([
+  // Paralelo: resumen, asignaciones, bitácora, cobertura detalle, flag facturación
+  const [resumenRes, asignRes, bitacoraRes, coberturaDetRes, mensualRes, flagRes] = await Promise.all([
     supabase.rpc("supervisor_resumen", { p_usuario_id: id }),
     supabase
       .from("asignaciones_supervisor")
@@ -90,7 +90,9 @@ export default async function SupervisorDetailPage({ params }: PageProps) {
         p_month: d.getMonth() + 1,
       });
     })(),
+    supabase.from("usuarios").select("acceso_facturacion").eq("id", id).maybeSingle(),
   ]);
+  const accesoFacturacion = ((flagRes.data as { acceso_facturacion?: boolean } | null)?.acceso_facturacion) === true;
 
   const resumen = (resumenRes.data as ResumenRow[] | null)?.[0];
   if (!resumen) {
@@ -338,6 +340,7 @@ export default async function SupervisorDetailPage({ params }: PageProps) {
               ausenteDesde={resumen.ausente_desde}
               ausenteHasta={resumen.ausente_hasta}
               ausenteMotivo={resumen.ausente_motivo}
+              accesoFacturacion={accesoFacturacion}
             />
 
             {/* Stats secundarios */}

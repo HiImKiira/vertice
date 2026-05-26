@@ -270,3 +270,40 @@ export async function resetPasswordSupervisorAction(supervisorId: string): Promi
   revalidatePath(`/rh-pro/supervisores/${supervisorId}`);
   return { ok: true, password: nueva };
 }
+
+// ─────────────────────────────────────────────────────────────────────
+// ACCESO FACTURACIÓN (toggle de flag por supervisor)
+// ─────────────────────────────────────────────────────────────────────
+export async function toggleAccesoFacturacionAction(
+  supervisorId: string,
+  habilitar: boolean,
+): Promise<SupResult> {
+  const auth = await requireSuperOrSoporte();
+  if (!auth.sb || !auth.userId) return { ok: false, error: auth.error ?? "Sin permisos" };
+
+  const admin = supabaseAdmin();
+  const { error } = await admin
+    .from("usuarios")
+    .update({ acceso_facturacion: habilitar })
+    .eq("id", supervisorId);
+  if (error) return { ok: false, error: error.message };
+
+  // Push informativo al usuario afectado (fire-and-forget)
+  void sendPush(
+    {
+      title: habilitar ? "Acceso a Facturación habilitado" : "Acceso a Facturación retirado",
+      body: habilitar
+        ? "Ya puedes entrar al módulo de Facturación desde Vortex."
+        : "Tu acceso al módulo de Facturación fue retirado.",
+      url: habilitar ? "/facturacion" : "/dashboard",
+      tag: `acceso-fac-${supervisorId}-${Date.now()}`,
+      icon: "/icons/icon-192.png",
+    },
+    [supervisorId],
+    "acceso_facturacion",
+  ).catch(() => {});
+
+  revalidatePath(`/rh-pro/supervisores/${supervisorId}`);
+  revalidatePath("/rh-pro/supervisores");
+  return { ok: true };
+}

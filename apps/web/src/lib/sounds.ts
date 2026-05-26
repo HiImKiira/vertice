@@ -46,6 +46,9 @@ export type EventoTipo =
   | "fecha_liberada"
   | "recordatorio_captura"
   | "announcement"
+  | "solicitud_compra_nueva"
+  | "solicitud_compra_estado"
+  | "acceso_facturacion"
   | "test";
 
 export interface EventoSpec {
@@ -63,6 +66,9 @@ export const EVENTOS: EventoSpec[] = [
   { id: "fecha_liberada",       label: "Fecha liberada",                    description: "RH te liberó una fecha — apúrate a capturar antes de que expire",         default: "urgente" },
   { id: "recordatorio_captura", label: "Recordatorio de captura",           description: "El cron automático te recuerda capturar tu pase de lista",                 default: "beep" },
   { id: "announcement",         label: "Anuncio general",                   description: "RH manda un anuncio a todos los suscritos",                                default: "acorde" },
+  { id: "solicitud_compra_nueva", label: "Solicitud de compra nueva",        description: "Un supervisor levanta una solicitud — para el equipo de facturación",   default: "triple-ding" },
+  { id: "solicitud_compra_estado", label: "Cambio en tu solicitud de compra", description: "Tu solicitud fue aprobada, comprada o entregada",                       default: "campana" },
+  { id: "acceso_facturacion",   label: "Acceso a Facturación",              description: "Te habilitaron / quitaron acceso al módulo de facturación",                default: "acorde" },
   { id: "test",                 label: "Push de prueba",                    description: "Disparo manual desde el panel de soporte",                                 default: "glissando" },
 ];
 
