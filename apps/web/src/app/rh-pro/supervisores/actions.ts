@@ -307,3 +307,264 @@ export async function toggleAccesoFacturacionAction(
   revalidatePath("/rh-pro/supervisores");
   return { ok: true };
 }
+
+// ─────────────────────────────────────────────────────────────────────
+// CREAR / EDITAR / ELIMINAR supervisor (usuario)
+// ─────────────────────────────────────────────────────────────────────
+const ROLES_VALIDOS = ["USER", "ADMIN", "SUPERADMIN", "CEO", "SOPORTE"] as const;
+type RolValido = (typeof ROLES_VALIDOS)[number];
+
+export type CrearSupResult =
+  | { ok: true; id: string; password: string; username: string }
+  | { ok: false; error: string };
+
+/**
+ * Crea un nuevo supervisor (auth user + fila en usuarios) y devuelve la
+ * password temporal generada. Solo SUPERADMIN/SOPORTE pueden hacerlo.
+ *
+ * Si la inserción en `usuarios` falla, hace rollback del auth user para
+ * no dejar registros huérfanos.
+ */
+export async function crearSupervisorAction(input: {
+  email: string;
+  nombre: string;
+  username?: string | undefined;
+  rol: RolValido;
+  acceso_facturacion?: boolean | undefined;
+}): Promise<CrearSupResult> {
+  const auth = await requireSuperOrSoporte();
+  if (!auth.sb || !auth.userId) return { ok: false, error: auth.error ?? "Sin permisos" };
+
+  const email = input.email.trim().toLowerCase();
+  const nombre = input.nombre.trim();
+  const rol = input.rol;
+  const username = (input.username?.trim() || email.split("@")[0] || "").toLowerCase();
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { ok: false, error: "Email inválido" };
+  if (!nombre) return { ok: false, error: "Nombre requerido" };
+  if (!username || username.length < 2) return { ok: false, error: "Username inválido" };
+  if (!ROLES_VALIDOS.includes(rol)) return { ok: false, error: "Rol inválido" };
+
+  const admin = supabaseAdmin();
+
+  // 1) Verificar que no exista (email o username)
+  const { data: existeEmail } = await admin
+    .from("usuarios").select("id").ilike("email", email).maybeSingle<{ id: string }>();
+  if (existeEmail) return { ok: false, error: `Ya existe un usuario con email ${email}` };
+  const { data: existeUser } = await admin
+    .from("usuarios").select("id").ilike("username", username).maybeSingle<{ id: string }>();
+  if (existeUser) return { ok: false, error: `Ya existe el username @${username}` };
+
+  // 2) Crear auth user con password temporal
+  const password = generarPassword();
+  const { data: created, error: authErr } = await admin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+  });
+  if (authErr || !created.user) {
+    return { ok: false, error: `Auth: ${authErr?.message ?? "no se creó usuario"}` };
+  }
+  const userId = created.user.id;
+
+  // 3) Insertar en usuarios
+  const { error: insErr } = await admin.from("usuarios").insert({
+    id: userId,
+    email,
+    username,
+    nombre,
+    rol,
+    activo: true,
+    acceso_facturacion: input.acceso_facturacion === true,
+  });
+  if (insErr) {
+    // Rollback del auth user
+    await admin.auth.admin.deleteUser(userId).catch(() => {});
+    return { ok: false, error: `Insert usuarios: ${insErr.message}` };
+  }
+
+  revalidatePath("/rh-pro/supervisores");
+  return { ok: true, id: userId, password, username };
+}
+
+/**
+ * Edita datos básicos del supervisor (nombre, username, email, rol, activo).
+ * - Cambiar rol o `activo` requiere SUPERADMIN/SOPORTE.
+ * - El resto cualquier admin-like.
+ *
+ * Si cambia el email, también lo actualiza en auth.users.
+ */
+export async function actualizarSupervisorAction(
+  supervisorId: string,
+  patch: {
+    nombre?: string | undefined;
+    username?: string | undefined;
+    email?: string | undefined;
+    rol?: RolValido | undefined;
+    activo?: boolean | undefined;
+  },
+): Promise<SupResult> {
+  const auth = await requireAdminLike();
+  if (!auth.sb || !auth.userId) return { ok: false, error: auth.error ?? "Sin permisos" };
+
+  const cambiosSensibles = patch.rol !== undefined || patch.activo !== undefined;
+  if (cambiosSensibles && !["SUPERADMIN", "SOPORTE"].includes(auth.rol ?? "")) {
+    return { ok: false, error: "Cambiar rol o estado activo requiere SUPERADMIN/SOPORTE" };
+  }
+
+  const admin = supabaseAdmin();
+  const update: Record<string, unknown> = {};
+  if (patch.nombre !== undefined) {
+    const v = patch.nombre.trim();
+    if (!v) return { ok: false, error: "Nombre vacío" };
+    update.nombre = v;
+  }
+  if (patch.username !== undefined) {
+    const v = patch.username.trim().toLowerCase();
+    if (v.length < 2) return { ok: false, error: "Username inválido" };
+    // Verificar que no choque con otro
+    const { data: existe } = await admin
+      .from("usuarios").select("id").ilike("username", v).neq("id", supervisorId).maybeSingle<{ id: string }>();
+    if (existe) return { ok: false, error: `Username @${v} ya está en uso` };
+    update.username = v;
+  }
+  let emailNuevo: string | null = null;
+  if (patch.email !== undefined) {
+    const v = patch.email.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return { ok: false, error: "Email inválido" };
+    const { data: existe } = await admin
+      .from("usuarios").select("id").ilike("email", v).neq("id", supervisorId).maybeSingle<{ id: string }>();
+    if (existe) return { ok: false, error: `Email ${v} ya está en uso` };
+    update.email = v;
+    emailNuevo = v;
+  }
+  if (patch.rol !== undefined) {
+    if (!ROLES_VALIDOS.includes(patch.rol)) return { ok: false, error: "Rol inválido" };
+    update.rol = patch.rol;
+  }
+  if (patch.activo !== undefined) update.activo = patch.activo;
+
+  if (Object.keys(update).length === 0) return { ok: true };
+
+  const { error } = await admin.from("usuarios").update(update).eq("id", supervisorId);
+  if (error) return { ok: false, error: error.message };
+
+  // Si cambió email, actualizar también en auth.users
+  if (emailNuevo) {
+    const { error: authErr } = await admin.auth.admin.updateUserById(supervisorId, { email: emailNuevo, email_confirm: true });
+    if (authErr) {
+      // No es fatal — pero avisamos. La fila ya está actualizada.
+      return { ok: false, error: `Datos guardados pero auth no se sincronizó: ${authErr.message}. Actualízalo manualmente.` };
+    }
+  }
+
+  revalidatePath(`/rh-pro/supervisores/${supervisorId}`);
+  revalidatePath("/rh-pro/supervisores");
+  return { ok: true };
+}
+
+/**
+ * "Eliminar" un supervisor.
+ * - Si NO tiene capturas / asignaciones / tickets → eliminación dura (DELETE).
+ * - Si tiene historial → soft-delete (activo = false) para preservar auditoría.
+ * Solo SUPERADMIN/SOPORTE.
+ */
+export type EliminarSupResult =
+  | { ok: true; modo: "hard" | "soft"; razon?: string }
+  | { ok: false; error: string };
+
+export async function eliminarSupervisorAction(supervisorId: string): Promise<EliminarSupResult> {
+  const auth = await requireSuperOrSoporte();
+  if (!auth.sb || !auth.userId) return { ok: false, error: auth.error ?? "Sin permisos" };
+  if (supervisorId === auth.userId) return { ok: false, error: "No puedes eliminarte a ti mismo" };
+
+  const admin = supabaseAdmin();
+
+  // ¿Tiene historial? — capturas, tickets, asignaciones, asistencias capturadas
+  const [{ count: nCapturas }, { count: nTickets }, { count: nAsign }] = await Promise.all([
+    admin.from("asistencias").select("id", { count: "exact", head: true }).eq("capturado_por", supervisorId),
+    admin.from("tickets_soporte").select("id", { count: "exact", head: true }).eq("supervisor_id", supervisorId),
+    admin.from("asignaciones_supervisor").select("id", { count: "exact", head: true }).eq("usuario_id", supervisorId),
+  ]);
+
+  const tieneHistorial = (nCapturas ?? 0) > 0 || (nTickets ?? 0) > 0 || (nAsign ?? 0) > 0;
+
+  if (tieneHistorial) {
+    // Soft-delete: desactivar usuario + desactivar todas sus asignaciones
+    const { error: e1 } = await admin.from("usuarios").update({ activo: false }).eq("id", supervisorId);
+    if (e1) return { ok: false, error: e1.message };
+    await admin.from("asignaciones_supervisor").update({ activo: false }).eq("usuario_id", supervisorId);
+    // Desactivar suscripciones push para que no le sigan llegando notificaciones
+    await admin.from("push_subscriptions").update({ activo: false }).eq("usuario_id", supervisorId);
+
+    revalidatePath("/rh-pro/supervisores");
+    revalidatePath(`/rh-pro/supervisores/${supervisorId}`);
+    return {
+      ok: true,
+      modo: "soft",
+      razon: `Tiene historial (${nCapturas ?? 0} capturas, ${nTickets ?? 0} tickets, ${nAsign ?? 0} asignaciones). Desactivado en lugar de borrar para preservar auditoría.`,
+    };
+  }
+
+  // Hard delete: sin historial, podemos borrar limpio
+  await admin.from("push_subscriptions").delete().eq("usuario_id", supervisorId);
+  const { error: e1 } = await admin.from("usuarios").delete().eq("id", supervisorId);
+  if (e1) return { ok: false, error: e1.message };
+  const { error: e2 } = await admin.auth.admin.deleteUser(supervisorId);
+  if (e2) return { ok: false, error: `Usuarios borrado pero auth falló: ${e2.message}` };
+
+  revalidatePath("/rh-pro/supervisores");
+  return { ok: true, modo: "hard" };
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// ASIGNACIONES (sede × jornada) — agregar/quitar desde detalle supervisor
+// ─────────────────────────────────────────────────────────────────────
+type Jornada = "MATUTINO" | "VESPERTINO" | "NOCTURNO" | "TURNO_ROTATIVO" | "CUBRETURNOS" | "DIURNO";
+
+export async function agregarAsignacionSupervisorAction(input: {
+  supervisorId: string;
+  sedeId: string;
+  jornada: Jornada;
+}): Promise<SupResult> {
+  const auth = await requireAdminLike();
+  if (!auth.sb || !auth.userId) return { ok: false, error: auth.error ?? "Sin permisos" };
+  if (!input.supervisorId || !input.sedeId || !input.jornada) return { ok: false, error: "Faltan campos" };
+
+  const admin = supabaseAdmin();
+  const { error } = await admin
+    .from("asignaciones_supervisor")
+    .upsert({
+      usuario_id: input.supervisorId,
+      sede_id: input.sedeId,
+      jornada: input.jornada,
+      activo: true,
+      creado_por: auth.userId,
+    }, { onConflict: "usuario_id,sede_id,jornada" });
+
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(`/rh-pro/supervisores/${input.supervisorId}`);
+  revalidatePath("/rh-pro/supervisores");
+  revalidatePath("/rh-pro");
+  return { ok: true };
+}
+
+export async function eliminarAsignacionSupervisorAction(input: {
+  supervisorId: string;
+  asignacionId: string;
+}): Promise<SupResult> {
+  const auth = await requireAdminLike();
+  if (!auth.sb || !auth.userId) return { ok: false, error: auth.error ?? "Sin permisos" };
+
+  const admin = supabaseAdmin();
+  const { error } = await admin
+    .from("asignaciones_supervisor")
+    .update({ activo: false })
+    .eq("id", input.asignacionId);
+
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(`/rh-pro/supervisores/${input.supervisorId}`);
+  revalidatePath("/rh-pro/supervisores");
+  revalidatePath("/rh-pro");
+  return { ok: true };
+}

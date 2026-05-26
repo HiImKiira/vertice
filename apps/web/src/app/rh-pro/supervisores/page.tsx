@@ -4,6 +4,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Topbar } from "@/components/Topbar";
 import { Icon } from "@/components/Icon";
 import { NotificarTodos } from "./NotificarTodos";
+import { NuevoSupervisorButton } from "./NuevoSupervisorButton";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Centro de supervisores · RH Pro" };
@@ -76,10 +77,15 @@ export default async function SupervisoresPage({ searchParams }: PageProps) {
           <Link href="/rh-pro" className="inline-flex items-center gap-1 text-xs text-muted hover:text-text">
             <Icon name="arrow-left" size={12} /> RH Pro
           </Link>
-          <h1 className="mt-2 font-display text-3xl sm:text-4xl">Centro de supervisores</h1>
-          <p className="mt-1 max-w-2xl text-sm text-muted">
-            Monitoreo, cobertura, notas y mensajería directa con cada supervisor activo. Click en una card para ficha completa.
-          </p>
+          <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h1 className="font-display text-3xl sm:text-4xl">Centro de supervisores</h1>
+              <p className="mt-1 max-w-2xl text-sm text-muted">
+                Monitoreo, cobertura, notas y mensajería directa con cada supervisor activo. Click en una card para ficha completa.
+              </p>
+            </div>
+            <NuevoSupervisorButton callerRol={profile.rol} />
+          </div>
         </header>
 
         {error && (

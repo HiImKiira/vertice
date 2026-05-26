@@ -7,6 +7,8 @@ import { Icon } from "@/components/Icon";
 import { NotasEditor } from "./NotasEditor";
 import { MensajePanel } from "./MensajePanel";
 import { GestionPanel } from "./GestionPanel";
+import { DatosEditor } from "./DatosEditor";
+import { AsignacionesEditorInline } from "./AsignacionesEditor";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Supervisor · RH Pro" };
@@ -70,8 +72,8 @@ export default async function SupervisorDetailPage({ params }: PageProps) {
   const { id } = await params;
   const supabase = await createSupabaseServerClient();
 
-  // Paralelo: resumen, asignaciones, bitácora, cobertura detalle, flag facturación
-  const [resumenRes, asignRes, bitacoraRes, coberturaDetRes, mensualRes, flagRes] = await Promise.all([
+  // Paralelo: resumen, asignaciones, bitácora, cobertura detalle, flag facturación, sedes activas
+  const [resumenRes, asignRes, bitacoraRes, coberturaDetRes, mensualRes, flagRes, sedesRes] = await Promise.all([
     supabase.rpc("supervisor_resumen", { p_usuario_id: id }),
     supabase
       .from("asignaciones_supervisor")
@@ -91,8 +93,14 @@ export default async function SupervisorDetailPage({ params }: PageProps) {
       });
     })(),
     supabase.from("usuarios").select("acceso_facturacion").eq("id", id).maybeSingle(),
+    supabase
+      .from("sedes")
+      .select("id, abrev, nombre")
+      .or("activa.is.null,activa.eq.true")
+      .order("abrev"),
   ]);
   const accesoFacturacion = ((flagRes.data as { acceso_facturacion?: boolean } | null)?.acceso_facturacion) === true;
+  const sedesActivas = (sedesRes.data ?? []) as Array<{ id: string; abrev: string; nombre: string }>;
 
   const resumen = (resumenRes.data as ResumenRow[] | null)?.[0];
   if (!resumen) {
@@ -208,36 +216,19 @@ export default async function SupervisorDetailPage({ params }: PageProps) {
 
         <div className="grid gap-6 lg:grid-cols-[3fr_2fr]">
           <div className="space-y-6">
-            {/* Asignaciones */}
-            <section>
-              <div className="section-label mb-3 flex items-center gap-2">
-                <Icon name="building" size={12} className="text-muted" />
-                Asignaciones activas ({sedesAgrupadas.length} sede{sedesAgrupadas.length === 1 ? "" : "s"})
-              </div>
-              {sedesAgrupadas.length === 0 ? (
-                <p className="rounded-md border border-dashed border-red-400/20 bg-red-500/[0.04] p-3 text-center text-xs text-red-200">
-                  ⚠ Este supervisor no tiene asignaciones activas — no podrá capturar nada.
-                </p>
-              ) : (
-                <ul className="space-y-2">
-                  {sedesAgrupadas.map((s, i) => (
-                    <li key={i} className="rounded-md border border-white/5 bg-[color:var(--card)] p-3">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs text-[#93C5FD]">{s.sede.abrev}</span>
-                        <span className="min-w-0 flex-1 truncate text-sm">{s.sede.nombre}</span>
-                        <div className="flex gap-1">
-                          {s.jornadas.map((j) => (
-                            <span key={j} className="rounded bg-amber-500/15 px-1.5 py-0.5 font-mono text-[9px] font-bold text-amber-200">
-                              {j.slice(0, 3)}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
+            {/* Asignaciones (editable) */}
+            <AsignacionesEditorInline
+              supervisorId={resumen.id}
+              callerRol={profile.rol}
+              asignaciones={asignaciones
+                .map((a) => {
+                  const s = Array.isArray(a.sedes) ? a.sedes[0] : a.sedes;
+                  if (!s) return null;
+                  return { id: a.id, sede_id: s.id, sede_abrev: s.abrev, sede_nombre: s.nombre, jornada: a.jornada };
+                })
+                .filter((x): x is { id: string; sede_id: string; sede_abrev: string; sede_nombre: string; jornada: string } => x !== null)}
+              sedes={sedesActivas}
+            />
 
             {/* Cobertura hoy detalle */}
             {coberturaDet.length > 0 && (
@@ -324,6 +315,16 @@ export default async function SupervisorDetailPage({ params }: PageProps) {
 
           {/* Columna derecha: acciones */}
           <div className="space-y-6">
+            <DatosEditor
+              supervisorId={resumen.id}
+              nombre={resumen.nombre}
+              username={resumen.username}
+              email={resumen.email}
+              rol={resumen.rol}
+              activo={resumen.activo}
+              callerRol={profile.rol}
+            />
+
             <MensajePanel
               supervisorId={resumen.id}
               supervisorNombre={resumen.nombre}
