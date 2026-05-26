@@ -101,6 +101,13 @@ export default async function RHEmpleadosPage({ searchParams }: PageProps) {
               Botones de fila para marcar al empleado completo. Botones de columna para marcar el día entero.
             </p>
           </div>
+          <Link
+            href="/rh-pro/empleados/importar"
+            className="inline-flex items-center gap-1.5 rounded-md border border-emerald-400/40 bg-emerald-500/15 px-3 py-2 text-xs font-semibold text-emerald-200 hover:bg-emerald-500/30"
+            title="Crear o actualizar empleados en lote desde un xlsx"
+          >
+            📥 Import masivo (xlsx)
+          </Link>
         </header>
 
         <CalendarioQuickMark
