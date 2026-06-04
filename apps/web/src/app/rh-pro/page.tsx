@@ -149,12 +149,22 @@ export default async function RHProPage() {
               badgeCls="pill pill-green"
             />
             <ActionCard
+              href="/rh-pro/cambio-descanso"
+              icon="🔁"
+              iconBg="rgba(16,185,129,0.12)"
+              iconBorder="rgba(16,185,129,0.3)"
+              title="Cambio de descanso fijo"
+              sub="Cambia el día de descanso PERMANENTE de un trabajador (sede → trabajador → día → motivo). Notifica al supervisor y queda en bitácora."
+              badge="ADMIN / SUPERADMIN / SOPORTE"
+              badgeCls="pill pill-green"
+            />
+            <ActionCard
               href="/rh-pro/descansos-semanales"
               icon="🛌"
               iconBg="rgba(96,165,250,0.12)"
               iconBorder="rgba(96,165,250,0.3)"
-              title="Descansos semanales"
-              sub="Día de descanso por ley (1 de cada 6 días). Vortex auto-llena DS en pase de lista cuando llega ese día."
+              title="Descansos semanales (masivo)"
+              sub="Editor masivo tipo grid de toda la sede. Día de descanso por ley (1 de cada 6 días). Vortex auto-llena DS en pase de lista."
               badge="ADMIN / SUPERADMIN / SOPORTE"
               badgeCls="pill pill-blue"
             />

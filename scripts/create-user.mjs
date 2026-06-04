@@ -26,7 +26,7 @@ if (!email || !password || !rol || !nombre) {
   process.exit(1);
 }
 
-const ROLES_VALIDOS = ["USER", "ADMIN", "SUPERADMIN", "CEO", "SOPORTE"];
+const ROLES_VALIDOS = ["USER", "ADMIN", "SUPERADMIN", "CEO", "SOPORTE", "FACTURACION"];
 if (!ROLES_VALIDOS.includes(rol)) {
   console.error(`Rol inválido: ${rol}. Válidos: ${ROLES_VALIDOS.join(", ")}`);
   process.exit(1);

@@ -49,6 +49,7 @@ export type EventoTipo =
   | "solicitud_compra_nueva"
   | "solicitud_compra_estado"
   | "acceso_facturacion"
+  | "cambio_descanso_fijo"
   | "test";
 
 export interface EventoSpec {
@@ -69,6 +70,7 @@ export const EVENTOS: EventoSpec[] = [
   { id: "solicitud_compra_nueva", label: "Solicitud de compra nueva",        description: "Un supervisor levanta una solicitud — para el equipo de facturación",   default: "triple-ding" },
   { id: "solicitud_compra_estado", label: "Cambio en tu solicitud de compra", description: "Tu solicitud fue aprobada, comprada o entregada",                       default: "campana" },
   { id: "acceso_facturacion",   label: "Acceso a Facturación",              description: "Te habilitaron / quitaron acceso al módulo de facturación",                default: "acorde" },
+  { id: "cambio_descanso_fijo", label: "Cambio de descanso fijo",           description: "RH cambió el día de descanso permanente de un trabajador de tu sede",      default: "pulso-doble" },
   { id: "test",                 label: "Push de prueba",                    description: "Disparo manual desde el panel de soporte",                                 default: "glissando" },
 ];
 
