@@ -8,7 +8,7 @@
  *
  * Para forzar el refresh del SW en producción: cambiar CACHE_VERSION.
  */
-const CACHE_VERSION = "vortex-v6";
+const CACHE_VERSION = "vortex-v7";
 const SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const SHELL_FILES = [
   "/manifest.webmanifest",
@@ -50,18 +50,23 @@ self.addEventListener("fetch", (event) => {
   if (req.method !== "GET") return;
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
-  // No cachear rutas dinámicas / auth / API
+  // No interceptar rutas dinámicas / auth / API / build de Next.
+  // IMPORTANTE: /_next/ (chunks JS, CSS, RSC) se deja pasar directo a la red.
+  // Next.js los sirve con cache HTTP `immutable` y nombres content-hashed.
+  // Si el SW los cacheara cache-first, tras un deploy el cliente podía pedir
+  // un chunk que mezcla builds → ChunkLoadError ("client-side exception").
   if (
     url.pathname.startsWith("/api/") ||
-    url.pathname.startsWith("/_next/data/") ||
+    url.pathname.startsWith("/_next/") ||
     url.pathname.startsWith("/auth/") ||
     url.pathname.includes("/login")
   ) {
     return;
   }
 
-  // Network-first para HTML, cache-first para assets estáticos
-  const isAsset = /\.(svg|png|jpg|jpeg|gif|webp|ico|css|js|woff2?)$/i.test(url.pathname)
+  // Network-first para HTML, cache-first SOLO para assets propios estáticos
+  // (íconos, favicon, manifest). NO incluye /_next/ (ya excluido arriba).
+  const isAsset = /\.(svg|png|jpg|jpeg|gif|webp|ico|woff2?)$/i.test(url.pathname)
     || url.pathname.startsWith("/icons/");
 
   if (isAsset) {

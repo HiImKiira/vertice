@@ -45,7 +45,7 @@ export default async function CambioDescansoPage() {
   requireAdminLike(profile.rol);
   const supabase = await createSupabaseServerClient();
 
-  const [{ data: empsRaw }, { data: sedesRaw }, { data: bitacoraRaw }] = await Promise.all([
+  const [empsRes, sedesRes] = await Promise.all([
     supabase
       .from("empleados")
       .select("id, numero_empleado, nombre, sede_id, jornada, dia_descanso, sedes(abrev, nombre)")
@@ -57,8 +57,19 @@ export default async function CambioDescansoPage() {
       .select("id, abrev, nombre")
       .or("activa.is.null,activa.eq.true")
       .order("abrev"),
-    supabase.rpc("bitacora_cambios_descanso", { p_limite: 30 }),
   ]);
+  const empsRaw = empsRes.data;
+  const sedesRaw = sedesRes.data;
+
+  // Bitácora: aislada en su propio try/catch porque el RPC requiere v27 SQL.
+  // Si aún no se aplicó la migración, el módulo debe funcionar igual (histórico vacío).
+  let bitacoraRaw: unknown[] | null = null;
+  try {
+    const { data } = await supabase.rpc("bitacora_cambios_descanso", { p_limite: 30 });
+    bitacoraRaw = (data as unknown[] | null) ?? null;
+  } catch {
+    bitacoraRaw = null;
+  }
 
   const empleados: EmpleadoRow[] = ((empsRaw ?? []) as unknown as EmpRaw[]).map((e) => {
     const sede = Array.isArray(e.sedes) ? e.sedes[0] : e.sedes;
