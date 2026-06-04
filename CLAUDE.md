@@ -1,16 +1,16 @@
 # Vortex — Snapshot de contexto para Claude
 
-> **Este archivo es para que cualquier sesión futura de Claude tome el hilo sin re-descubrir el proyecto.** Léelo completo antes de hacer cambios. Última actualización: 2026-05-25.
+> **Este archivo es para que cualquier sesión futura de Claude tome el hilo sin re-descubrir el proyecto.** Léelo completo antes de hacer cambios. Última actualización: 2026-05-26.
 
 ---
 
 ## TL;DR
 
-**Vortex** es el sistema de **asistencia + RH multi-sede** de MHS Integradora (limpieza y servicios, Yucatán). Reemplaza un Google Sheet + Apps Script legacy de ~6000 líneas. Está en producción usado por ~10-15 supervisores + admin. URL: https://vertice-rosy.vercel.app
+**Vortex** es el sistema de **asistencia + RH multi-sede + facturación** de MHS Integradora (limpieza y servicios, Yucatán). Reemplaza un Google Sheet + Apps Script legacy de ~6000 líneas. Está en producción usado por ~10-15 supervisores + admin + 1 facturación. URL: https://vertice-rosy.vercel.app
 
-**Stack**: Next.js 15 App Router + Supabase (Auth + Postgres + Storage) + Vercel + pnpm workspaces. PWA instalable con push notifications + modo offline real (IndexedDB).
+**Stack**: Next.js 15 App Router + Supabase (Auth + Postgres + Storage) + Vercel + pnpm workspaces. PWA instalable con push notifications + modo offline real (IndexedDB) + import/export xlsx + PDFs server-side.
 
-**Cliente principal**: tú eres Edy (SOPORTE). Tus colegas: Brenda (SUPERADMIN, facturación), Diego Orlando (SUPERADMIN), Alejandra Mejía (SUPERADMIN).
+**Cliente principal**: tú eres Edy (SOPORTE). Colegas: Brenda (SUPERADMIN, facturación), Diego Orlando (SUPERADMIN), Alejandra Mejía (SUPERADMIN), Pedro (SUPERADMIN), Alex (USER + acceso_facturacion).
 
 ---
 
@@ -26,8 +26,8 @@ deploy: Vercel (proyecto "vertice" en team_WJJutvhMvUeXD3SlO18kzv0Y)
 - `apps/web/` — Next.js 15 (la app)
 - `apps/mobile/` — Expo (vacío, futuro)
 - `packages/shared/` — códigos de asistencia, constantes de nómina
-- `supabase/migrations/` — SQL versionado v1..v21
-- `scripts/` — scripts node mjs para sync, import, helpers admin
+- `supabase/migrations/` — SQL versionado v1..v26
+- `scripts/` — scripts node mjs (sync, import, helpers admin, create-user, import-clabe-rfc)
 
 **Comandos esenciales** (desde la raíz):
 ```bash
@@ -37,8 +37,17 @@ pnpm --filter @vertice/web typecheck
 # Deploy a prod (desde raíz del repo; .vercel/project.json apunta al proyecto correcto)
 vercel deploy --prod --yes
 
+# PowerShell: copiar SQL al clipboard
+Get-Content supabase/migrations/20260526160000_v26_rol_facturacion.sql -Raw | Set-Clipboard
+
 # PowerShell add env var a Vercel (cuidado con \r\n trailing — siempre revisa)
 "valor" | vercel env add NAME production
+
+# Crear usuario nuevo (auth + tabla usuarios)
+node scripts/create-user.mjs <email> <password> <rol> <nombre> [username]
+
+# Import masivo de CLABE/RFC desde xlsx legacy (matching por nombre)
+node scripts/import-clabe-rfc.mjs <ruta-xlsx> [--dry-run]
 ```
 
 **No instales nada en `vercel.json` que diga rootDirectory** — está configurado vía Management API a `apps/web`.
@@ -47,14 +56,17 @@ vercel deploy --prod --yes
 
 ## Roles y usuarios actuales
 
-Roles en `usuarios.rol`:
+Roles en `usuarios.rol` (enum `user_role`):
 - `USER` — supervisor de campo (captura pase de lista)
 - `ADMIN` — RH operativo
 - `SUPERADMIN` — full access
 - `CEO` — full access, gestión ejecutiva
 - `SOPORTE` — IT/soporte, ve casi todo (igual que admin para tickets/empleados/asistencias/incap)
+- `FACTURACION` — **NUEVO en v26**. Exclusivo del módulo /facturacion. NO ve pase de lista, incidencias, RH. Topbar restringido.
 
 Función SQL `es_admin()` → ADMIN/CEO/SUPERADMIN. `es_soporte_o_admin()` → los 4 admin-like (incluye SOPORTE).
+Función SQL `tiene_acceso_facturacion()` → SUPERADMIN/SOPORTE/CEO/FACTURACION o usuarios con flag `acceso_facturacion=true`.
+Función SQL `es_facturacion_only()` → rol = FACTURACION (para redirects UI).
 
 **Cuentas de admin actuales**:
 | Usuario | Email | Rol | Notas |
@@ -63,19 +75,21 @@ Función SQL `es_admin()` → ADMIN/CEO/SUPERADMIN. `es_soporte_o_admin()` → l
 | Brenda Presta | `brendaisla88@gmail.com` | SUPERADMIN | facturación |
 | Diego Orlando | `dieorlando.dc@gmail.com` | SUPERADMIN | facturación |
 | Alejandra Mejía | `alemejia14@hotmail.com` | SUPERADMIN | facturación |
-| Alejandro Pasos | `alex@vertice.mhs.local` | USER | supervisor, 3 sedes MAT |
+| Alejandro Pasos | `alex@vertice.mhs.local` | USER + acceso_facturacion | supervisor MAT + compras |
+| Pedro Facturación | `pedro@vertice.mhs.local` | SUPERADMIN | acceso completo |
 
 Passwords están en el historial del chat / scripts pero no se guardan en repo. Si necesitas resetear: `/rh-pro/supervisores/[id]` → botón **"Generar password temporal"**.
 
 ---
 
-## Datos en producción (al 2026-05-25)
+## Datos en producción (al 2026-05-26)
 
 - **352 empleados** (273 activos, 79 dados de baja) importados de `Asistencias V4` Google Sheet pestaña `CONTRATOS_2026`
+- **129 empleados** con datos bancarios completos (RFC + CURP + CLABE + banco) tras correr `scripts/import-clabe-rfc.mjs` con el archivo `CLABE INTERBANCARIA 1A Q MAYO26-final.xlsx`. 1 ambiguo, 6 sin match.
 - **26 sedes activas** (mayormente sector salud Yucatán: SHO, SHM, SVAL, SCSM, SCSSJ, UTM, UPY, etc.)
 - **~8800 asistencias** históricas importadas (1 abril → 21 mayo 2026)
 - **Asignaciones supervisor**: Ivan 16, Fernando 10, Alex 3 (combinadas sede × jornada)
-- **Numero_empleado**: 1-354 son legacy del sheet. Vortex auto-asigna **400+** para nuevas altas para no chocar.
+- **Numero_empleado**: 1-354 son legacy del sheet. Vortex auto-asigna **400+** para nuevas altas.
 
 ---
 
@@ -88,6 +102,7 @@ Passwords están en el historial del chat / scripts pero no se guardan en repo. 
 - TailwindCSS con custom utilities en `globals.css` (paleta navy/blue/gold)
 - Fonts: Syne (display) + DM Sans (body)
 - `@react-pdf/renderer` para PDFs server-side
+- `exceljs` para xlsx (export + import + template generator)
 - Web Push API + Service Worker propio
 - IndexedDB nativo (sin dep) para modo offline
 
@@ -103,7 +118,7 @@ Passwords están en el historial del chat / scripts pero no se guardan en repo. 
 
 ### Deploy
 - Vercel "vertice-rosy.vercel.app"
-- Service Worker en `/sw.js` con CACHE_VERSION bumpeable
+- Service Worker en `/sw.js` con CACHE_VERSION bumpeable (actualmente **v6**)
 - Push manifest en `/manifest.webmanifest`, iconos en `/icons/`
 
 ---
@@ -142,14 +157,34 @@ CRON_SECRET=vortex_cron_a8e3f9c2b1d7e4a6f8c0b3d5e7a9c1b3
 Sub-rutas:
 - `/rh-pro/alta` — alta de empleado + contrato auto-genera folio `MHS/<ABREV><NNN>/<año>`, PDF
 - `/rh-pro/baja` — dar de baja (fecha + motivo + auditoría)
-- `/rh-pro/empleados` — captura rápida (calendario mes × empleado)
+- `/rh-pro/empleados` — captura rápida (calendario mes × empleado) **+ botón "📥 Import masivo (xlsx)"**
+- `/rh-pro/empleados/importar` — **NUEVO**: drop zone para xlsx + preview con validaciones + confirm
 - `/rh-pro/contratos` — lista + edit + regenerar PDF
 - `/rh-pro/sedes` — gestión sedes (activar/desactivar, notas)
-- `/rh-pro/consulta` + `/[id]` — buscar empleado, ver histórico + notas internas
-- `/rh-pro/supervisores` + `/[id]` — **Centro de Supervisores**: lista cards, cobertura hoy, mensaje custom, notas, bitácora últimas 20, vacaciones, reset password
+- `/rh-pro/consulta` + `/[id]` — buscar empleado + ficha completa con **DatosPersonalesEditor** (RFC/NSS/CURP/banco/CLABE)
+- `/rh-pro/supervisores` + `/[id]` — Centro de Supervisores con **CRUD completo**:
+  - Botón "+ Nuevo supervisor" (modal con email/nombre/rol incluyendo FACTURACION)
+  - DatosEditor: editar nombre/username/email/rol/activo
+  - AsignacionesEditorInline: agregar/quitar sedes × jornadas con chips coloreados por turno
+  - Botón "Eliminar/desactivar" (soft si tiene historial, hard si no)
+  - Toggle "Acceso a Facturación" en GestionPanel
 - `/rh-pro/liberacion-global` — toggle "abrir todas las fechas" con expira opcional (SUPERADMIN/SOPORTE)
 - `/rh-pro/cambio-sede` — reasignación masiva de empleados entre sedes (SUPERADMIN/SOPORTE)
 - `/rh-pro/descansos-semanales` — auto-llena DS según `dia_descanso` del empleado
+
+### `/facturacion` — **NUEVO módulo completo** (v22-v26)
+**Acceso**: rol = FACTURACION (exclusivo) o acceso_facturacion=true o admin-like.
+
+- `/facturacion` — Dashboard con **HERO destacado** de Empleados Bancarios (X/Y listos · %), KPIs, accesos rápidos, últimas cotizaciones y compras
+- `/facturacion/empleados-bancarios` — **vista core**: tabla filtrable por sede/estado/búsqueda. Exporta xlsx con 3 hojas: Depósitos, Layout SPEI, Incompletos. Cada fila tiene link "Llenar →" a la ficha del empleado.
+- `/facturacion/cotizaciones` + `/[id]` + `/nueva` — CRUD cotizaciones con builder de líneas (catálogo + libres), totales auto-calc, estados (BORRADOR→ENVIADA→ACEPTADA/RECHAZADA→FACTURADA), descarga PDF con plantilla "MHS Integradora by Vortex"
+- `/facturacion/productos` — CRUD productos con SKU, IVA, stock, alertas bajo stock
+- `/facturacion/clientes` — CRUD clientes con razón social, RFC, contacto
+- `/facturacion/compras` + `/[id]` + `/nueva` — solicitudes de compra que cualquier supervisor puede crear, workflow SOLICITADA→APROBADA→COMPRADA→ENTREGADA con push automático al equipo FAC + al solicitante en cambios de estado. Exporta xlsx con 2 hojas (Solicitudes + Items detalle).
+
+**Nav del módulo** reordenada: Dashboard → Empleados bancarios (highlight azul) → Cotizaciones → Productos → Clientes → Compras.
+
+**Redirect automático**: si rol=FACTURACION o (USER + acceso_facturacion sin asignaciones), `/dashboard` redirige a `/facturacion`. Topbar para rol FACTURACION solo muestra Facturación y Soporte.
 
 ### `/live` — CEO Live Dashboard
 - Auto-refresh 30s con toggle + countdown
@@ -173,7 +208,7 @@ Sub-rutas:
 - Timeline con eventos (estado_cambio, comentario, documento)
 - **Upload de PDFs/fotos** del ST-7, ST-2, mapa de trayecto, ST-9 al bucket storage
 - Push automático en cada transición (incl. reporter + admins-like)
-- Cron recordatorios cada día 9am/3pm Mérida para casos atorados (>24h en RH_VALIDA, >7d en MEDICINA_TRABAJO, etc)
+- Cron recordatorios cada día 9am/3pm Mérida para casos atorados
 
 ### `/soporte` — tickets
 - 4 tipos: DESBLOQUEO, URGENCIA, DUDA, SUGERENCIA
@@ -181,19 +216,21 @@ Sub-rutas:
 - Botón "Liberar fecha 6h" desde el ticket
 - Botón "Ir a capturar →" directo al pase con fecha+sede+jornada precargadas
 - Estados: PENDIENTE / RESPONDIDO / CERRADO
-- Push integrado en todo el flujo (nuevo / respuesta / cierre)
-- **Panel `AnnouncementPanel`**: anuncios push manuales con targeting (broadcast o usuarios específicos) + test broadcast + log de actividad reciente
+- Push integrado en todo el flujo
+- **AnnouncementPanel**: anuncios push manuales con targeting (broadcast o usuarios específicos)
 
 ### `/sonidos` — preferencias de sonido personalizadas
 - 9 presets sintetizados via Web Audio API (sin descargas)
-- 8 tipos de evento con sonido configurable
+- 11 tipos de evento con sonido configurable (ahora incluye solicitud_compra_nueva, solicitud_compra_estado, acceso_facturacion)
 - localStorage por dispositivo
 - SW broadcast a clients abiertos via postMessage `vortex-push`
 
-### `/reportes` — generación PDF
-- `/api/reportes/asistencias` — matriz mes × empleado con códigos
-- `/api/reportes/nomina` — cálculo de pago estimado con tarifas (315.04/día, 78.76/dom, 393.80/falta)
-- **Ambos usan snapshot histórico** (v21): si Juanita se cambió de sede a mitad de quincena, aparece en cada sede con sus días respectivos + leyenda "⚑ Se cambió de sede · 9d aquí"
+### `/reportes` — generación PDF + Excel
+- `/api/reportes/asistencias` + `/xlsx` — matriz mes × empleado con códigos
+- `/api/reportes/nomina` + `/xlsx` — cálculo de pago estimado con tarifas (315.04/día, 78.76/dom, 393.80/falta)
+- **Ambos usan snapshot histórico** (v21+v24): si Juanita se cambió de sede a mitad de quincena, aparece en cada sede con sus días respectivos + leyenda "⚑ Se cambió de sede · 9d aquí". **Excluye empleados con fecha_baja anterior al periodo**.
+- **Branding correcto**: Document title "Vortex · Nómina/Asistencias", author "Vortex · MHS Integradora", filenames "Vortex_..." (antes decían "Vertice").
+- **Excel xlsx**: hoja principal con celdas coloreadas por código, freeze panes, auto-filter, formato monetario, hoja Leyenda.
 
 ---
 
@@ -203,7 +240,7 @@ VAPID setup completo. `lib/push.ts` con:
 - `sendPush(payload, usuarioIds?, tipo)` — manda a usuarios específicos o broadcast
 - `notifyAdminLike(payload, tipo, excluirUserId?)` — manda a todos los admin-like
 
-SW (`/sw.js` v5):
+SW (`/sw.js` **v6**):
 - `push` event → `showNotification` + postMessage a clients abiertos
 - `notificationclick` → enfoca tab existente o abre nueva con la URL
 - `message` SKIP_WAITING para take-over inmediato de versiones nuevas
@@ -222,6 +259,7 @@ Eventos que disparan push:
 - `recordatorio_captura` (cron), `announcement` (manual), `test`
 - `incapacidad_nueva`, `incapacidad_estado`, `incapacidad_documento`, `incapacidad_atorada`
 - `reasignacion_sede`, `mensaje_rh_individual`, `recordatorio_masivo_rh`
+- **NUEVO**: `solicitud_compra_nueva`, `solicitud_compra_estado`, `acceso_facturacion`
 
 ---
 
@@ -235,17 +273,15 @@ Eventos que disparan push:
 - Polling cada 30s reintenta pending mientras online
 - Max 5 reintentos antes de marcar error
 
-Componente global `<OfflineBadge />` en root layout:
-- Pill flotante abajo-derecha
-- Solo aparece si hay actividad (offline / pendientes / errores)
-- Color: rojo (offline) / ámbar (pendientes) / verde (todo OK)
-- Click abre panel con lista de batches + acciones (sync ahora, descartar, limpiar synced)
+**Detector offline fiable** (no se basa en `navigator.onLine` que miente en 4G):
+- Hace ping real a `/api/ping` (edge runtime, HEAD, 4s timeout) para confirmar.
+- `guardar()` siempre intenta server primero; cae a IndexedDB solo si fetch lanza por red caída.
 
-`PaseListaClient.commitGuardar()` usa `useOfflineSync().guardar()` que cae a IndexedDB si no hay red.
+Componente global `<OfflineBadge />` en root layout. Pill flotante con estados color-coded.
 
 ---
 
-## Migraciones SQL aplicadas (v1..v21)
+## Migraciones SQL aplicadas (v1..v26)
 
 Todas en `supabase/migrations/` con prefijo timestamp. Aplicadas en Supabase Studio paste-and-run.
 
@@ -273,31 +309,55 @@ Todas en `supabase/migrations/` con prefijo timestamp. Aplicadas en Supabase Stu
 | v19 centro supervisores | usuarios.notas + supervisor_resumen + supervisores_lista + bitacora_supervisor |
 | v20 ausencias movimientos | usuarios.ausente_* + empleado_movimientos + supervisor_resumen v2 (DROP+CREATE) |
 | v21 snapshot histórico | sede_efectiva + empleados_por_sede_periodo + asistencias_empleado_en_sede |
+| **v22 facturación** | productos, clientes_cotizacion, cotizaciones+lineas, solicitudes_compra+items, RPCs folio, KPIs, RLS, flag acceso_facturacion |
+| **v23 fix activo ambiguous** | DROP+CREATE supervisor_resumen calificando ps.activo / asg.activo. Output incluye acceso_facturacion |
+| **v24 fix bajas en periodo** | empleados_por_sede_periodo filtra (fecha_baja IS NULL OR fecha_baja >= p_inicio) |
+| **v25 datos personales y bancarios** | empleados.rfc, nss, curp, telefono, email_personal, direccion, banco, cuenta_bancaria, clabe + RPC empleados_bancarios_por_sede + RLS para acceso_facturacion |
+| **v26 rol FACTURACION** | Agregar FACTURACION al enum user_role + trigger auto-activar acceso_facturacion + tiene_acceso_facturacion() y usuarios_con_acceso_facturacion() reconocen el nuevo rol + es_facturacion_only() helper |
 
 **Cómo verificar si una migración está aplicada**:
 ```sql
 -- Lista de funciones definidas:
-select proname from pg_proc where proname like 'supervisor%' or proname like 'cobertura%';
+select proname from pg_proc where proname like '%facturacion%' or proname like '%empleados_bancarios%';
 
 -- Cron jobs:
 select jobname, schedule from cron.job;
+
+-- Enum user_role:
+select unnest(enum_range(NULL::user_role));
 ```
 
 ---
 
 ## Scripts útiles (`scripts/`)
 
-- `create-user.mjs <email> <password> <rol> <nombre> [username]` — crea auth user + fila en usuarios
+- `create-user.mjs <email> <password> <rol> <nombre> [username]` — crea auth user + fila en usuarios. **Roles válidos**: USER, ADMIN, SUPERADMIN, CEO, SOPORTE, FACTURACION.
 - `full-sync.mjs` — sync completo desde `Asistencias_LATEST.xlsx` (sedes + empleados + asignaciones)
 - `import-contratos-2026.mjs` — sync de CONTRATOS_2026 con bajas + ultimo_folio
 - `import-pase-lista-v2.mjs` — histórico de asistencias del sheet
 - `diagnostico-sync.mjs` — compara sheet vs DB
+- **`import-clabe-rfc.mjs <ruta-xlsx> [--dry-run]`** — importa RFC/CURP/CLABE/banco desde un xlsx legacy con matching por nombre normalizado (tokens ordenados). Banco se deduce automáticamente del prefijo CLABE (mapeo CNBV con 36 bancos). Reporte detallado al final.
+
+---
+
+## Endpoints API destacados
+
+- `/api/heartbeat` — ping de presencia (escribe `ultimo_acceso` cada 5min)
+- `/api/ping` — verificación de red, edge runtime, 204 No Content (para detector offline real)
+- `/api/contratos/[id]/pdf` — genera/sirve PDF del contrato
+- `/api/reportes/nomina` + `/xlsx` — reporte nómina PDF + Excel
+- `/api/reportes/asistencias` + `/xlsx` — reporte asistencias PDF + Excel
+- `/api/empleados/import-template` — descarga template xlsx para alta masiva
+- `/api/facturacion/cotizaciones/[id]/pdf` — PDF "MHS Integradora by Vortex"
+- `/api/facturacion/empleados-bancarios/xlsx` — Layout SPEI por sede para depósitos
+- `/api/facturacion/compras/xlsx` — solicitudes de compra exportadas
+- `/api/cron/*` — endpoints disparados por pg_cron (recordatorios, incapacidades atoradas)
 
 ---
 
 ## Gotchas / lecciones aprendidas
 
-1. **PostgreSQL no permite cambiar return type con `OR REPLACE`**: usar `DROP FUNCTION` primero. Pasó con v20 (supervisor_resumen 21→25 cols).
+1. **PostgreSQL no permite cambiar return type con `OR REPLACE`**: usar `DROP FUNCTION` primero. Pasó con v20 (supervisor_resumen 21→25 cols) y v23.
 
 2. **`now()` no es IMMUTABLE**: no usar en predicates de índices parciales. Pasó con v12.
 
@@ -307,7 +367,7 @@ select jobname, schedule from cron.job;
 
 5. **`exactOptionalPropertyTypes: true`**: hay que declarar `field?: string | undefined`, no solo `field?: string`. TS estricto.
 
-6. **Service Worker requiere bump de CACHE_VERSION** para que clients invaliden. Actualmente `vortex-v5`.
+6. **Service Worker requiere bump de CACHE_VERSION** para que clients invaliden. Actualmente `vortex-v6`.
 
 7. **`pushManager.subscribe(applicationServerKey)`** exige bytes válidos. Sanitizar VAPID key removiendo cualquier non-base64url char.
 
@@ -315,11 +375,21 @@ select jobname, schedule from cron.job;
 
 9. **iOS PWA + push**: solo funciona si la app está **instalada como PWA standalone**, no en Safari directo. Detectar con `navigator.standalone` o `display-mode: standalone`.
 
-10. **Supabase RLS + SECURITY DEFINER**: las funciones SQL que leen tablas restringidas deben ser `SECURITY DEFINER` para que bypass de RLS. Ej. `fecha_liberada_para_usuario`, `sede_efectiva`.
+10. **Supabase RLS + SECURITY DEFINER**: las funciones SQL que leen tablas restringidas deben ser `SECURITY DEFINER` para que bypass de RLS. Ej. `fecha_liberada_para_usuario`, `sede_efectiva`, `empleados_bancarios_por_sede`.
 
-11. **`fetchPeriodData.fetchEmpleadosPorSedePeriodo`** tiene fallback a `fetchEmpleadosActivos` si v21 RPC no existe. Importante para resilencia.
+11. **`fetchEmpleadosPorSedePeriodo`** tiene fallback a `fetchEmpleadosActivos` si v21 RPC no existe. Importante para resilencia.
 
 12. **El cron `vortex_notify_pendientes` se setteó con `'0 */3 * * *'`** que es cada 3h en UTC, pero el endpoint hace su propio quiet-hours check Mérida (9-17). Si quieres ajustar, ojo con el TZ.
+
+13. **navigator.onLine miente en móviles 4G/5G**: usar ping real a `/api/ping` para confirmar. El detector offline NUNCA se basa solo en navigator.onLine.
+
+14. **Correlated subqueries con columnas del mismo nombre causan "ambiguous"**: si tienes `from usuarios u` outer y dentro un subquery sobre `push_subscriptions` que también tiene `activo`, calificar SIEMPRE como `ps.activo`. Pasó con v23.
+
+15. **El trigger `_tg_sync_acceso_facturacion`** auto-activa el flag cuando rol=FACTURACION. No necesitas setearlo manualmente al cambiar el rol.
+
+16. **En import xlsx, NO sobrescribir con NULL** si la columna no viene en el archivo. Solo update campos que el xlsx trae con valor. Crítico para preservar datos previos cuando subes parciales.
+
+17. **Match por nombre normalizado**: para imports legacy donde los `numero_empleado` no coinciden, normalizar nombres con tokens ordenados (uppercase + sin acentos + sorted tokens). Permite que "JUAN PEREZ GARCIA" matchee con "PEREZ GARCIA JUAN".
 
 ---
 
@@ -332,8 +402,8 @@ select jobname, schedule from cron.job;
 5. **Si hay SQL nuevo**: copiar al portapapeles con PowerShell `Get-Content ... | Set-Clipboard`, decir al usuario "pégalo en Supabase Studio → Run"
 
 **Convenciones**:
-- Iconos: usar componente `<Icon name="..." size={N} />` (set inline SVG, sin emojis en chrome)
-- Permisos: `requireUser()`, `requireAdminLike()`, o check específico de rol en server actions
+- Iconos: usar componente `<Icon name="..." size={N} />` (set inline SVG, sin emojis en chrome). Set actual: lock, send, check, x, arrows, file-text, upload, users, settings, edit, trash, plus, search, building, clock, refresh, **receipt, shopping-cart, dollar, package**.
+- Permisos: `requireUser()`, `requireAdminLike()`, `requireAccesoFacturacion()`, o check específico de rol en server actions
 - Server actions con tipo `Promise<{ ok: true; ... } | { ok: false; error: string }>`
 - Push fire-and-forget: `void sendPush(...).catch(console.error)` para no bloquear la response
 - IDs UUIDs no se generan en cliente, siempre `default gen_random_uuid()` en DB
@@ -343,18 +413,17 @@ select jobname, schedule from cron.job;
 
 ## Próximos pasos / TODO
 
-### Inmediato (lo que sigue ahora mismo)
-- **Módulo de Facturación + Cotizaciones** (nuevo rol FACTURACION, catálogo de productos, cotizaciones con plantilla "MHS Integradora by VORTEX", solicitudes de compra con push a supervisor)
+### Inmediato
+- **Integración de correos inbound** (Postmark/SendGrid/Mailgun) para que cotizaciones y órdenes de compra que lleguen por email se archiven en Vortex. Requiere decidir provider + dominio + webhook.
 
 ### Sugeridos en algún punto
 - **OCR del ST-7 con Claude Vision** — extraer folio, NSS, diagnóstico de la foto que sube el supervisor
 - **Reporte consolidado quincenal** — un solo PDF con todas las sedes, índice, totales agregados
 - **Aguinaldo / vacaciones / antigüedad** — calculadora legal LFT (aplica para diciembre)
 - **Geolocalización al capturar** — validar que el supervisor está físicamente en la sede
-- **Bulk import xlsx de empleados** — alta masiva
-- **Auditoría completa (audit_log)** — para defensa legal
-- **Búsqueda global Ctrl+K** — Spotlight de Vortex
-- **Cache mejorado en SW** para que offline no de 404 al navegar dynamic routes (precarga rutas críticas)
+- **Búsqueda global Ctrl+K** — Spotlight de Vortex (saltar a cualquier empleado/sede/ticket sin navegar)
+- **Audit log completo** — defensa legal, quién hizo qué y cuándo
+- **Send emails desde Vortex** — mandar cotizaciones a clientes con un click (requiere SPF/DKIM)
 - **App móvil Expo** — comenzar `apps/mobile/` con notificaciones nativas
 
 ### Conocidos pero menores
@@ -375,11 +444,13 @@ select jobname, schedule from cron.job;
    ```
 3. Si el usuario pide algo, **busca primero en módulos existentes** antes de crear nuevos.
 4. Si tocas SQL, **siempre** añade `notify pgrst, 'reload schema';` al final.
-5. Si bumpas el SW, mover CACHE_VERSION a v6 (último: v5).
+5. Si bumpas el SW, mover CACHE_VERSION (último: v6 → próximo v7).
 6. Si agregas push event, registralo en `lib/sounds.ts` también para el sonido custom.
 7. Si creas nueva ruta `/algo`, verifica que esté incluida en `adminOnly` Set del dashboard si aplica.
 8. **Nunca** uses `notFound()` ciegamente; muestra mensaje útil al usuario.
 9. **Commit messages** con `Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>` al final.
+10. **Para imports xlsx masivos** que no son one-off → integrar via UI `/rh-pro/empleados/importar`. Para one-off → script en `scripts/`.
+11. **Si el usuario pide algo del módulo de facturación**: verificar que tenga `acceso_facturacion=true` o sea admin-like o rol FACTURACION. El gate vive en `lib/facturacion-gate.ts`.
 
 ---
 
@@ -389,8 +460,9 @@ select jobname, schedule from cron.job;
 - **Brenda**: SUPERADMIN, finanzas/facturación. Necesita reportes claros y exportables.
 - **Diego Orlando**: SUPERADMIN, facturación.
 - **Alejandra**: SUPERADMIN, facturación.
+- **Pedro**: SUPERADMIN (recién creado).
 - **Iván (supervisor estrella)**: tiene 16 asignaciones, ~203 empleados visibles. Si rompe, hay que checar RLS multi-sede.
-- **Alex**: supervisor 3 sedes MAT (SHO, SLE2, SJS).
+- **Alex**: USER + acceso_facturacion. 3 sedes MAT (SHO, SLE2, SJS) + módulo de compras.
 
 **Cultura del proyecto**:
 - Velocidad sobre perfección
@@ -398,6 +470,7 @@ select jobname, schedule from cron.job;
 - Migraciones SQL siempre idempotentes (`if not exists`, `create or replace`, `drop if exists`)
 - Mensajes en español para usuarios finales, código y commits en español+inglés mezclado
 - Tono cercano sin perder rigor técnico
+- **El módulo de facturación es independiente del de asistencias**. Un usuario con rol FACTURACION no debe ver nada de RH ni pase de lista.
 
 ---
 
