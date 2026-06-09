@@ -244,24 +244,27 @@ function calcEmp(
   fechas: string[],
   marcas: Record<string, CodigoAsistencia> | undefined,
 ) {
-  let diasLab = 0, diasDT = 0, diasDS = 0, diasFalta = 0, diasDom = 0;
+  let diasLab = 0, diasDT = 0, diasDL = 0, diasDS = 0, diasFalta = 0, diasDom = 0;
   for (const f of fechas) {
     const cod = marcas?.[f];
     if (!cod) continue;
     const dt = new Date(`${f}T00:00:00`);
     const esDom = dt.getDay() === 0;
     if (cod === "DT") { diasLab++; diasDT++; if (esDom) diasDom++; }
+    else if (cod === "DL") { diasLab++; diasDL++; }
     else if (cod === "A" || cod === "AF") { diasLab++; if (esDom) diasDom++; }
     else if (cod === "DS") { diasLab++; diasDS++; }
     else if (cod === "INH" || cod === "FER" || cod === "PCG") { diasLab++; }
     else if (cod === "F") { diasFalta++; }
   }
   const salDia = emp.salario_diario || PAGO_DIA_DEFAULT;
-  const valorExtra = diasDT * salDia;
+  // DT = 1x extra; DL (descanso laborado) = 2x extra → 3x total ese día
+  const diasExtraPago = diasDT + diasDL * 2;
+  const valorExtra = diasExtraPago * salDia;
   const primaDom = diasDom * PRIMA_DOMINICAL_DEFAULT;
   const descFaltas = diasFalta * DESCUENTO_FALTA_DEFAULT;
   const pagoEstim = diasLab * salDia + valorExtra + primaDom - descFaltas;
-  return { diasLab, diasDT, diasDS, diasFalta, diasDom, valorExtra, primaDom, descFaltas, pagoEstim };
+  return { diasLab, diasDT, diasDL, diasDS, diasFalta, diasDom, valorExtra, primaDom, descFaltas, pagoEstim };
 }
 
 export async function buildNominaXlsx(ctx: BuildContext): Promise<Buffer> {

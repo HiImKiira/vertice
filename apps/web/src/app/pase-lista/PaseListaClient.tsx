@@ -752,7 +752,7 @@ export function PaseListaClient(props: Props) {
                   <div className="border-t border-white/5 px-3 py-2 sm:px-4">
                     <p className="mb-2 text-[10px] uppercase tracking-tagline text-muted-2">Códigos detallados</p>
                     <div className="flex flex-wrap gap-1.5">
-                      {(["A", "AF", "F", "I", "DT", "DS", "INH", "FER", "PCG", "PSG"] as const).map((c) => {
+                      {(["A", "AF", "F", "I", "DT", "DS", "DL", "INH", "FER", "PCG", "PSG"] as const).map((c) => {
                         const s = CODIGO_SPEC[c];
                         const isActive = current === c;
                         return (

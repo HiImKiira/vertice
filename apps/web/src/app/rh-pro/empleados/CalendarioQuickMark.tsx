@@ -227,7 +227,7 @@ export function CalendarioQuickMark(props: Props) {
         </button>
         {paintMode && (
           <div className="flex flex-wrap gap-1.5">
-            {(["A", "AF", "F", "DS", "DT", "PCG", "PSG", "I", "FER", "INH"] as CodigoAsistencia[]).map((cod) => {
+            {(["A", "AF", "F", "DS", "DL", "DT", "PCG", "PSG", "I", "FER", "INH"] as CodigoAsistencia[]).map((cod) => {
               const active = paintCode === cod;
               const spec = CODIGO_SPEC[cod];
               return (
