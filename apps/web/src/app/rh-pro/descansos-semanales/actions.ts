@@ -2,11 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { DIAS_VALIDOS, type DiaSemana } from "./constants";
 
 export type DescansoResult = { ok: true } | { ok: false; error: string };
-
-export type DiaSemana = "LUN" | "MAR" | "MIE" | "JUE" | "VIE" | "SAB" | "DOM";
-export const DIAS_VALIDOS: DiaSemana[] = ["LUN", "MAR", "MIE", "JUE", "VIE", "SAB", "DOM"];
 
 async function requireAdmin() {
   const supabase = await createSupabaseServerClient();

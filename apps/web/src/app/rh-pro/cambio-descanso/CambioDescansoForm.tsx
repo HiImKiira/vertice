@@ -3,7 +3,8 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/Icon";
-import { cambiarDescansoFijoAction, type DiaSemana } from "./actions";
+import { cambiarDescansoFijoAction } from "./actions";
+import { type DiaSemana } from "./constants";
 
 export interface SedeRow { id: string; abrev: string; nombre: string }
 export interface EmpleadoRow {

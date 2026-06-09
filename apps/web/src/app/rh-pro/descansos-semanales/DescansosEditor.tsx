@@ -3,7 +3,8 @@
 import { useState, useTransition, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/Icon";
-import { setDescansoSemanalAction, type DiaSemana, DIAS_VALIDOS } from "./actions";
+import { setDescansoSemanalAction } from "./actions";
+import { type DiaSemana, DIAS_VALIDOS } from "./constants";
 
 export interface EmpleadoRow {
   id: string;

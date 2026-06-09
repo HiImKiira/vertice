@@ -4,14 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { sendPush } from "@/lib/push";
-
-export type DiaSemana = "LUN" | "MAR" | "MIE" | "JUE" | "VIE" | "SAB" | "DOM";
-export const DIAS_VALIDOS: DiaSemana[] = ["LUN", "MAR", "MIE", "JUE", "VIE", "SAB", "DOM"];
-
-export const DIA_FULL: Record<DiaSemana, string> = {
-  LUN: "Lunes", MAR: "Martes", MIE: "Miércoles", JUE: "Jueves",
-  VIE: "Viernes", SAB: "Sábado", DOM: "Domingo",
-};
+import { DIAS_VALIDOS, DIA_FULL, type DiaSemana } from "./constants";
 
 export type CambioDescansoResult =
   | { ok: true; mensaje: string; supervisoresNotificados: number }
