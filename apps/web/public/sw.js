@@ -8,7 +8,7 @@
  *
  * Para forzar el refresh del SW en producción: cambiar CACHE_VERSION.
  */
-const CACHE_VERSION = "vortex-v7";
+const CACHE_VERSION = "vortex-v8";
 const SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const SHELL_FILES = [
   "/manifest.webmanifest",

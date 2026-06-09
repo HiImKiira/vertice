@@ -15,6 +15,25 @@ export function PWARegister() {
     if (!("serviceWorker" in navigator)) return;
     if (process.env.NODE_ENV !== "production") return;
 
+    // ─────────────────────────────────────────────────────────────
+    // Auto-reload al actualizar el SW.
+    // Cuando un SW NUEVO toma control (clients.claim tras skipWaiting),
+    // se dispara 'controllerchange'. Si NO recargamos, la pestaña sigue
+    // ejecutando el bundle viejo y puede pedir chunks /_next/ que ya no
+    // existen en el deploy nuevo → ChunkLoadError ("application error:
+    // a client-side exception"). Recargar una vez trae chunks frescos.
+    //
+    // Solo recargamos si YA había un controller (es una ACTUALIZACIÓN,
+    // no la primera instalación), para no recargar en la primera visita.
+    let refreshing = false;
+    if (navigator.serviceWorker.controller) {
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        if (refreshing) return;
+        refreshing = true;
+        window.location.reload();
+      });
+    }
+
     const onLoad = async () => {
       try {
         const reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
