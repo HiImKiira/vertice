@@ -49,6 +49,13 @@ export default async function EditContratoPage({ params }: PageProps) {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <a
+              href={`/api/contratos/${c.id}/docx`}
+              className="inline-flex items-center gap-1.5 rounded-md border border-blue-400/40 bg-blue-500/15 px-3 py-2 text-xs font-semibold text-blue-200 hover:bg-blue-500/30"
+              title="Descarga el contrato en Word, idéntico a la plantilla oficial MHS"
+            >
+              📝 Descargar Word (oficial)
+            </a>
             {c.status_pdf === "GENERADO" && c.pdf_storage_path && (
               <a
                 href={`/api/contratos/${c.id}/pdf`}
@@ -56,7 +63,7 @@ export default async function EditContratoPage({ params }: PageProps) {
                 rel="noopener"
                 className="btn btn-success"
               >
-                📄 Descargar PDF actual
+                📄 PDF (Vortex)
               </a>
             )}
           </div>

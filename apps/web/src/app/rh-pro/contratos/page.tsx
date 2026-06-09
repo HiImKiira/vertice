@@ -163,20 +163,13 @@ export default async function ContratosListPage({ searchParams }: PageProps) {
                         {new Date(c.fecha_captura).toLocaleDateString("es-MX", { dateStyle: "short" })}
                       </td>
                       <td className="px-3 py-2 text-center">
-                        {c.status_pdf === "GENERADO" && c.pdf_storage_path ? (
-                          <a
-                            href={`/api/contratos/${c.id}/pdf`}
-                            target="_blank"
-                            rel="noopener"
-                            className="inline-flex items-center gap-1 rounded-md bg-[rgba(16,185,129,0.18)] px-2 py-1 text-[10px] font-bold text-[#6EE7B7] hover:bg-[rgba(16,185,129,0.35)]"
-                          >
-                            📄 Descargar
-                          </a>
-                        ) : c.status_pdf === "ERROR" ? (
-                          <span className="pill pill-red" style={{ padding: "1px 6px", fontSize: 9 }}>ERROR</span>
-                        ) : (
-                          <span className="pill pill-amber" style={{ padding: "1px 6px", fontSize: 9 }}>PEND.</span>
-                        )}
+                        <a
+                          href={`/api/contratos/${c.id}/docx`}
+                          className="inline-flex items-center gap-1 rounded-md bg-[rgba(59,130,246,0.18)] px-2 py-1 text-[10px] font-bold text-[#93C5FD] hover:bg-[rgba(59,130,246,0.35)]"
+                          title="Contrato en Word, idéntico a la plantilla oficial MHS"
+                        >
+                          📝 Word
+                        </a>
                       </td>
                       <td className="px-3 py-2 text-center">
                         <Link
