@@ -283,6 +283,12 @@ export async function buildNominaXlsx(ctx: BuildContext): Promise<Buffer> {
     return { iso: f, dia: d.getDate(), dow: d.getDay(), esDom: d.getDay() === 0 };
   });
 
+  // ¿Algún descanso laborado en el período? Solo entonces mostramos la columna DL.
+  const hayDL = ctx.empleados.some((e) => {
+    const m = ctx.marcas[e.id];
+    return !!m && ctx.fechas.some((f) => m[f] === "DL");
+  });
+
   ws.columns = [
     { header: "ID", key: "id", width: 7 },
     { header: "Empleado", key: "nombre", width: 36 },
@@ -290,6 +296,7 @@ export async function buildNominaXlsx(ctx: BuildContext): Promise<Buffer> {
     ...fechasObj.map((f) => ({ header: String(f.dia), key: `d_${f.iso}`, width: 4 })),
     { header: "Días", key: "diasLab", width: 7 },
     { header: "DS", key: "diasDS", width: 6 },
+    ...(hayDL ? [{ header: "DL 3x", key: "diasDL", width: 7 }] : []),
     { header: "Extras", key: "diasDT", width: 7 },
     { header: "Val.Ext", key: "valorExtra", width: 11 },
     { header: "Faltas", key: "diasFalta", width: 7 },
@@ -348,7 +355,7 @@ export async function buildNominaXlsx(ctx: BuildContext): Promise<Buffer> {
   // Resaltar columna PAGO
   headerRow.getCell(colCount).fill = { type: "pattern", pattern: "solid", fgColor: { argb: COLOR_GOLD_DEEP } };
 
-  let totales = { diasLab: 0, diasDT: 0, diasDS: 0, diasFalta: 0, diasDom: 0, valorExtra: 0, primaDom: 0, descFaltas: 0, pagoEstim: 0 };
+  let totales = { diasLab: 0, diasDT: 0, diasDL: 0, diasDS: 0, diasFalta: 0, diasDom: 0, valorExtra: 0, primaDom: 0, descFaltas: 0, pagoEstim: 0 };
   for (const emp of ctx.empleados) {
     const calc = calcEmp(emp, ctx.fechas, ctx.marcas[emp.id]);
     const rowData: Record<string, string | number> = {
@@ -366,6 +373,7 @@ export async function buildNominaXlsx(ctx: BuildContext): Promise<Buffer> {
       salDia: emp.salario_diario || PAGO_DIA_DEFAULT,
       pagoEstim: calc.pagoEstim,
     };
+    if (hayDL) rowData.diasDL = calc.diasDL || "";
     for (const f of fechasObj) {
       rowData[`d_${f.iso}`] = ctx.marcas[emp.id]?.[f.iso] ?? "";
     }
@@ -374,6 +382,7 @@ export async function buildNominaXlsx(ctx: BuildContext): Promise<Buffer> {
 
     totales.diasLab += calc.diasLab;
     totales.diasDT += calc.diasDT;
+    totales.diasDL += calc.diasDL;
     totales.diasDS += calc.diasDS;
     totales.diasFalta += calc.diasFalta;
     totales.diasDom += calc.diasDom;
@@ -423,6 +432,11 @@ export async function buildNominaXlsx(ctx: BuildContext): Promise<Buffer> {
       if (colKey === "diasDS") {
         cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: COLOR_DS_BG } };
       }
+      // Resaltar columna DL (descanso laborado, pago triple)
+      if (colKey === "diasDL") {
+        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD9F0F7" } };
+        cell.font = { size: 9, bold: true, color: { argb: "FF0E7490" } };
+      }
     });
   }
 
@@ -433,6 +447,7 @@ export async function buildNominaXlsx(ctx: BuildContext): Promise<Buffer> {
     jornada: "",
     diasLab: totales.diasLab,
     diasDS: totales.diasDS,
+    ...(hayDL ? { diasDL: totales.diasDL } : {}),
     diasDT: totales.diasDT,
     valorExtra: totales.valorExtra,
     diasFalta: totales.diasFalta,

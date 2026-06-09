@@ -186,6 +186,7 @@ export function NominaDoc(props: NominaDocProps) {
     (acc, f) => ({
       diasLab: acc.diasLab + f.calc.diasLab,
       diasDT: acc.diasDT + f.calc.diasDT,
+      diasDL: acc.diasDL + f.calc.diasDL,
       diasDS: acc.diasDS + f.calc.diasDS,
       diasFalta: acc.diasFalta + f.calc.diasFalta,
       diasDom: acc.diasDom + f.calc.diasDom,
@@ -194,8 +195,11 @@ export function NominaDoc(props: NominaDocProps) {
       descFaltas: acc.descFaltas + f.calc.descFaltas,
       pagoEstim: acc.pagoEstim + f.calc.pagoEstim,
     }),
-    { diasLab: 0, diasDT: 0, diasDS: 0, diasFalta: 0, diasDom: 0, valorExtra: 0, primaDom: 0, descFaltas: 0, pagoEstim: 0 },
+    { diasLab: 0, diasDT: 0, diasDL: 0, diasDS: 0, diasFalta: 0, diasDom: 0, valorExtra: 0, primaDom: 0, descFaltas: 0, pagoEstim: 0 },
   );
+
+  // ¿Hubo algún descanso laborado en el período? Solo entonces mostramos la columna DL.
+  const hayDL = totales.diasDL > 0;
 
   // Anchos columnas — el calendario crece según N fechas
   const colDateW = Math.max(14, Math.min(20, 200 / fechasObj.length));
@@ -246,6 +250,7 @@ export function NominaDoc(props: NominaDocProps) {
             ))}
             <Text style={[styles.th, { width: 28 }]}>DÍAS</Text>
             <Text style={[styles.th, { width: 26, backgroundColor: C.dsHeader, borderLeft: `1pt solid ${C.gold}` }]}>DS</Text>
+            {hayDL && <Text style={[styles.th, { width: 30, backgroundColor: "#0E7490" }]}>DL 3x</Text>}
             <Text style={[styles.th, { width: 28 }]}>EXT.</Text>
             <Text style={[styles.th, { width: 38 }]}>VAL.EXT</Text>
             <Text style={[styles.th, { width: 28 }]}>FALT.</Text>
@@ -292,6 +297,9 @@ export function NominaDoc(props: NominaDocProps) {
               })}
               <Text style={[styles.td, { width: 28 }, styles.tdBold]}>{f.calc.diasLab}</Text>
               <Text style={[styles.td, { width: 26, backgroundColor: C.dsBg, color: C.dsText, fontFamily: "Helvetica-Bold" }]}>{f.calc.diasDS}</Text>
+              {hayDL && (
+                <Text style={[styles.td, { width: 30 }, f.calc.diasDL > 0 ? { color: "#0E7490", fontFamily: "Helvetica-Bold", backgroundColor: "#E0F2FE" } : {}]}>{f.calc.diasDL || ""}</Text>
+              )}
               <Text style={[styles.td, { width: 28 }, f.calc.diasDT > 0 ? { color: C.green, fontFamily: "Helvetica-Bold" } : {}]}>{f.calc.diasDT}</Text>
               <Text style={[styles.td, { width: 38 }]}>{fmtMXN(f.calc.valorExtra)}</Text>
               <Text style={[styles.td, { width: 28 }, f.calc.diasFalta > 0 ? { color: C.red, fontFamily: "Helvetica-Bold" } : {}]}>{f.calc.diasFalta}</Text>
@@ -315,7 +323,17 @@ export function NominaDoc(props: NominaDocProps) {
           </View>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Turnos extra (DT)</Text>
-            <Text style={styles.summaryValue}>{totales.diasDT} · {fmtMXN(totales.valorExtra)}</Text>
+            <Text style={styles.summaryValue}>{totales.diasDT} día{totales.diasDT === 1 ? "" : "s"}</Text>
+          </View>
+          {hayDL && (
+            <View style={styles.summaryRow}>
+              <Text style={[styles.summaryLabel, { color: "#0E7490" }]}>Descansos laborados (DL · pago triple 3x)</Text>
+              <Text style={[styles.summaryValue, { color: "#0E7490" }]}>{totales.diasDL} día{totales.diasDL === 1 ? "" : "s"}</Text>
+            </View>
+          )}
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Valor extra total (DT + DL)</Text>
+            <Text style={styles.summaryValue}>{fmtMXN(totales.valorExtra)}</Text>
           </View>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Domingos trabajados · prima dominical</Text>
