@@ -17,6 +17,7 @@
     "clsx": "^2.1.1",
     "docxtemplater": "^3.68.7",
     "exceljs": "^4.4.0",
+    "iconv-lite": "^0.7.2",
     "next": "^15.0.0",
     "pizzip": "^3.2.0",
     "react": "^19.0.0",
