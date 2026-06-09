@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Vortex · Reparando</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #050B18; color: #E8F0FF;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    .wrap { display: flex; min-height: 100%; flex-direction: column; align-items: center;
+      justify-content: center; text-align: center; padding: 24px; gap: 14px; }
+    h1 { font-size: 22px; margin: 0; }
+    p { color: #6B8AB5; font-size: 14px; max-width: 420px; line-height: 1.5; margin: 0; }
+    .spin { width: 36px; height: 36px; border: 3px solid rgba(255,255,255,.15);
+      border-top-color: #3B82F6; border-radius: 50%; animation: r .8s linear infinite; }
+    @keyframes r { to { transform: rotate(360deg); } }
+    #status { font-family: monospace; font-size: 12px; color: #C9A961; min-height: 18px; }
+    a.btn { margin-top: 8px; background: #3B82F6; color: #fff; text-decoration: none;
+      padding: 10px 18px; border-radius: 8px; font-size: 14px; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="spin"></div>
+    <h1>Reparando Vortex…</h1>
+    <p>Limpiando la versión vieja en caché de tu dispositivo. Esto toma unos segundos y solo se hace una vez.</p>
+    <div id="status">Iniciando…</div>
+    <a class="btn" id="goHome" href="/dashboard" style="display:none">Entrar a Vortex →</a>
+  </div>
+  <script>
+    (async function () {
+      var status = document.getElementById('status');
+      var btn = document.getElementById('goHome');
+      function set(t) { status.textContent = t; }
+      try {
+        // 1) Desregistrar TODOS los service workers
+        if ('serviceWorker' in navigator) {
+          var regs = await navigator.serviceWorker.getRegistrations();
+          for (var i = 0; i < regs.length; i++) { await regs[i].unregister(); }
+          set('Service workers desregistrados: ' + regs.length);
+        }
+        // 2) Borrar TODOS los caches
+        if ('caches' in window) {
+          var keys = await caches.keys();
+          for (var j = 0; j < keys.length; j++) { await caches.delete(keys[j]); }
+          set('Cachés limpiados: ' + keys.length);
+        }
+        set('✓ Listo. Redirigiendo…');
+        btn.style.display = 'inline-block';
+        // 3) Redirigir con cache-bust tras 1.5s
+        setTimeout(function () {
+          window.location.replace('/dashboard?fresh=' + Date.now());
+        }, 1500);
+      } catch (e) {
+        set('Error: ' + (e && e.message ? e.message : e) + ' — toca el botón para continuar.');
+        btn.style.display = 'inline-block';
+      }
+    })();
+  </script>
+</body>
+</html>
