@@ -1,6 +1,6 @@
 # Vortex — Snapshot de contexto para Claude
 
-> **Este archivo es para que cualquier sesión futura de Claude tome el hilo sin re-descubrir el proyecto.** Léelo completo antes de hacer cambios. Última actualización: 2026-05-26.
+> **Este archivo es para que cualquier sesión futura de Claude tome el hilo sin re-descubrir el proyecto.** Léelo completo antes de hacer cambios. Última actualización: 2026-06-09. Migraciones hasta v28. SW en v9 (minimalista solo-push, no cachea /_next/).
 
 ---
 
@@ -314,6 +314,8 @@ Todas en `supabase/migrations/` con prefijo timestamp. Aplicadas en Supabase Stu
 | **v24 fix bajas en periodo** | empleados_por_sede_periodo filtra (fecha_baja IS NULL OR fecha_baja >= p_inicio) |
 | **v25 datos personales y bancarios** | empleados.rfc, nss, curp, telefono, email_personal, direccion, banco, cuenta_bancaria, clabe + RPC empleados_bancarios_por_sede + RLS para acceso_facturacion |
 | **v26 rol FACTURACION** | Agregar FACTURACION al enum user_role + trigger auto-activar acceso_facturacion + tiene_acceso_facturacion() y usuarios_con_acceso_facturacion() reconocen el nuevo rol + es_facturacion_only() helper |
+| **v27 cambio descanso fijo** | empleado_movimientos + dia_descanso_anterior/nuevo text[] + RPC bitacora_cambios_descanso. Soporta tipo='cambio_descanso' |
+| **v28 código DL** | Agregar 'DL' (Descanso Laborado, pago triple) al enum codigo_asistencia |
 
 **Cómo verificar si una migración está aplicada**:
 ```sql
@@ -367,7 +369,7 @@ select unnest(enum_range(NULL::user_role));
 
 5. **`exactOptionalPropertyTypes: true`**: hay que declarar `field?: string | undefined`, no solo `field?: string`. TS estricto.
 
-6. **Service Worker requiere bump de CACHE_VERSION** para que clients invaliden. Actualmente `vortex-v6`.
+6. **Service Worker requiere bump de CACHE_VERSION** para que clients invaliden. Actualmente `vortex-v9` (minimalista: solo push, NO cachea navegación ni `/_next/`).
 
 7. **`pushManager.subscribe(applicationServerKey)`** exige bytes válidos. Sanitizar VAPID key removiendo cualquier non-base64url char.
 
@@ -382,6 +384,14 @@ select unnest(enum_range(NULL::user_role));
 12. **El cron `vortex_notify_pendientes` se setteó con `'0 */3 * * *'`** que es cada 3h en UTC, pero el endpoint hace su propio quiet-hours check Mérida (9-17). Si quieres ajustar, ojo con el TZ.
 
 13. **navigator.onLine miente en móviles 4G/5G**: usar ping real a `/api/ping` para confirmar. El detector offline NUNCA se basa solo en navigator.onLine.
+
+14. **Un archivo `"use server"` SOLO puede exportar funciones async**. Exportar `const`/objetos desde ahí rompe en runtime de producción con `c.map is not a function` (Next.js convierte el const en una referencia de server-action). Mover constantes a un `constants.ts` aparte sin `"use server"`. Pasó en descansos-semanales y cambio-descanso.
+
+15. **El SW NO debe cachear `/_next/` cache-first**: causaba `ChunkLoadError` ("application error: a client-side exception") tras cada deploy al mezclar chunks de builds distintos. Desde v9 el SW no tiene listener `fetch` (solo push). Hay `public/reset-sw.html` para limpiar dispositivos atascados con SW viejo.
+
+16. **Imports legacy pueden traer mojibake (UTF-8 leído como CP850)**: `n├║mero`→`número`, `Yucat├ín`→`Yucatán`. Reparable con `iconv.decode(iconv.encode(s,'cp850'),'utf8')`. Ver `scripts/fix-mojibake-contratos.mjs`. Afectó a config_contratos y contratos heredados.
+
+17. **Contratos = 2 salidas de la misma data**: PDF Vortex (`lib/pdf/ContratoDoc.tsx` con bloques tipados en `templates/contrato-*-blocks.ts`, auto-generados del DOCX por `scripts/extract-contrato-blocks.mjs`) y Word fiel (`docxtemplater` sobre `lib/contratos/templates/contrato-*.docx`). Las 19 llaves `{{LLAVE}}` se mapean en el endpoint.
 
 14. **Correlated subqueries con columnas del mismo nombre causan "ambiguous"**: si tienes `from usuarios u` outer y dentro un subquery sobre `push_subscriptions` que también tiene `activo`, calificar SIEMPRE como `ps.activo`. Pasó con v23.
 
@@ -444,7 +454,7 @@ select unnest(enum_range(NULL::user_role));
    ```
 3. Si el usuario pide algo, **busca primero en módulos existentes** antes de crear nuevos.
 4. Si tocas SQL, **siempre** añade `notify pgrst, 'reload schema';` al final.
-5. Si bumpas el SW, mover CACHE_VERSION (último: v6 → próximo v7).
+5. Si bumpas el SW, mover CACHE_VERSION (último: v9 → próximo v10). Recuerda que desde v9 el SW NO cachea navegación.
 6. Si agregas push event, registralo en `lib/sounds.ts` también para el sonido custom.
 7. Si creas nueva ruta `/algo`, verifica que esté incluida en `adminOnly` Set del dashboard si aplica.
 8. **Nunca** uses `notFound()` ciegamente; muestra mensaje útil al usuario.

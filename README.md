@@ -1,168 +1,210 @@
+<h1 align="center">Vortex</h1>
+
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="brand/logo-full-dark.svg">
-    <img src="brand/logo-full-light.svg" alt="Vértice" width="520">
-  </picture>
+  <strong>Sistema de asistencia + RH multi-sede + facturación + contratos</strong><br>
+  para MHS Integradora (servicios de limpieza y seguridad, Yucatán, México)
 </p>
 
 <p align="center">
-  <strong>Sistema premium de asistencia, operación y datos para RH multi-sede.</strong><br>
-  Una sola plataforma para captura diaria, incidencias, nómina quincenal y monitoreo en vivo.
-</p>
-
-<p align="center">
-  <a href="#stack"><img alt="Next.js 15" src="https://img.shields.io/badge/Next.js-15-0A0E1A?style=flat-square&logo=next.js"></a>
-  <a href="#stack"><img alt="Expo" src="https://img.shields.io/badge/Expo-SDK%2052-0A0E1A?style=flat-square&logo=expo"></a>
-  <a href="#stack"><img alt="Supabase" src="https://img.shields.io/badge/Supabase-Postgres-0A0E1A?style=flat-square&logo=supabase"></a>
-  <a href="#stack"><img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5.6-0A0E1A?style=flat-square&logo=typescript"></a>
-  <a href="./LICENSE"><img alt="License MIT" src="https://img.shields.io/badge/License-MIT-C9A961?style=flat-square"></a>
+  <a href="https://vertice-rosy.vercel.app">vertice-rosy.vercel.app</a> ·
+  Next.js 15 · Supabase · Vercel · PWA con push y modo offline
 </p>
 
 ---
 
-## ¿Qué es Vértice?
+Vortex reemplaza un Google Sheet + Apps Script legacy de ~6,000 líneas. Está en producción usado a diario por ~15 supervisores de campo, RH y facturación. Este README también sirve como **plantilla de arquitectura**: las decisiones y patrones aquí descritos son reaprovechables para construir un SaaS interno similar (bajo costo, sin infra que mantener, una sola persona puede operarlo).
 
-Vértice reemplaza hojas de cálculo dispersas, llamadas y WhatsApps por **un único sistema operativo de RH** que captura asistencia en tiempo real desde cualquier sede, registra incidencias formales, gestiona turnos eventuales y libera nómina quincenal con cálculo automático.
+## TL;DR — por qué este stack
 
-**Diseñado para cuatro roles:**
+| Necesidad | Solución | Por qué |
+|---|---|---|
+| Web app rápida y con SSR | **Next.js 15 (App Router)** | Server Components + Server Actions, sin API REST boilerplate |
+| BD + Auth + Storage + Cron | **Supabase** | Una sola plataforma. Postgres real, RLS nativo, `pg_cron`, buckets |
+| Hosting | **Vercel** | Deploy en 30–90 s, gratis para empezar, edge runtime |
+| Notificaciones push | **VAPID + Web Push nativo** | Sin Firebase/OneSignal. Gratis, control total |
+| Cron jobs | **pg_cron + pg_net** | Sin servidor de jobs aparte; viven en Postgres |
+| Offline | **IndexedDB nativo + Service Worker** | Sin Workbox. Captura sin red, sincroniza al volver |
+| PDFs | **@react-pdf/renderer** | Render server-side, sin headless browser |
+| Excel | **exceljs** | Lectura/escritura .xlsx con estilos y fórmulas |
+| Contratos Word | **docxtemplater + pizzip** | Llena plantillas .docx reales, fidelidad 100% |
 
-| Rol | Para quién | Misión |
-|-----|-----------|--------|
-| `USER` · Supervisor | Encargados de sede | Captura diaria, incidencias, soporte |
-| `ADMIN` · RH | Equipo de Recursos Humanos | Nómina, gestión de personal, respuesta a tickets |
-| `CEO` · Dirección | Dueños / dirección general | Dashboard ejecutivo, monitor en vivo |
-| `SUPERADMIN` | Operación técnica | Control de períodos, configuración, IA |
+**Costo operativo: ~$0/mes** en tiers gratuitos (Vercel Hobby + Supabase Free). Escala a ~$25/mes con planes Pro.
 
-Ver [`docs/SISTEMA.md`](docs/SISTEMA.md) para el detalle completo de módulos por rol.
+## Stack detallado
 
-## Stack
+- **Frontend**: Next.js 15.x App Router · React 19 (`useTransition` para pending) · TypeScript con `exactOptionalPropertyTypes: true` · Tailwind CSS con utilidades custom (paleta navy/blue/gold) · fonts Syne (display) + DM Sans (body)
+- **Backend**: Supabase Postgres con RLS en todas las tablas · `pg_cron` + `pg_net` para crons · `web-push` para notificaciones
+- **Generación de documentos**: `@react-pdf/renderer` (PDF) · `exceljs` (xlsx) · `docxtemplater` + `pizzip` (Word) · `iconv-lite` (reparación de encoding)
+- **Deploy**: Vercel (`vertice-rosy.vercel.app`) · Service Worker propio en `/sw.js` · manifest PWA instalable
 
-```
-┌───────────────────────────────────────────────────────────────┐
-│  apps/web         Next.js 15 · App Router · Tailwind · SSR    │
-│  apps/mobile      Expo SDK 52 · React Native · expo-router    │
-│  packages/shared  Tipos · códigos · reglas de negocio (TS)    │
-│  supabase/        Postgres · RLS · migraciones · auth · realtime │
-└───────────────────────────────────────────────────────────────┘
-```
+## Arquitectura — decisiones clave
 
-- **Frontend web**: Next.js 15 con App Router, Server Components, Tailwind, `shadcn/ui` (a montar).
-- **Mobile**: Expo SDK 52, React Native 0.76 con New Architecture, `expo-router` para navegación tipada, `expo-secure-store` para tokens.
-- **Backend**: Supabase (Postgres 15) con autenticación, Row Level Security, Realtime para el monitor en vivo y Storage para fotos de credencial.
-- **Shared**: paquete `@vertice/shared` con códigos de asistencia, tipos, roles y reglas que compilan en ambos clientes.
+### 1. Server Components + Server Actions, no API REST
+Las páginas son async Server Components que consultan Supabase directo. Las mutaciones son **Server Actions** tipadas con `Promise<{ ok: true; … } | { ok: false; error: string }>`. Solo se usa `/api/*` para lo que es genuinamente un endpoint (descargas binarias de PDF/xlsx/docx, crons, ping de red).
+
+### 2. RLS desde el día 1
+Toda tabla tiene Row Level Security. Las funciones SQL que necesitan leer tablas restringidas son `SECURITY DEFINER`. El cliente del navegador usa la `anon key` (sujeta a RLS); el servidor usa `service_role` solo cuando necesita bypass (escrituras masivas, operaciones admin).
+
+### 3. SQL versionado e idempotente
+Cada cambio de schema es **un archivo nuevo** `vN_descripcion.sql` en `supabase/migrations/` (28 a la fecha). Nunca se edita una migración aplicada. Todas son idempotentes (`if not exists`, `create or replace`, `drop … if exists`) y terminan con `notify pgrst, 'reload schema';`. Se aplican con paste-and-run en Supabase Studio.
+
+### 4. PWA real, no maquillaje
+- **Push**: VAPID propio. El SW recibe el evento `push`, muestra la notificación y hace broadcast a las pestañas abiertas para reproducir un sonido custom (Web Audio API, sin descargas).
+- **Offline**: el pase de lista guarda en IndexedDB si no hay red y sincroniza al volver. El detector de red hace **ping real** al servidor (`/api/ping`), no confía en `navigator.onLine` (que miente en móviles 4G).
+- **SW minimalista**: desde v9 el Service Worker **NO cachea navegación ni chunks JS** (eso causaba `ChunkLoadError` tras cada deploy). Solo maneja push. Next.js sirve `/_next/static` con cache HTTP inmutable.
+
+### 5. Snapshots para datos que cambian en el tiempo
+La nómina usa un snapshot histórico de sede por fecha (`sede_efectiva`): si un empleado se cambia de sede a mitad de quincena, aparece en cada sede con los días que le corresponden, no solo en la actual.
 
 ## Estructura del repo
 
 ```
-vertice/
+vortex/
 ├── apps/
-│   ├── web/          Next.js 15 — paneles supervisor, RH, CEO, superadmin
-│   └── mobile/       Expo — app supervisor en piso + CEO en movimiento
+│   └── web/                          # Next.js 15 (la app)
+│       ├── src/
+│       │   ├── app/                  # Rutas (App Router)
+│       │   │   ├── api/              # Endpoints: pdf, xlsx, docx, cron, ping
+│       │   │   ├── pase-lista/       # Captura diaria de asistencia
+│       │   │   ├── rh-pro/           # Hub de RH (alta, contratos, supervisores…)
+│       │   │   ├── facturacion/      # Cotizaciones, productos, compras, bancos
+│       │   │   ├── incapacidades/    # Flujo IMSS
+│       │   │   ├── incidencias/      # Códigos formales del mes
+│       │   │   ├── live/             # Dashboard ejecutivo en vivo
+│       │   │   ├── soporte/          # Tickets RH ↔ supervisor
+│       │   │   └── sonidos/          # Preferencias de sonido push
+│       │   ├── components/           # Topbar, Icon, OfflineBadge, PushControls…
+│       │   └── lib/                  # Supabase clients, push, pdf/, xlsx/, gates
+│       └── public/                   # sw.js, manifest.webmanifest, icons, reset-sw.html
 ├── packages/
-│   └── shared/       Tipos y reglas reutilizables (códigos, roles)
-├── supabase/
-│   ├── config.toml   Config local del CLI de Supabase
-│   ├── migrations/   Migraciones SQL versionadas
-│   └── seed.sql      Sedes y período de nómina de arranque
-├── brand/            Logo, favicon, guía visual
-└── docs/             Documentación funcional del sistema
+│   └── shared/                       # Códigos de asistencia + cálculo de nómina
+├── supabase/migrations/              # SQL versionado v1..v28
+├── scripts/                          # Node .mjs: imports, sync, fixes, helpers
+└── CLAUDE.md                         # Snapshot de contexto para sesiones de IA
 ```
 
-## Quick start
+**Monorepo pnpm workspaces**: `apps/web` (app), `apps/mobile` (Expo, futuro), `packages/shared` (lógica compartida).
 
-### Requisitos
+## Módulos (qué hace cada uno)
 
-- Node.js **20+** (`nvm use` toma `.nvmrc`)
-- pnpm **9+** (`corepack enable && corepack prepare pnpm@9.12.0 --activate`)
-- Supabase CLI (`brew install supabase/tap/supabase` o `scoop install supabase`)
-- Para móvil: Xcode (iOS) o Android Studio (Android) o solo la app **Expo Go** en tu teléfono.
+| Ruta | Módulo | Resumen |
+|---|---|---|
+| `/pase-lista` | Captura de asistencia | Por sede × jornada, con modo offline IndexedDB, auto-DS por día de descanso |
+| `/rh-pro` | Hub de RH | Alta/baja, contratos (PDF Vortex + Word fiel), supervisores (CRUD), cambio de sede/descanso, import masivo xlsx, datos bancarios |
+| `/facturacion` | Comercial | Cotizaciones (PDF "MHS by Vortex"), productos, clientes, solicitudes de compra, export bancario SPEI |
+| `/incapacidades` | Flujo IMSS | 4 tipos, workflow de 9 estados, upload de ST-7/ST-2, push en cada transición |
+| `/incidencias` | Incidencias | Calendario de códigos formales del mes |
+| `/live` | Dashboard CEO | Auto-refresh 30s, KPIs, alertas, cobertura por supervisor |
+| `/soporte` | Tickets | RH ↔ supervisor (RH anonimizado como "Recursos Humanos"), push integrado |
+| `/reportes` | Exportes | Nómina y asistencias en PDF + Excel, con snapshot histórico de sede |
 
-### 1. Instalar dependencias
+### Sistema de códigos de asistencia
+En `packages/shared/src/codes.ts`. Cada código declara `dia_laborado`, `genera_prima_dominical`, `descuento`, `diasExtra` (días extra de salario) y `color`. El cálculo de nómina (`calcularNominaPeriodo`) es la única fuente de verdad. Ejemplos:
+- `A` asistencia (1×) · `DS` descanso semanal (1×, no trabajó) · `DL` descanso laborado (**3×**, trabajó su descanso) · `DT` doble turno (2×) · `F` falta (descuento)
+
+### Roles
+`USER` (supervisor de campo) · `ADMIN` (RH) · `SUPERADMIN` · `CEO` · `SOPORTE` (IT) · `FACTURACION` (exclusivo del módulo de facturación, redirige ahí al entrar). El flag `acceso_facturacion` da acceso al módulo sin cambiar el rol base (para supervisores que ven compras).
+
+### Contratos
+Dos salidas desde la misma data: **PDF con branding Vortex** (`@react-pdf/renderer`, bloques tipados extraídos del DOCX oficial) y **Word fiel** (`docxtemplater` sobre las plantillas `.docx` reales HOMBRE/MUJER). Folio por sede `MHS/<ABREV><NNN>/<año>`.
+
+## Patrones de código (la parte reaprovechable)
+
+**Página RH típica** (Server Component):
+```tsx
+export default async function MiPagina() {
+  const { profile } = await requireUser();
+  requireAdminLike(profile.rol);                 // gate de permiso → redirect
+  const supabase = await createSupabaseServerClient();
+  const [{ data: a }, { data: b }] = await Promise.all([ /* queries */ ]);
+  return <main><Topbar user={profile} /> … <MiFormCliente datos={a} /></main>;
+}
+```
+
+**Server Action típica**:
+```ts
+"use server";
+export async function miAccion(input: {/* … */}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const auth = await requireAdminLike();
+  if (!auth.sb) return { ok: false, error: auth.error ?? "Sin permisos" };
+  // … validar, mutar con supabaseAdmin() si requiere bypass RLS
+  void sendPush(payload, userIds, "evento").catch(console.error);  // fire-and-forget
+  revalidatePath("/ruta");
+  return { ok: true };
+}
+```
+
+**Convenciones**:
+- Constantes/objetos **nunca** se exportan desde un archivo `"use server"` (Next.js solo permite funciones async ahí) — van en un `constants.ts` aparte.
+- Iconos: componente `<Icon name="…" size={N} />` (SVG inline, sin emojis en el chrome).
+- Push: `void sendPush(...).catch(...)` para no bloquear la respuesta.
+- IDs UUID se generan en la BD (`default gen_random_uuid()`), nunca en cliente.
+- Bumpear `CACHE_VERSION` del SW al tocar el handler `push`.
+
+## Setup local
+
+**Requisitos**: Node 20+, pnpm, una cuenta de Supabase y otra de Vercel.
 
 ```bash
+git clone https://github.com/HiImKiira/vertice.git
+cd vertice
 pnpm install
 ```
 
-### 2. Levantar Supabase local
-
-```bash
-pnpm supabase:start          # arranca Postgres + Studio en localhost:54321/54323
-pnpm supabase:reset          # aplica migraciones + seed
-pnpm supabase:gen-types      # genera tipos TS desde el esquema
+Crea `apps/web/.env.local`:
+```
+NEXT_PUBLIC_SUPABASE_URL=https://<ref>.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_...
+SUPABASE_SERVICE_ROLE_KEY=sb_secret_...
+NEXT_PUBLIC_VAPID_PUBLIC_KEY=...        # npx web-push generate-vapid-keys
+VAPID_PRIVATE_KEY=...
+VAPID_SUBJECT=mailto:hr@tu-dominio.com
+CRON_SECRET=...                         # protege los endpoints /api/cron/*
 ```
 
-Studio queda en <http://localhost:54323>. Copia `URL` y `anon key` que imprime el CLI a `.env.local` de cada app:
-
+Aplica las migraciones SQL (en orden) en Supabase Studio → SQL Editor, luego:
 ```bash
-cp apps/web/.env.example apps/web/.env.local
-cp apps/mobile/.env.example apps/mobile/.env.local
-# editar ambos con los valores que dio supabase start
+pnpm --filter @vertice/web dev          # http://localhost:3000
 ```
 
-### 3. Levantar la app web
+## Comandos
 
 ```bash
-pnpm dev:web
-# → http://localhost:3000
+pnpm --filter @vertice/web typecheck    # TypeScript estricto (correr antes de commit)
+pnpm --filter @vertice/web build        # build de producción
+vercel deploy --prod --yes              # deploy (desde la raíz del repo)
+
+# Scripts de mantenimiento (Node)
+node scripts/create-user.mjs <email> <pass> <rol> <nombre> [username]
+node scripts/import-clabe-rfc.mjs <ruta.xlsx> [--dry-run]   # match por nombre normalizado
+node scripts/fix-mojibake-contratos.mjs [--apply]           # repara encoding heredado
 ```
 
-### 4. Levantar la app móvil
+## Workflow de desarrollo
 
-```bash
-pnpm dev:mobile
-# escanea el QR con la app Expo Go o presiona `i` / `a`
-```
+1. Cambio en código → `pnpm typecheck` pasa.
+2. Commit semántico (`feat:`, `fix:`, `chore:`) con footer `Co-Authored-By:`.
+3. Push a `main` (sin branches — proyecto en iteración rápida).
+4. `vercel deploy --prod --yes`.
+5. Si hay SQL nuevo: copiar al portapapeles y pegar en Supabase Studio.
 
-## Códigos de asistencia
+## Lecciones aprendidas (gotchas)
 
-Los códigos viven en [`packages/shared/src/codes.ts`](packages/shared/src/codes.ts) como única fuente de verdad. Resumen:
+1. `ALTER TYPE … ADD VALUE` no puede ir en una transacción con usos del nuevo valor — correr solo.
+2. PostgreSQL no permite cambiar el return type con `OR REPLACE` — usar `DROP FUNCTION` primero.
+3. `exactOptionalPropertyTypes: true`: declarar `campo?: T | undefined`, no solo `campo?: T`.
+4. `navigator.onLine` miente en 4G/5G — verificar con ping real al servidor.
+5. Un `"use server"` solo exporta funciones async; exportar consts rompe en runtime (`c.map is not a function`).
+6. El SW no debe cachear `/_next/` cache-first — causa `ChunkLoadError` tras cada deploy.
+7. iOS push solo funciona con la PWA instalada como standalone; `Notification.requestPermission()` debe llamarse síncronamente desde un user gesture.
+8. Imports legacy pueden traer mojibake (UTF-8 leído como CP850) — reparable con `iconv-lite`.
 
-| Código | Nombre | Día laborado | Prima dominical | Notas |
-|--------|--------|:---:|:---:|-------|
-| `A`   | Asistencia        | ✅ | ✅ | Normal |
-| `AF`  | Asistencia forzada| ✅ | ✅ | Capturada por admin |
-| `DS`  | Descanso pagado   | ✅ | ❌ | Día de descanso programado |
-| `DT`  | Doble turno       | ✅ | ✅ | Suma turno extra |
-| `INH` | Inhábil           | ✅ | ❌ | Día inhábil oficial |
-| `FER` | Feriado           | ✅ | ❌ | Feriado de calendario |
-| `PCG` | Permiso c/goce    | ✅ | ❌ | Pagado |
-| `PSG` | Permiso s/goce    | ❌ | ❌ | No paga |
-| `I`   | Incapacidad       | ❌ | ❌ | Médica |
-| `F`   | Falta             | ❌ | ❌ | Descuento $393.80 |
-| `SN`  | Sin marcar        | ❌ | ❌ | Pendiente de captura |
+## Documentación adicional
 
-Regla de prima dominical: solo `A`, `AF`, `DT` la generan; `DS` en domingo = descanso programado sin prima.
+- **`CLAUDE.md`** — snapshot completo de contexto para retomar el proyecto en una sesión nueva (módulos, migraciones, cuentas, decisiones). Léelo antes de tocar código.
 
-## Scripts
+---
 
-| Comando | Qué hace |
-|---------|----------|
-| `pnpm dev:web` | Next.js dev server con Turbopack |
-| `pnpm dev:mobile` | Expo dev server |
-| `pnpm build:web` | Build de producción de la web |
-| `pnpm typecheck` | TypeScript en todos los workspaces en paralelo |
-| `pnpm supabase:start` | Postgres + Studio + Inbucket locales |
-| `pnpm supabase:reset` | Resetea DB local y reaplica migraciones + seed |
-| `pnpm supabase:gen-types` | Regenera `packages/shared/src/database.types.ts` |
-
-## Roadmap
-
-- [x] Scaffold del monorepo + marca + esquema base + RLS
-- [ ] Pase de lista (web) — captura por sede/jornada con ventana de gracia
-- [ ] Incidencias formales — calendario visual + adjuntos
-- [ ] CDTs (turnos eventuales) — UI de creación/cancelación
-- [ ] Inbox de tickets de soporte con realtime
-- [ ] Exportación quincenal a hoja de cálculo (XLSX) + PDF operativo
-- [ ] Dashboard ejecutivo (CEO) — métricas, mapa de calor, monitor en vivo
-- [ ] App móvil supervisor — pase de lista optimizado, bootstrap de un request
-- [ ] App móvil CEO — dashboard adaptado y calendario individual
-- [ ] Análisis con IA — foto de credencial → datos del empleado (Claude Vision)
-- [ ] Geocodificación inversa para validar sede
-
-## Marca
-
-Ver [`brand/README.md`](brand/README.md) para paleta, tipografía y reglas de uso del logo.
-
-## Licencia
-
-[MIT](./LICENSE) — © 2026 HiImKiira.
+<p align="center">
+  Construido con <a href="https://claude.com/claude-code">Claude Code</a> · MHS Integradora © 2026
+</p>
