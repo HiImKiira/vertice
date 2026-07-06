@@ -90,7 +90,7 @@ export default async function IncapacidadDetailPage({ params }: PageProps) {
   const { data: docsRaw } = await supabase
     .from("incapacidad_documentos")
     .select(`
-      id, tipo, archivo_nombre, mime, "tamaño_bytes", subido_en,
+      id, tipo, archivo_nombre, mime, tamano_bytes, subido_en,
       usuarios:subido_por(nombre, username)
     `)
     .eq("incapacidad_id", id)
@@ -100,7 +100,7 @@ export default async function IncapacidadDetailPage({ params }: PageProps) {
     tipo: string;
     archivo_nombre: string | null;
     mime: string | null;
-    "tamaño_bytes": number | null;
+    tamano_bytes: number | null;
     subido_en: string;
     usuarios: { nombre: string; username: string } | { nombre: string; username: string }[] | null;
   }>).map((d) => {
@@ -110,7 +110,7 @@ export default async function IncapacidadDetailPage({ params }: PageProps) {
       tipo: d.tipo,
       archivo_nombre: d.archivo_nombre,
       mime: d.mime,
-      tamano_bytes: d["tamaño_bytes"],
+      tamano_bytes: d.tamano_bytes,
       subido_en: d.subido_en,
       subido_por_nombre: u?.nombre ?? null,
       subido_por_username: u?.username ?? null,

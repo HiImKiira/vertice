@@ -88,7 +88,7 @@ export async function subirDocumentoAction(formData: FormData): Promise<DocResul
       archivo_path: path,
       archivo_nombre: file.name,
       mime: file.type,
-      tamaño_bytes: file.size,
+      tamano_bytes: file.size,
       subido_por: user.id,
     })
     .select("id")

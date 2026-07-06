@@ -397,6 +397,10 @@ select unnest(enum_range(NULL::user_role));
 
 18. **El descanso semanal en pase de lista se SUGIERE, no se auto-marca**. Antes un `useEffect` metía `DS` en `pendientes` y se guardaba solo. Ahora `isSugerido(id)` = `descansoHoy.has(id) && !pendientes[id]`: se pinta en verde punteado ("toca para colocar") y solo entra a `pendientes`/se guarda cuando el supervisor lo confirma con un toque. `pendientesComoA` y stats respetan el estado sugerido (no lo pisan, cuenta como pendiente).
 
+19. **NUNCA uses identificadores con ñ/acentos en SQL**. `tamaño_bytes` en v14 se guardó como `tamaÃ±o_bytes` (mojibake) al pegar en Studio → el INSERT del código nunca coincidió → 0 documentos de incapacidades subidos jamás. v29 renombra a `tamano_bytes` (ASCII). Regla: nombres de columnas/funciones SIEMPRE en ASCII. Diagnóstico rápido del DB real de Vortex vía service role: `node scripts/diag-incapacidades.mjs`.
+
+20. **Server Actions de Next tienen límite de body de 1MB por defecto**. Subir fotos/PDF (ST7, 2-6MB) por Server Action fallaba silenciosamente antes de entrar a la action. Se sube en `next.config.ts` con `experimental.serverActions.bodySizeLimit`. Cualquier upload por action necesita esto.
+
 14. **Correlated subqueries con columnas del mismo nombre causan "ambiguous"**: si tienes `from usuarios u` outer y dentro un subquery sobre `push_subscriptions` que también tiene `activo`, calificar SIEMPRE como `ps.activo`. Pasó con v23.
 
 15. **El trigger `_tg_sync_acceso_facturacion`** auto-activa el flag cuando rol=FACTURACION. No necesitas setearlo manualmente al cambiar el rol.

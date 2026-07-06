@@ -17,6 +17,18 @@ interface RawIncap {
   dias_autorizados: number | null;
   creado_en: string;
   empleados: { nombre: string; numero_empleado: string; sedes: { abrev: string } | { abrev: string }[] | null } | { nombre: string; numero_empleado: string; sedes: { abrev: string } | { abrev: string }[] | null }[] | null;
+  incapacidad_documentos: { count: number }[] | null;
+}
+
+const TERMINALES: IncapacidadEstado[] = ["CERRADA", "RECHAZADA", "CANCELADA"];
+
+/** Paso actual dentro del flujo del tipo. Devuelve {paso, total} o null si es terminal. */
+function progresoDe(tipo: IncapacidadTipo, estado: IncapacidadEstado): { paso: number; total: number } | null {
+  if (TERMINALES.includes(estado)) return null;
+  const flujo = TIPO_SPECS[tipo].flujoEstados;
+  const idx = flujo.indexOf(estado);
+  if (idx < 0) return null;
+  return { paso: idx + 1, total: flujo.length };
 }
 
 interface PageProps {
@@ -33,7 +45,8 @@ export default async function IncapacidadesPage({ searchParams }: PageProps) {
     .from("incapacidades")
     .select(`
       id, tipo, estado, fecha_accidente, fecha_inicio, dias_autorizados, creado_en,
-      empleados(nombre, numero_empleado, sedes(abrev))
+      empleados(nombre, numero_empleado, sedes(abrev)),
+      incapacidad_documentos(count)
     `)
     .order("creado_en", { ascending: false })
     .limit(100);
@@ -110,6 +123,8 @@ export default async function IncapacidadesPage({ searchParams }: PageProps) {
               const sede = emp && (Array.isArray(emp.sedes) ? emp.sedes[0] : emp.sedes);
               const tipo = TIPO_SPECS[i.tipo];
               const estado = ESTADO_SPECS[i.estado];
+              const prog = progresoDe(i.tipo, i.estado);
+              const nDocs = i.incapacidad_documentos?.[0]?.count ?? 0;
               return (
                 <li key={i.id}>
                   <Link
@@ -139,6 +154,32 @@ export default async function IncapacidadesPage({ searchParams }: PageProps) {
                           {i.fecha_accidente && <> · accidente {i.fecha_accidente}</>}
                           {i.dias_autorizados && <> · {i.dias_autorizados}d</>}
                         </p>
+                        {/* Progreso del proceso + documentos subidos */}
+                        <div className="mt-2 flex items-center gap-2">
+                          {prog ? (
+                            <>
+                              <div className="h-1 w-24 overflow-hidden rounded-full bg-white/5">
+                                <div
+                                  className="h-full rounded-full transition-all"
+                                  style={{ width: `${(prog.paso / prog.total) * 100}%`, background: estado.color }}
+                                />
+                              </div>
+                              <span className="font-mono text-[9px] text-muted-2">
+                                paso {prog.paso}/{prog.total}
+                              </span>
+                            </>
+                          ) : (
+                            <span className="font-mono text-[9px] text-muted-2">proceso finalizado</span>
+                          )}
+                          <span
+                            className={`rounded px-1.5 py-0.5 font-mono text-[9px] font-bold ${
+                              nDocs > 0 ? "bg-emerald-500/15 text-emerald-300" : "bg-amber-500/15 text-amber-300"
+                            }`}
+                            title={nDocs > 0 ? `${nDocs} documento(s) subido(s)` : "Sin documentos subidos"}
+                          >
+                            📎 {nDocs}
+                          </span>
+                        </div>
                       </div>
                       <span className="shrink-0 text-[10px] text-muted-2">
                         {new Date(i.creado_en).toLocaleDateString("es-MX", { dateStyle: "short" })}
