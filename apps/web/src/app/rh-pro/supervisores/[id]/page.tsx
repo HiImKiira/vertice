@@ -9,6 +9,7 @@ import { MensajePanel } from "./MensajePanel";
 import { GestionPanel } from "./GestionPanel";
 import { DatosEditor } from "./DatosEditor";
 import { AsignacionesEditorInline } from "./AsignacionesEditor";
+import { AutoRefresh } from "../../../live/AutoRefresh";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Supervisor · RH Pro" };
@@ -191,13 +192,16 @@ export default async function SupervisorDetailPage({ params }: PageProps) {
                 {resumen.ultimo_acceso && <> · último acceso {new Date(resumen.ultimo_acceso).toLocaleString("es-MX", { dateStyle: "short", timeStyle: "short" })}</>}
               </p>
             </div>
-            <Link
-              href={`/pase-lista${sedesAgrupadas[0] ? `?sede=${Object.keys(porSede)[0]}` : ""}`}
-              className="inline-flex items-center gap-1.5 rounded-md border border-blue-400/40 bg-blue-500/15 px-3 py-2 text-xs font-semibold text-blue-200 hover:bg-blue-500/30"
-              title="Ver pase de lista como si fuera él (admin override)"
-            >
-              Ir a su pase de lista <Icon name="arrow-right" size={12} />
-            </Link>
+            <div className="flex flex-col items-end gap-2">
+              <Link
+                href={`/pase-lista${sedesAgrupadas[0] ? `?sede=${Object.keys(porSede)[0]}` : ""}`}
+                className="inline-flex items-center gap-1.5 rounded-md border border-blue-400/40 bg-blue-500/15 px-3 py-2 text-xs font-semibold text-blue-200 hover:bg-blue-500/30"
+                title="Ver pase de lista como si fuera él (admin override)"
+              >
+                Ir a su pase de lista <Icon name="arrow-right" size={12} />
+              </Link>
+              <AutoRefresh generadoEn={new Date().toISOString()} intervalSeconds={30} />
+            </div>
           </div>
         </header>
 

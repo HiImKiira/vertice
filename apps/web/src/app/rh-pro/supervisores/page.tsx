@@ -5,6 +5,7 @@ import { Topbar } from "@/components/Topbar";
 import { Icon } from "@/components/Icon";
 import { NotificarTodos } from "./NotificarTodos";
 import { NuevoSupervisorButton } from "./NuevoSupervisorButton";
+import { AutoRefresh } from "../../live/AutoRefresh";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Centro de supervisores · RH Pro" };
@@ -41,6 +42,10 @@ export default async function SupervisoresPage({ searchParams }: PageProps) {
 
   const { data: rows, error } = await supabase.rpc("supervisores_lista");
   const supervisores = (rows ?? []) as SupRow[];
+
+  // Timestamp del server: fuerza a AutoRefresh a re-sincronizar su intervalo
+  // en cada re-render y sirve de sello "última actualización".
+  const generadoEn = new Date().toISOString();
 
   // Filtros + ordenamiento
   const filtrados = supervisores
@@ -84,7 +89,10 @@ export default async function SupervisoresPage({ searchParams }: PageProps) {
                 Monitoreo, cobertura, notas y mensajería directa con cada supervisor activo. Click en una card para ficha completa.
               </p>
             </div>
-            <NuevoSupervisorButton callerRol={profile.rol} />
+            <div className="flex flex-col items-end gap-2">
+              <NuevoSupervisorButton callerRol={profile.rol} />
+              <AutoRefresh generadoEn={generadoEn} intervalSeconds={30} />
+            </div>
           </div>
         </header>
 
