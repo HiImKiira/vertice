@@ -104,14 +104,19 @@ export function DocumentosPanel({ incapacidadId, documentos, tiposRequeridos, is
     });
   }
 
-  // Tipos sugeridos en el dropdown — los requeridos del flujo + opciones libres
-  const tiposParaSelect = [
-    ...tiposRequeridos,
-    { tipo: "OTRO", label: "Otro documento", etapa: "" },
-  ];
-
   // ¿Qué tipos ya están cubiertos?
   const cubiertos = new Set(documentos.map((d) => d.tipo));
+
+  // Selector con TODOS los tipos de documento: primero los requeridos del flujo
+  // de este tipo, luego cualquier otro. Así se puede subir el documento que se
+  // necesite, no solo los del flujo (ST-7, ST-2, ST-9, mapa, incapacidad, otro).
+  const requeridosSet = new Set(tiposRequeridos.map((t) => t.tipo));
+  const tiposParaSelect: { tipo: string; label: string; requerido: boolean }[] = [
+    ...tiposRequeridos.map((t) => ({ tipo: t.tipo, label: t.label, requerido: true })),
+    ...Object.keys(TIPO_LABELS)
+      .filter((t) => !requeridosSet.has(t))
+      .map((t) => ({ tipo: t, label: TIPO_LABELS[t] ?? t, requerido: false })),
+  ];
 
   return (
     <section className="surface-card p-4">
@@ -134,7 +139,7 @@ export function DocumentosPanel({ incapacidadId, documentos, tiposRequeridos, is
           >
             {tiposParaSelect.map((t) => (
               <option key={t.tipo} value={t.tipo}>
-                {t.label} {cubiertos.has(t.tipo) ? "(ya subido)" : ""}
+                {t.label}{t.requerido ? " · requerido" : ""}{cubiertos.has(t.tipo) ? " (ya subido)" : ""}
               </option>
             ))}
           </select>
@@ -157,6 +162,7 @@ export function DocumentosPanel({ incapacidadId, documentos, tiposRequeridos, is
           </button>
         </div>
         <p className="mt-1.5 text-[10px] text-muted-2">
+          Puedes subir cualquier documento del expediente (ST-7, ST-2, ST-9, mapa, incapacidad médica u otro).
           PDF / JPG / PNG / WEBP / HEIC. Máx 6 MB por archivo.
         </p>
         {msg && (
