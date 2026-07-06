@@ -226,6 +226,101 @@ export async function agregarComentarioIncapacidadAction(input: {
 }
 
 /**
+ * Marca los días pactados de la incapacidad como código "I" (Incapacidad) en el
+ * pase de lista, para todo el rango [fecha_inicio, fecha_fin]. Solo RH.
+ *
+ * - Persiste fecha_inicio / fecha_fin / dias_autorizados en la incapacidad
+ *   (los "días pactados" de la ST7 o de la enfermedad general).
+ * - Inserta/actualiza asistencias con codigo="I" para cada día del rango.
+ *   capturado_por = RH → en pase de lista sale "por @rh" (la pauta para el
+ *   supervisor de que es Incapacidad marcada por RH) y aparece en los exports.
+ */
+export async function aplicarDiasIncapacidadAction(input: {
+  incapacidad_id: string;
+  fecha_inicio: string;
+  fecha_fin: string;
+}): Promise<{ ok: true; marcados: number; dias: number; rango: string } | { ok: false; error: string }> {
+  const auth = await getProfile();
+  if (!auth.sb || !auth.user) return { ok: false, error: auth.error ?? "Sin sesión" };
+  if (!["ADMIN", "SUPERADMIN", "CEO", "SOPORTE"].includes(auth.rol ?? "")) {
+    return { ok: false, error: "Solo RH (ADMIN/SUPERADMIN/SOPORTE) puede marcar días de incapacidad" };
+  }
+  const start = (input.fecha_inicio ?? "").slice(0, 10);
+  const end = (input.fecha_fin ?? "").slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(start) || !/^\d{4}-\d{2}-\d{2}$/.test(end)) {
+    return { ok: false, error: "Indica fecha de inicio y fin válidas (YYYY-MM-DD)" };
+  }
+  if (end < start) return { ok: false, error: "La fecha fin no puede ser anterior al inicio" };
+
+  const admin = supabaseAdmin();
+  const { data: incap } = await admin
+    .from("incapacidades")
+    .select("id, empleado_id, empleados(nombre, numero_empleado)")
+    .eq("id", input.incapacidad_id)
+    .maybeSingle();
+  if (!incap) return { ok: false, error: "Incapacidad no encontrada" };
+  const empId = (incap as unknown as { empleado_id: string }).empleado_id;
+
+  // Construir lista de fechas del rango (UTC, un día a la vez)
+  const fechas: string[] = [];
+  let cursor = new Date(`${start}T00:00:00Z`);
+  const endD = new Date(`${end}T00:00:00Z`);
+  let guard = 0;
+  while (cursor <= endD && guard < 400) {
+    fechas.push(cursor.toISOString().slice(0, 10));
+    cursor = new Date(cursor.getTime() + 86_400_000);
+    guard++;
+  }
+  if (fechas.length === 0) return { ok: false, error: "Rango vacío" };
+  if (fechas.length > 180) return { ok: false, error: "Rango demasiado largo (máx 180 días)" };
+
+  // Persistir los días pactados en la incapacidad
+  await admin
+    .from("incapacidades")
+    .update({ fecha_inicio: start, fecha_fin: end, dias_autorizados: fechas.length })
+    .eq("id", input.incapacidad_id);
+
+  // Marcas ya existentes en esas fechas (para no duplicar)
+  const { data: existentes } = await admin
+    .from("asistencias")
+    .select("fecha, codigo")
+    .eq("empleado_id", empId)
+    .in("fecha", fechas);
+  const exMap = new Map(((existentes ?? []) as Array<{ fecha: string; codigo: string }>).map((r) => [r.fecha, r.codigo]));
+
+  const aInsertar = fechas
+    .filter((f) => !exMap.has(f))
+    .map((f) => ({ empleado_id: empId, fecha: f, codigo: "I", capturado_por: auth.user!.id }));
+  const aActualizar = fechas.filter((f) => exMap.has(f) && exMap.get(f) !== "I");
+
+  let marcados = 0;
+  if (aInsertar.length) {
+    const { error } = await admin.from("asistencias").insert(aInsertar);
+    if (error) return { ok: false, error: `Insert asistencias: ${error.message}` };
+    marcados += aInsertar.length;
+  }
+  for (const f of aActualizar) {
+    const { error } = await admin
+      .from("asistencias")
+      .update({ codigo: "I", capturado_por: auth.user.id })
+      .eq("empleado_id", empId)
+      .eq("fecha", f);
+    if (!error) marcados++;
+  }
+
+  await admin.from("incapacidad_eventos").insert({
+    incapacidad_id: input.incapacidad_id,
+    tipo: "comentario",
+    detalle: `RH marcó ${marcados} día(s) como Incapacidad (I) en pase de lista · rango ${start} → ${end} (${fechas.length} días pactados)`,
+    usuario_id: auth.user.id,
+  });
+
+  revalidatePath("/pase-lista");
+  revalidatePath(`/incapacidades/${input.incapacidad_id}`);
+  return { ok: true, marcados, dias: fechas.length, rango: `${start} → ${end}` };
+}
+
+/**
  * Dictamen IMSS — marca calificada true/false + fecha + notas.
  */
 export async function dictaminarIncapacidadAction(input: {

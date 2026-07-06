@@ -82,8 +82,8 @@ function modulosFor(rol: string): Modulo[] {
       icon: "🛌",
       iconBg: "rgba(96,165,250,0.12)",
       iconBorder: "rgba(96,165,250,0.3)",
-      title: "Descansos",
-      sub: "Cambios temporales de día de descanso (CDTs).",
+      title: "Descanso temporal",
+      sub: "Cambio de día de descanso por una sola semana (CDT). No cambia el descanso fijo.",
       badge: { label: "Todos", cls: "pill" },
     },
     {
@@ -168,6 +168,15 @@ function modulosFor(rol: string): Modulo[] {
       badge: { label: "ADMIN+", cls: "pill pill-amber" },
     },
     {
+      href: "/rh-pro/actividad",
+      icon: "🗂️",
+      iconBg: "rgba(139,92,246,0.12)",
+      iconBorder: "rgba(139,92,246,0.3)",
+      title: "Actividad de supervisores",
+      sub: "Histórico de cambios de descanso, reasignaciones e incapacidades. Todo documentado.",
+      badge: { label: "ADMIN+", cls: "pill pill-violet" },
+    },
+    {
       href: "/reportes",
       icon: "📊",
       iconBg: "rgba(201,169,97,0.12)",
@@ -179,7 +188,7 @@ function modulosFor(rol: string): Modulo[] {
   ];
 
   const adminLike = ["ADMIN", "SUPERADMIN", "CEO", "SOPORTE"].includes(rol);
-  const adminOnly = new Set(["/live", "/rh-pro", "/rh-pro/empleados", "/rh-pro/contratos", "/rh-pro/sedes", "/rh-pro/descansos-semanales", "/rh-pro/consulta", "/reportes"]);
+  const adminOnly = new Set(["/live", "/rh-pro", "/rh-pro/empleados", "/rh-pro/contratos", "/rh-pro/sedes", "/rh-pro/descansos-semanales", "/rh-pro/consulta", "/rh-pro/actividad", "/reportes"]);
   return all.filter((m) => (adminOnly.has(m.href) ? adminLike : true));
 }
 

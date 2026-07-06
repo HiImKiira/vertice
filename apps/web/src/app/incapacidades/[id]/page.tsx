@@ -12,6 +12,7 @@ import {
 } from "@/lib/incapacidades";
 import { EstadoActions } from "./EstadoActions";
 import { DocumentosPanel } from "./DocumentosPanel";
+import { DiasIncapacidadPanel } from "./DiasIncapacidadPanel";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Incapacidad · Vortex" };
@@ -186,6 +187,15 @@ export default async function IncapacidadDetailPage({ params }: PageProps) {
                 {incap.observaciones && <Row label="Obs. internas" value={incap.observaciones} block />}
               </dl>
             </section>
+
+            {/* Días pactados → marca "I" en pase de lista (RH) / pauta (supervisor) */}
+            <DiasIncapacidadPanel
+              incapacidadId={incap.id}
+              fechaInicio={incap.fecha_inicio}
+              fechaFin={incap.fecha_fin}
+              diasAutorizados={incap.dias_autorizados}
+              isAdmin={isAdmin}
+            />
 
             {/* Documentos del expediente */}
             <DocumentosPanel

@@ -6,7 +6,7 @@
  */
 import React from "react";
 
-type IconName =
+export type IconName =
   | "lock"
   | "lock-open"
   | "send"
