@@ -29,8 +29,13 @@ export async function cambiarDescansoFijoAction(input: {
 
   const { data: perfil } = await supabase
     .from("usuarios").select("rol").eq("id", user.id).single<{ rol: string }>();
-  if (!perfil || !["ADMIN", "SUPERADMIN", "CEO", "SOPORTE"].includes(perfil.rol)) {
-    return { ok: false, error: "Solo ADMIN / SUPERADMIN / SOPORTE puede cambiar descansos fijos" };
+  const rol = perfil?.rol;
+  const adminLike = !!rol && ["ADMIN", "SUPERADMIN", "CEO", "SOPORTE"].includes(rol);
+  // ADMIN-like cambia a cualquier trabajador. USER (supervisor) también puede,
+  // pero acotado a los trabajadores de las sedes que tiene asignadas (validado
+  // más abajo, una vez que conocemos la sede del empleado).
+  if (!rol || (!adminLike && rol !== "USER")) {
+    return { ok: false, error: "No tienes permiso para cambiar descansos" };
   }
 
   // Validaciones
@@ -55,6 +60,21 @@ export async function cambiarDescansoFijoAction(input: {
     }>();
   if (!emp) return { ok: false, error: "Trabajador no encontrado" };
   if (emp.fecha_baja) return { ok: false, error: "El trabajador está dado de baja" };
+
+  // Scope de supervisor: un USER solo puede cambiar el descanso de trabajadores
+  // que pertenecen a una de las sedes que tiene asignadas (activas).
+  if (!adminLike) {
+    const { data: asign } = await admin
+      .from("asignaciones_supervisor")
+      .select("sede_id")
+      .eq("usuario_id", user.id)
+      .eq("sede_id", emp.sede_id)
+      .eq("activo", true)
+      .limit(1);
+    if (!asign || asign.length === 0) {
+      return { ok: false, error: "Ese trabajador no está en tus sedes asignadas" };
+    }
+  }
 
   const sede = Array.isArray(emp.sedes) ? emp.sedes[0] : emp.sedes;
   const previo = (emp.dia_descanso ?? []) as DiaSemana[];
@@ -116,6 +136,7 @@ export async function cambiarDescansoFijoAction(input: {
   revalidatePath("/rh-pro/cambio-descanso");
   revalidatePath("/rh-pro/descansos-semanales");
   revalidatePath("/rh-pro/consulta");
+  revalidatePath("/descansos/fijo");
   revalidatePath("/pase-lista");
 
   const nuevoTexto = limpios.map((d) => DIA_FULL[d]).join(" y ");

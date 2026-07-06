@@ -73,6 +73,12 @@ export default async function DescansosPage() {
             (ej: necesita descansar martes en lugar de domingo por una sola semana).
             El sistema lo respeta en pase de lista durante el rango indicado.
           </p>
+          <Link
+            href="/descansos/fijo"
+            className="mt-3 inline-flex items-center gap-1.5 rounded-md border border-blue-400/30 bg-blue-500/[0.08] px-3 py-1.5 text-xs font-medium text-blue-200 transition hover:border-blue-400/60"
+          >
+            🛌 ¿Es un cambio permanente? Cambiar descanso fijo →
+          </Link>
         </header>
 
         <DescansosClient

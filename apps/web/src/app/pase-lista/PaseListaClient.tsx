@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { VortexLoader } from "@/components/VortexLoader";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CODIGO_SPEC, CODIGOS, type CodigoAsistencia } from "@vertice/shared/codes";
@@ -139,26 +139,13 @@ export function PaseListaClient(props: Props) {
     return set;
   }, [props.empleados, props.marcasExistentes, fechaDOW]);
 
-  // Pre-llenar pendientes con DS para los descansos del día, una sola vez
-  // al montar (o cuando cambia fecha/sede). Si el supervisor cambia el
-  // código a otro, su decisión gana (no sobrescribimos).
-  useEffect(() => {
-    if (!props.canEdit) return;
-    if (descansoHoy.size === 0) return;
-    setPendientes((prev) => {
-      const next = { ...prev };
-      let cambio = false;
-      for (const id of descansoHoy) {
-        if (!(id in next)) {
-          next[id] = "DS";
-          cambio = true;
-        }
-      }
-      return cambio ? next : prev;
-    });
-    // Solo dispara cuando cambia el set de descansos (fecha/sede)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [props.fecha, props.sedeId, props.canEdit]);
+  // NOTA: el descanso semanal NO se auto-marca. Se muestra como *sugerencia*
+  // (DS en gris punteado) y el supervisor decide colocarlo con un toque. Así
+  // el descanso solo queda guardado si él lo confirma — no se marca solo.
+  // ¿Está sugerido (descanso del día, aún sin confirmar por el supervisor)?
+  function isSugerido(id: string): boolean {
+    return descansoHoy.has(id) && !pendientes[id];
+  }
 
   function updateUrl(next: { sede?: string; jornada?: string; fecha?: string }) {
     if (isPending || busyAction) return;
@@ -198,6 +185,8 @@ export function PaseListaClient(props: Props) {
     const newPendientes: Record<string, CodigoAsistencia> = { ...pendientes };
     let n = 0;
     for (const emp of props.empleados) {
+      // No pisamos un descanso sugerido: el supervisor decide si lo coloca.
+      if (isSugerido(emp.id)) continue;
       const current = newPendientes[emp.id] ?? props.marcasExistentes[emp.id];
       if (!current) {
         newPendientes[emp.id] = "A";
@@ -264,6 +253,8 @@ export function PaseListaClient(props: Props) {
   const stats = useMemo(() => {
     let asist = 0, falta = 0, incid = 0, pend = 0;
     for (const emp of props.empleados) {
+      // Un descanso solo sugerido (aún sin confirmar) cuenta como pendiente.
+      if (isSugerido(emp.id)) { pend++; continue; }
       const cls = classifyCode(getCurrent(emp.id));
       if (cls === "asist") asist++;
       else if (cls === "falta") falta++;
@@ -659,6 +650,7 @@ export function PaseListaClient(props: Props) {
           {props.empleados.map((emp) => {
             const current = getCurrent(emp.id);
             const isPendingChange = !!pendientes[emp.id];
+            const sugerido = isSugerido(emp.id); // descanso del día aún sin confirmar
             const spec = current ? CODIGO_SPEC[current] : null;
             const cls = classifyCode(current);
             const badge = CLS_BADGE[cls];
@@ -678,13 +670,22 @@ export function PaseListaClient(props: Props) {
               >
                 <div className="flex items-center gap-2 px-3 py-2 sm:gap-3 sm:px-4 sm:py-2.5">
                   <span className="shrink-0 font-mono text-[10px] text-muted-2 sm:text-xs">#{emp.numero_empleado}</span>
-                  <span
-                    className="shrink-0 inline-flex h-7 w-7 items-center justify-center rounded-full font-mono text-xs font-bold sm:h-8 sm:w-8 sm:text-sm"
-                    style={{ background: badge.bg, boxShadow: `inset 0 0 0 1px ${badge.ring}`, color: badge.text }}
-                    title={cls === "asist" ? "Asistencia" : cls === "falta" ? "Falta" : cls === "incid" ? `Incidencia${spec ? ` (${spec.nombre})` : ""}` : "Sin marcar"}
-                  >
-                    {badge.letter}
-                  </span>
+                  {sugerido ? (
+                    <span
+                      className="shrink-0 inline-flex h-7 w-7 items-center justify-center rounded-full border border-dashed border-emerald-400/40 font-mono text-[9px] font-bold text-emerald-300/70 sm:h-8 sm:w-8 sm:text-[10px]"
+                      title="Descanso sugerido — sin confirmar"
+                    >
+                      DS
+                    </span>
+                  ) : (
+                    <span
+                      className="shrink-0 inline-flex h-7 w-7 items-center justify-center rounded-full font-mono text-xs font-bold sm:h-8 sm:w-8 sm:text-sm"
+                      style={{ background: badge.bg, boxShadow: `inset 0 0 0 1px ${badge.ring}`, color: badge.text }}
+                      title={cls === "asist" ? "Asistencia" : cls === "falta" ? "Falta" : cls === "incid" ? `Incidencia${spec ? ` (${spec.nombre})` : ""}` : "Sin marcar"}
+                    >
+                      {badge.letter}
+                    </span>
+                  )}
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
                       <p className="min-w-0 truncate text-sm font-medium text-text sm:text-base">{emp.nombre}</p>
@@ -702,10 +703,23 @@ export function PaseListaClient(props: Props) {
                       })()}
                     </div>
                     {current === "DS" && (
-                      <p className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-300">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                        Día de descanso
-                      </p>
+                      sugerido ? (
+                        <button
+                          type="button"
+                          onClick={() => setMarca(emp.id, "DS")}
+                          disabled={disabledRow}
+                          className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-300/80 transition hover:text-emerald-200 disabled:opacity-40"
+                          title="Colocar descanso (DS) para este trabajador"
+                        >
+                          <span className="inline-block h-1.5 w-1.5 rounded-full border border-emerald-400/60" />
+                          Descanso sugerido · toca para colocar
+                        </button>
+                      ) : (
+                        <p className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-300">
+                          <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                          Día de descanso
+                        </p>
+                      )
                     )}
                     {meta && (
                       <p className="truncate text-[10px] text-muted-2" title={meta.ts ? new Date(meta.ts).toLocaleString("es-MX") : ""}>
@@ -722,7 +736,7 @@ export function PaseListaClient(props: Props) {
                   <div className="flex shrink-0 items-center gap-1">
                     <RowCodeBtn label="A" active={current === "A"} color="emerald" onClick={() => setMarca(emp.id, "A")} disabled={disabledRow} />
                     <RowCodeBtn label="F" active={current === "F"} color="red"     onClick={() => setMarca(emp.id, "F")} disabled={disabledRow} />
-                    <RowCodeBtn label="I" active={current === "I" || current === "DT" || current === "INH" || current === "FER" || current === "PCG" || current === "PSG" || current === "DS" || current === "AF"} color="amber" onClick={() => setMarca(emp.id, "I")} disabled={disabledRow} />
+                    <RowCodeBtn label="I" active={current === "I" || current === "DT" || current === "INH" || current === "FER" || current === "PCG" || current === "PSG" || (current === "DS" && !sugerido) || current === "AF"} color="amber" onClick={() => setMarca(emp.id, "I")} disabled={disabledRow} />
                     <button
                       type="button"
                       onClick={() => setExpandedRow(isExpanded ? null : emp.id)}
@@ -737,13 +751,25 @@ export function PaseListaClient(props: Props) {
                       ⋯
                     </button>
                     {current ? (
-                      <span
-                        className="shrink-0 hidden sm:inline-flex rounded-full px-2 py-0.5 font-mono text-[10px] font-bold uppercase text-white"
-                        style={{ background: spec?.color }}
-                        title={spec?.nombre}
-                      >
-                        {current}
-                      </span>
+                      sugerido ? (
+                        <button
+                          type="button"
+                          onClick={() => setMarca(emp.id, "DS")}
+                          disabled={disabledRow}
+                          className="shrink-0 hidden sm:inline-flex items-center gap-1 rounded-full border border-dashed border-emerald-400/50 px-2 py-0.5 font-mono text-[10px] font-bold uppercase text-emerald-300/80 transition hover:border-emerald-400 hover:text-emerald-200 disabled:opacity-40"
+                          title="Colocar descanso (DS) para este trabajador"
+                        >
+                          DS ✓
+                        </button>
+                      ) : (
+                        <span
+                          className="shrink-0 hidden sm:inline-flex rounded-full px-2 py-0.5 font-mono text-[10px] font-bold uppercase text-white"
+                          style={{ background: spec?.color }}
+                          title={spec?.nombre}
+                        >
+                          {current}
+                        </span>
+                      )
                     ) : null}
                   </div>
                 </div>

@@ -87,6 +87,15 @@ function modulosFor(rol: string): Modulo[] {
       badge: { label: "Todos", cls: "pill" },
     },
     {
+      href: "/descansos/fijo",
+      icon: "📌",
+      iconBg: "rgba(59,130,246,0.12)",
+      iconBorder: "rgba(59,130,246,0.35)",
+      title: "Descanso fijo",
+      sub: "Cambia el día de descanso permanente de un trabajador de tus sedes.",
+      badge: { label: "Todos", cls: "pill pill-blue" },
+    },
+    {
       href: "/soporte",
       icon: "💬",
       iconBg: "rgba(59,130,246,0.12)",

@@ -170,7 +170,9 @@ Sub-rutas:
   - Toggle "Acceso a Facturación" en GestionPanel
 - `/rh-pro/liberacion-global` — toggle "abrir todas las fechas" con expira opcional (SUPERADMIN/SOPORTE)
 - `/rh-pro/cambio-sede` — reasignación masiva de empleados entre sedes (SUPERADMIN/SOPORTE)
-- `/rh-pro/descansos-semanales` — auto-llena DS según `dia_descanso` del empleado
+- `/rh-pro/descansos-semanales` — edita `dia_descanso` masivo (grid). El pase de lista **sugiere** DS ese día (ya no lo auto-marca — ver gotcha 18)
+- `/rh-pro/cambio-descanso` — cambio de descanso **fijo/permanente** individual (sede→trabajador→día→motivo), con bitácora. ADMIN-like
+- `/descansos/fijo` — **misma capacidad para supervisores (USER)**, acotada a sus sedes. Reusa `CambioDescansoForm`; el scope se valida en la action (`asignaciones_supervisor`)
 
 ### `/facturacion` — **NUEVO módulo completo** (v22-v26)
 **Acceso**: rol = FACTURACION (exclusivo) o acceso_facturacion=true o admin-like.
@@ -392,6 +394,8 @@ select unnest(enum_range(NULL::user_role));
 16. **Imports legacy pueden traer mojibake (UTF-8 leído como CP850)**: `n├║mero`→`número`, `Yucat├ín`→`Yucatán`. Reparable con `iconv.decode(iconv.encode(s,'cp850'),'utf8')`. Ver `scripts/fix-mojibake-contratos.mjs`. Afectó a config_contratos y contratos heredados.
 
 17. **Contratos = 2 salidas de la misma data**: PDF Vortex (`lib/pdf/ContratoDoc.tsx` con bloques tipados en `templates/contrato-*-blocks.ts`, auto-generados del DOCX por `scripts/extract-contrato-blocks.mjs`) y Word fiel (`docxtemplater` sobre `lib/contratos/templates/contrato-*.docx`). Las 19 llaves `{{LLAVE}}` se mapean en el endpoint.
+
+18. **El descanso semanal en pase de lista se SUGIERE, no se auto-marca**. Antes un `useEffect` metía `DS` en `pendientes` y se guardaba solo. Ahora `isSugerido(id)` = `descansoHoy.has(id) && !pendientes[id]`: se pinta en verde punteado ("toca para colocar") y solo entra a `pendientes`/se guarda cuando el supervisor lo confirma con un toque. `pendientesComoA` y stats respetan el estado sugerido (no lo pisan, cuenta como pendiente).
 
 14. **Correlated subqueries con columnas del mismo nombre causan "ambiguous"**: si tienes `from usuarios u` outer y dentro un subquery sobre `push_subscriptions` que también tiene `activo`, calificar SIEMPRE como `ps.activo`. Pasó con v23.
 
