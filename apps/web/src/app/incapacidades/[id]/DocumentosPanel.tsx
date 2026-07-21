@@ -47,10 +47,13 @@ interface Props {
   incapacidadId: string;
   documentos: Doc[];
   tiposRequeridos: { tipo: string; label: string; etapa: string }[];
+  // Si true (proceso simple, no ST-7), el selector solo ofrece los documentos
+  // requeridos del tipo + "otro" — sin las opciones de ST-7.
+  soloBasicos?: boolean;
   isAdmin: boolean;
 }
 
-export function DocumentosPanel({ incapacidadId, documentos, tiposRequeridos, isAdmin }: Props) {
+export function DocumentosPanel({ incapacidadId, documentos, tiposRequeridos, soloBasicos, isAdmin }: Props) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [file, setFile] = useState<File | null>(null);
@@ -111,12 +114,18 @@ export function DocumentosPanel({ incapacidadId, documentos, tiposRequeridos, is
   // de este tipo, luego cualquier otro. Así se puede subir el documento que se
   // necesite, no solo los del flujo (ST-7, ST-2, ST-9, mapa, incapacidad, otro).
   const requeridosSet = new Set(tiposRequeridos.map((t) => t.tipo));
-  const tiposParaSelect: { tipo: string; label: string; requerido: boolean }[] = [
-    ...tiposRequeridos.map((t) => ({ tipo: t.tipo, label: t.label, requerido: true })),
-    ...Object.keys(TIPO_LABELS)
-      .filter((t) => !requeridosSet.has(t))
-      .map((t) => ({ tipo: t, label: TIPO_LABELS[t] ?? t, requerido: false })),
-  ];
+  const tiposParaSelect: { tipo: string; label: string; requerido: boolean }[] = soloBasicos
+    ? [
+        // Proceso simple: solo lo requerido del tipo + "otro" (sin docs ST-7)
+        ...tiposRequeridos.map((t) => ({ tipo: t.tipo, label: t.label, requerido: true })),
+        ...(requeridosSet.has("OTRO") ? [] : [{ tipo: "OTRO", label: TIPO_LABELS.OTRO ?? "Otro documento", requerido: false }]),
+      ]
+    : [
+        ...tiposRequeridos.map((t) => ({ tipo: t.tipo, label: t.label, requerido: true })),
+        ...Object.keys(TIPO_LABELS)
+          .filter((t) => !requeridosSet.has(t))
+          .map((t) => ({ tipo: t, label: TIPO_LABELS[t] ?? t, requerido: false })),
+      ];
 
   return (
     <section className="surface-card p-4">

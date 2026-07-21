@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/Icon";
 import {
-  ESTADO_SPECS,
+  estadoInfo,
   siguientesEstados,
   type IncapacidadEstado,
   type IncapacidadTipo,
@@ -37,7 +37,7 @@ export function EstadoActions({ incapacidadId, estadoActual, tipo, isAdmin }: Pr
   const siguientes = siguientesEstados(estadoActual, tipo);
 
   function avanzarA(nuevo: IncapacidadEstado) {
-    if (!confirm(`Cambiar a "${ESTADO_SPECS[nuevo].label}"?`)) return;
+    if (!confirm(`Cambiar a "${estadoInfo(tipo, nuevo).label}"?`)) return;
     setMsg(null);
     start(async () => {
       const r = await cambiarEstadoIncapacidadAction({ incapacidad_id: incapacidadId, nuevo_estado: nuevo });
@@ -137,7 +137,7 @@ export function EstadoActions({ incapacidadId, estadoActual, tipo, isAdmin }: Pr
           </div>
           <div className="flex flex-wrap gap-2">
             {siguientes.map((s) => {
-              const spec = ESTADO_SPECS[s];
+              const spec = estadoInfo(tipo, s);
               return (
                 <button
                   key={s}

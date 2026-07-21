@@ -3,7 +3,7 @@ import { requireUser } from "@/lib/session";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Topbar } from "@/components/Topbar";
 import { Icon } from "@/components/Icon";
-import { TIPO_SPECS, ESTADO_SPECS, type IncapacidadEstado, type IncapacidadTipo } from "@/lib/incapacidades";
+import { TIPO_SPECS, ESTADO_SPECS, estadoInfo, type IncapacidadEstado, type IncapacidadTipo } from "@/lib/incapacidades";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Incapacidades · Vortex" };
@@ -122,7 +122,7 @@ export default async function IncapacidadesPage({ searchParams }: PageProps) {
               const emp = Array.isArray(i.empleados) ? i.empleados[0] : i.empleados;
               const sede = emp && (Array.isArray(emp.sedes) ? emp.sedes[0] : emp.sedes);
               const tipo = TIPO_SPECS[i.tipo];
-              const estado = ESTADO_SPECS[i.estado];
+              const estado = estadoInfo(i.tipo, i.estado);
               const prog = progresoDe(i.tipo, i.estado);
               const nDocs = i.incapacidad_documentos?.[0]?.count ?? 0;
               return (

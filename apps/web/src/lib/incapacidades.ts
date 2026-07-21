@@ -34,6 +34,11 @@ export interface TipoSpec {
   descuentoEmpresa: number;  // monto descontado por día no laborado (1-3)
   documentosRequeridos: { tipo: string; label: string; requerido: boolean; etapa: IncapacidadEstado }[];
   notas: string[];
+  // ¿Es proceso ST-7 (notifica + flujo completo) o solo notificación simple?
+  esST7: boolean;
+  // Overrides de etiqueta/descripción de estado según el tipo. Ej: para
+  // enfermedad general, DOCS_EMPLEADO = "Recepción de incapacidad médica".
+  estadoLabels?: Partial<Record<IncapacidadEstado, { label: string; desc: string }>>;
 }
 
 export const TIPO_SPECS: Record<IncapacidadTipo, TipoSpec> = {
@@ -47,10 +52,17 @@ export const TIPO_SPECS: Record<IncapacidadTipo, TipoSpec> = {
     flujoEstados: ["REPORTADA", "DOCS_EMPLEADO", "CERRADA"],
     pagaImssDesde: 4,
     descuentoEmpresa: 315.04,
+    esST7: false,
+    estadoLabels: {
+      REPORTADA: { label: "Alta y notificación", desc: "Registrada y notificada a RH. Solo notifica que el trabajador está incapacitado." },
+      DOCS_EMPLEADO: { label: "Recepción de incapacidad médica", desc: "RH recibe el formato de incapacidad del médico familiar." },
+      CERRADA: { label: "Marcada en pase de lista", desc: "Días marcados como Incapacidad (I) en el pase de lista y expediente cerrado. Sin flujo ST-7." },
+    },
     documentosRequeridos: [
       { tipo: "INCAPACIDAD_MEDICO", label: "Formato de incapacidad (médico familiar)", requerido: true, etapa: "DOCS_EMPLEADO" },
     ],
     notas: [
+      "Proceso SIMPLE (sin ST-7): alta → recepción de incapacidad médica → marcar en pase de lista. Solo notifica.",
       "IMSS cubre del día 4 en adelante. Días 1-3 sin sueldo.",
       "Descuento empresa: $315.04 por cada día no laborado (1-3).",
       "Reporte a tiempo (<24h) preserva el 7mo día de descanso.",
@@ -74,6 +86,7 @@ export const TIPO_SPECS: Record<IncapacidadTipo, TipoSpec> = {
     ],
     pagaImssDesde: 1,
     descuentoEmpresa: 0,
+    esST7: true,
     documentosRequeridos: [
       { tipo: "INCAPACIDAD_MEDICO", label: "Incapacidad médica con leyenda 'RIESGO DE TRABAJO: SI'", requerido: true, etapa: "DOCS_EMPLEADO" },
       { tipo: "ST7_INICIAL",        label: "Hoja ST-7 expedida por Medicina de Trabajo",             requerido: true, etapa: "DOCS_EMPLEADO" },
@@ -106,6 +119,7 @@ export const TIPO_SPECS: Record<IncapacidadTipo, TipoSpec> = {
     ],
     pagaImssDesde: 1,
     descuentoEmpresa: 0,
+    esST7: true,
     documentosRequeridos: [
       { tipo: "INCAPACIDAD_MEDICO", label: "Incapacidad médica con leyenda 'RIESGO DE TRABAJO: SI'", requerido: true, etapa: "DOCS_EMPLEADO" },
       { tipo: "ST7_INICIAL",        label: "Hoja ST-7 expedida por Medicina de Trabajo",             requerido: true, etapa: "DOCS_EMPLEADO" },
@@ -137,6 +151,7 @@ export const TIPO_SPECS: Record<IncapacidadTipo, TipoSpec> = {
     ],
     pagaImssDesde: 1,
     descuentoEmpresa: 0,
+    esST7: true,
     documentosRequeridos: [
       { tipo: "ST9", label: "Hoja ST-9 (riesgo biológico/químico)", requerido: true, etapa: "DOCS_EMPLEADO" },
       { tipo: "INCAPACIDAD_MEDICO", label: "Incapacidad médica", requerido: true, etapa: "DOCS_EMPLEADO" },
@@ -162,6 +177,25 @@ export const ESTADO_SPECS: Record<IncapacidadEstado, { label: string; descriptio
   RECHAZADA:        { label: "Rechazada",          description: "IMSS no calificó como riesgo de trabajo",           color: "#EF4444", orden: 8 },
   CANCELADA:        { label: "Cancelada",          description: "Cancelada por error o no procedente",               color: "#64748b", orden: 9 },
 };
+
+/**
+ * Etiqueta/descripción de un estado según el tipo. Si el tipo define un
+ * override (ej. enfermedad general: DOCS_EMPLEADO = "Recepción de incapacidad
+ * médica"), lo usa; si no, cae al global de ESTADO_SPECS.
+ */
+export function estadoInfo(
+  tipo: IncapacidadTipo,
+  estado: IncapacidadEstado,
+): { label: string; description: string; color: string; orden: number } {
+  const base = ESTADO_SPECS[estado];
+  const override = TIPO_SPECS[tipo].estadoLabels?.[estado];
+  return {
+    label: override?.label ?? base.label,
+    description: override?.desc ?? base.description,
+    color: base.color,
+    orden: base.orden,
+  };
+}
 
 /**
  * Devuelve los siguientes estados posibles desde un estado dado.

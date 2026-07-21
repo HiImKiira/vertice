@@ -7,6 +7,7 @@ import { Icon } from "@/components/Icon";
 import {
   TIPO_SPECS,
   ESTADO_SPECS,
+  estadoInfo,
   type IncapacidadEstado,
   type IncapacidadTipo,
 } from "@/lib/incapacidades";
@@ -119,7 +120,7 @@ export default async function IncapacidadDetailPage({ params }: PageProps) {
   });
 
   const tipoSpec = TIPO_SPECS[incap.tipo];
-  const estadoSpec = ESTADO_SPECS[incap.estado];
+  const estadoSpec = estadoInfo(incap.tipo, incap.estado);
   const cerrada = ["CERRADA", "RECHAZADA", "CANCELADA"].includes(incap.estado);
 
   return (
@@ -204,8 +205,9 @@ export default async function IncapacidadDetailPage({ params }: PageProps) {
               tiposRequeridos={tipoSpec.documentosRequeridos.map((d) => ({
                 tipo: d.tipo,
                 label: d.label,
-                etapa: ESTADO_SPECS[d.etapa].label,
+                etapa: estadoInfo(incap.tipo, d.etapa).label,
               }))}
+              soloBasicos={!tipoSpec.esST7}
               isAdmin={isAdmin}
             />
 
@@ -236,10 +238,19 @@ export default async function IncapacidadDetailPage({ params }: PageProps) {
 
             {/* Flujo de etapas */}
             <section className="surface-card p-4">
-              <h2 className="mb-3 font-display text-sm">Flujo del tipo</h2>
+              <h2 className="mb-2 font-display text-sm">Flujo del tipo</h2>
+              {tipoSpec.esST7 ? (
+                <p className="mb-3 rounded-md border border-amber-400/20 bg-amber-500/[0.05] px-2 py-1.5 text-[10px] text-amber-200/90">
+                  Proceso <strong>ST-7</strong>: notifica y lleva el flujo completo (validación RH, dictamen IMSS, alta ST-2).
+                </p>
+              ) : (
+                <p className="mb-3 rounded-md border border-blue-400/20 bg-blue-500/[0.05] px-2 py-1.5 text-[10px] text-blue-200/90">
+                  Proceso <strong>simple</strong>: solo notifica. Alta → recepción de incapacidad médica → marcar en pase de lista. <strong>No</strong> requiere ST-7.
+                </p>
+              )}
               <ol className="space-y-1.5 text-[11px]">
                 {tipoSpec.flujoEstados.map((e, i) => {
-                  const es = ESTADO_SPECS[e];
+                  const es = estadoInfo(incap.tipo, e);
                   const isActive = e === incap.estado;
                   const pasada = ESTADO_SPECS[e].orden < ESTADO_SPECS[incap.estado].orden;
                   return (
