@@ -93,7 +93,14 @@ export function BajaForm({ empleados, sedes }: { empleados: EmpleadoRow[]; sedes
     <div className="grid gap-5 lg:grid-cols-[2fr_3fr] animate-fade-up delay-100">
       {/* Búsqueda + lista */}
       <section className="surface-glow p-5">
-        <div className="section-label">Buscar empleado activo</div>
+        <div className="section-label">
+          <span className="mr-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-blue-500/30 text-[9px] font-bold text-blue-200">1</span>
+          Busca al trabajador
+        </div>
+        <p className="mb-3 text-[11px] text-muted">
+          Escribe su <strong>nombre</strong> o su <strong>número de empleado</strong>, y da clic en el renglón correcto.
+          Solo salen trabajadores <strong>activos</strong>.
+        </p>
         <div className="mb-3 grid gap-3 sm:grid-cols-2">
           <div className="field">
             <label>Filtrar por sede</label>
@@ -149,15 +156,20 @@ export function BajaForm({ empleados, sedes }: { empleados: EmpleadoRow[]; sedes
 
       {/* Form de baja */}
       <section className="surface-glow p-5">
-        <div className="section-label">Detalles de la baja</div>
+        <div className="section-label">
+          <span className="mr-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-blue-500/30 text-[9px] font-bold text-blue-200">2</span>
+          Verifica y confirma la baja
+        </div>
         {!seleccionado ? (
           <div className="rounded-xl border border-dashed border-[color:var(--border)] bg-[color:var(--card)] p-10 text-center text-sm text-muted">
-            ← Selecciona un empleado de la lista
+            ← Primero selecciona un trabajador de la lista de la izquierda
           </div>
         ) : (
           <div className="space-y-4">
             <div className="rounded-xl border border-[rgba(239,68,68,0.3)] bg-[rgba(239,68,68,0.06)] p-4">
-              <p className="text-[10px] uppercase tracking-tagline text-[#FCA5A5]">Va a darse de baja</p>
+              <p className="text-[10px] uppercase tracking-tagline text-[#FCA5A5]">
+                Revisa que sea la persona correcta
+              </p>
               <p className="mt-1 font-display text-xl text-text">{seleccionado.nombre}</p>
               <p className="mt-1 text-xs text-muted">
                 #{seleccionado.numero_empleado} ·{" "}
@@ -166,17 +178,31 @@ export function BajaForm({ empleados, sedes }: { empleados: EmpleadoRow[]; sedes
               </p>
             </div>
 
+            {/* Qué va a pasar al dar de baja */}
+            <div className="rounded-lg border border-amber-400/30 bg-amber-500/[0.06] p-3">
+              <p className="mb-1.5 text-xs font-semibold text-amber-200">Qué pasa al darlo de baja</p>
+              <ul className="space-y-1 text-[11px] leading-relaxed text-amber-100/90">
+                <li>· <strong>Desaparece del pase de lista</strong> a partir de ese día.</li>
+                <li>· En el reporte de <strong>esta</strong> quincena sigue apareciendo, marcado <span className="font-mono">■ DADO DE BAJA</span>, y se le pagan los días que sí trabajó.</li>
+                <li>· En la <strong>siguiente</strong> quincena ya no aparece.</li>
+              </ul>
+            </div>
+
             <div className="field">
-              <label>Fecha de baja *</label>
+              <label>Fecha de baja * — el día que RH aplica la baja (hoy)</label>
               <input
                 type="date"
                 value={fechaBaja}
                 onChange={(e) => setFechaBaja(e.target.value)}
               />
+              <p className="mt-1 text-[10px] text-muted-2">
+                Normalmente se deja <strong>la fecha de hoy</strong>. Los días trabajados antes de esta fecha
+                se le pagan normal.
+              </p>
             </div>
 
             <div className="field">
-              <label>Motivo *</label>
+              <label>Motivo * — por qué deja de trabajar</label>
               <select value={motivo} onChange={(e) => setMotivo(e.target.value)}>
                 {MOTIVOS_COMUNES.map((m) => <option key={m} value={m}>{m}</option>)}
               </select>

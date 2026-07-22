@@ -228,28 +228,35 @@ export function AltaForm({ sedes, config }: { sedes: Sede[]; config: Record<stri
             </select>
           </div>
           <div className="field">
-            <label>Puesto</label>
-            <input type="text" value={f.puesto} onChange={(e) => set("puesto", e.target.value.toUpperCase())} />
+            <label>Puesto — qué trabajo va a hacer</label>
+            <input
+              type="text"
+              value={f.puesto}
+              onChange={(e) => set("puesto", e.target.value.toUpperCase())}
+              placeholder="AUXILIAR DE LIMPIEZA"
+            />
           </div>
           <div className="field">
-            <label>Segmento (opcional)</label>
+            <label>Segmento — déjalo vacío si no aplica</label>
             <input
               type="text"
               value={f.segmento_original}
               onChange={(e) => set("segmento_original", e.target.value)}
-              placeholder="igual a Sede si no aplica"
+              placeholder="Vacío = se usa la sede"
             />
+            <p className="mt-1 text-[10px] text-muted-2">Solo se llena si el cliente pidió separar el área. Si dudas, déjalo vacío.</p>
           </div>
           <div className="field">
-            <label>Jornada (DB)</label>
+            <label>Turno en el que trabajará</label>
             <select value={f.jornada_legacy} onChange={(e) => set("jornada_legacy", e.target.value as typeof f.jornada_legacy)}>
               {JORNADAS_DB.map((j) => (
                 <option key={j} value={j}>{j}</option>
               ))}
             </select>
+            <p className="mt-1 text-[10px] text-muted-2">Con este turno aparecerá en el pase de lista de su supervisor.</p>
           </div>
           <div className="field sm:col-span-2">
-            <label>Días de descanso semanal *</label>
+            <label>Días de descanso semanal * — toca los días que NO trabaja</label>
             <div className="flex flex-wrap gap-1.5">
               {DIAS.map((d) => {
                 const active = f.dia_descanso.includes(d.v);
@@ -276,26 +283,28 @@ export function AltaForm({ sedes, config }: { sedes: Sede[]; config: Record<stri
         <div className="section-label">Sueldo y compensación</div>
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="field">
-            <label>Sueldo mensual *</label>
+            <label>Sueldo mensual * — solo números</label>
             <input
               type="number"
               step="0.01"
               value={f.sueldo_mensual}
               onChange={(e) => set("sueldo_mensual", Number(e.target.value))}
             />
+            <p className="mt-1 text-[10px] text-muted-2">Sin $ ni comas. Ejemplo: 9451.20</p>
           </div>
           <div className="field">
-            <label>Salario diario base</label>
+            <label>Salario por día</label>
             <input
               type="number"
               step="0.01"
               value={f.salario_diario}
               onChange={(e) => set("salario_diario", Number(e.target.value))}
             />
+            <p className="mt-1 text-[10px] text-muted-2">Lo que se le paga por cada día trabajado. Se usa en la nómina.</p>
           </div>
           <div className="field sm:col-span-3">
             <div className="flex items-baseline justify-between">
-              <label>Sueldo mensual en letra (para el contrato) *</label>
+              <label>Sueldo mensual escrito con letra * — se copia tal cual al contrato</label>
               <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-tagline text-muted">
                 <input
                   type="checkbox"
@@ -323,18 +332,21 @@ export function AltaForm({ sedes, config }: { sedes: Sede[]; config: Record<stri
 
       {/* Sección 4: Jornada operativa */}
       <section className="surface-glow p-5">
-        <div className="section-label">Jornada operativa (texto contrato)</div>
+        <div className="section-label">Horario que irá escrito en el contrato</div>
+        <p className="mb-3 text-[11px] text-muted">
+          Esto <strong>se escribe tal cual en el contrato</strong>. No cambia el pase de lista, solo el documento.
+        </p>
         <div className="grid gap-4 sm:grid-cols-4">
           <div className="field">
-            <label>Hora inicio</label>
+            <label>Hora en que entra</label>
             <input type="text" value={f.hora_inicio} onChange={(e) => set("hora_inicio", e.target.value)} placeholder="06:00" />
           </div>
           <div className="field">
-            <label>Hora fin</label>
+            <label>Hora en que sale</label>
             <input type="text" value={f.hora_fin} onChange={(e) => set("hora_fin", e.target.value)} placeholder="14:00" />
           </div>
           <div className="field">
-            <label>Horas jornada</label>
+            <label>Cuántas horas al día</label>
             <input
               type="number"
               value={f.jornada_horas}
@@ -343,11 +355,12 @@ export function AltaForm({ sedes, config }: { sedes: Sede[]; config: Record<stri
             />
           </div>
           <div className="field">
-            <label>Día descanso (texto)</label>
+            <label>Día de descanso, escrito</label>
             <input type="text" value={f.dia_descanso_texto} onChange={(e) => set("dia_descanso_texto", e.target.value)} placeholder="Domingo" />
+            <p className="mt-1 text-[10px] text-muted-2">Con letra, para el contrato. Debe coincidir con los días que marcaste arriba.</p>
           </div>
           <div className="field sm:col-span-4">
-            <label>Descripción de jornada</label>
+            <label>Qué días trabaja, escrito</label>
             <input type="text" value={f.jornada_descripcion} onChange={(e) => set("jornada_descripcion", e.target.value)} placeholder="Lunes a sábado" />
           </div>
         </div>
