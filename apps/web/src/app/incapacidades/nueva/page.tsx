@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireUser } from "@/lib/session";
+import { requireUser , blockCoordinacion } from "@/lib/session";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Topbar } from "@/components/Topbar";
 import { Icon } from "@/components/Icon";
@@ -17,6 +17,7 @@ interface EmpRow {
 
 export default async function NuevaIncapacidadPage() {
   const { profile } = await requireUser();
+  blockCoordinacion(profile.rol);
   const supabase = await createSupabaseServerClient();
 
   // Empleados visibles según RLS (admin-like ve todos, supervisor solo su sede)

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireUser } from "@/lib/session";
+import { requireUser , blockCoordinacion } from "@/lib/session";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Topbar } from "@/components/Topbar";
 import { Icon } from "@/components/Icon";
@@ -20,6 +20,7 @@ function diaNum(iso: string): { d: number; dow: number } {
 
 export default async function MiQuincenaPage() {
   const { id: userId, profile } = await requireUser();
+  blockCoordinacion(profile.rol);
   const supabase = await createSupabaseServerClient();
   const cob = await coberturaQuincena(supabase, userId);
 

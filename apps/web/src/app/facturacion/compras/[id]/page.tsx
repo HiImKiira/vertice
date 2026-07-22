@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireUser } from "@/lib/session";
+import { requireUser , blockCoordinacion } from "@/lib/session";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Icon } from "@/components/Icon";
 import { CompraEstadoButtons } from "./CompraEstadoButtons";
@@ -33,6 +33,7 @@ function pillPrioridad(p: string): string {
 export default async function SolicitudCompraDetalle({ params }: PageProps) {
   const { id } = await params;
   const { id: userId, profile } = await requireUser();
+  blockCoordinacion(profile.rol);
   const supabase = await createSupabaseServerClient();
 
   // Si el caller tiene acceso facturacion → ver todo. Si no → solo lo suyo (RLS).

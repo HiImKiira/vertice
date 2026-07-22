@@ -1,4 +1,4 @@
-import { requireUser } from "@/lib/session";
+import { requireUser, blockCoordinacion } from "@/lib/session";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { NuevaCompraClient, type SedeOpt, type ProductoOpt } from "./NuevaCompraClient";
 
@@ -6,7 +6,8 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Solicitar compra" };
 
 export default async function NuevaCompraPage() {
-  await requireUser();
+  const { profile } = await requireUser();
+  blockCoordinacion(profile.rol);
   const supabase = await createSupabaseServerClient();
 
   const [{ data: sedes }, { data: productos }] = await Promise.all([

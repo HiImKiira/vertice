@@ -46,6 +46,9 @@ export default async function IncidenciasPage({ searchParams }: PageProps) {
     .eq("id", user.id)
     .single<{ nombre: string; username: string; rol: string }>();
 
+  // COORDINACION no participa en la operacion diaria
+  if (perfil?.rol === "COORDINACION") redirect("/dashboard");
+
   const isAdmin = perfil?.rol === "ADMIN" || perfil?.rol === "SUPERADMIN" || perfil?.rol === "CEO";
 
   // Sedes disponibles (asignaciones del user, o todas si admin)

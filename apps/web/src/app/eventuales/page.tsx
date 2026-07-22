@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireUser } from "@/lib/session";
+import { requireUser , blockCoordinacion } from "@/lib/session";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Topbar } from "@/components/Topbar";
 import { EventualesClient, type Empleado, type Sede, type Usuario, type EventualRow } from "./EventualesClient";
@@ -28,6 +28,7 @@ function monthRange(ym: string): { start: string; end: string } {
 
 export default async function EventualesPage({ searchParams }: PageProps) {
   const { id: userId, profile } = await requireUser();
+  blockCoordinacion(profile.rol);
   const supabase = await createSupabaseServerClient();
   const esAdmin = ["ADMIN", "SUPERADMIN", "CEO", "SOPORTE"].includes(profile.rol);
   const params = await searchParams;

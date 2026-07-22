@@ -52,6 +52,17 @@ export function requireAdminLikeOrCoord(rol: TopbarUser["rol"]): void {
   if (!isAdminLikeOrCoord(rol)) redirect("/dashboard");
 }
 
+/**
+ * Bloquea a COORDINACION en las páginas de operación diaria (pase de lista,
+ * incidencias, descansos, incapacidades, eventuales, sonidos, compras).
+ * Es un perfil de escritorio: no participa en la operación.
+ *
+ * A propósito NO se aplica en /soporte, para que sí pueda levantar tickets a RH.
+ */
+export function blockCoordinacion(rol: TopbarUser["rol"]): void {
+  if (isCoordinacion(rol)) redirect("/dashboard");
+}
+
 /** El rol FACTURACION es exclusivo del módulo de facturación. */
 export function isFacturacion(rol: TopbarUser["rol"]): boolean {
   return rol === "FACTURACION";

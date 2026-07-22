@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireUser } from "@/lib/session";
+import { requireUser , blockCoordinacion } from "@/lib/session";
 import { Topbar } from "@/components/Topbar";
 import { Icon } from "@/components/Icon";
 import { SonidosEditor } from "./SonidosEditor";
@@ -9,6 +9,7 @@ export const metadata = { title: "Sonidos · Vortex" };
 
 export default async function SonidosPage() {
   const { profile } = await requireUser();
+  blockCoordinacion(profile.rol);
 
   return (
     <main className="min-h-screen overflow-x-hidden text-text">

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireUser } from "@/lib/session";
+import { requireUser , blockCoordinacion } from "@/lib/session";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Topbar } from "@/components/Topbar";
 import { DescansosClient, type CDTRow, type EmpleadoMini, type SedeMini, type UsuarioMini } from "./DescansosClient";
@@ -9,6 +9,7 @@ export const metadata = { title: "Descansos · Cambios temporales" };
 
 export default async function DescansosPage() {
   const { id: userId, profile } = await requireUser();
+  blockCoordinacion(profile.rol);
   const supabase = await createSupabaseServerClient();
   const isAdmin = ["ADMIN", "SUPERADMIN", "CEO", "SOPORTE"].includes(profile.rol);
 

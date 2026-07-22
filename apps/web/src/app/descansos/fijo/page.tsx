@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireUser, isAdminLike } from "@/lib/session";
+import { requireUser, isAdminLike , blockCoordinacion } from "@/lib/session";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Topbar } from "@/components/Topbar";
 import { Icon } from "@/components/Icon";
@@ -34,6 +34,7 @@ interface EmpRaw {
  */
 export default async function DescansoFijoPage() {
   const { id: userId, profile } = await requireUser();
+  blockCoordinacion(profile.rol);
   const supabase = await createSupabaseServerClient();
   const admin = isAdminLike(profile.rol);
 
