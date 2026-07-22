@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { notifyAdminLike } from "@/lib/push";
-import { coberturaQuincena } from "@/lib/quincena";
+import { coberturaQuincena, seEsperaEseDia } from "@/lib/quincena";
 import { CODIGOS, type CodigoAsistencia } from "@vertice/shared/codes";
 
 export interface FaltanteRow {
@@ -57,25 +57,22 @@ export async function detalleDiaAction(fecha: string): Promise<DetalleDiaResult>
     .in("jornada", [...new Set(pares.map((a) => a.jornada))])
     .order("nombre");
 
-  // Solo cuentan quienes ya estaban de alta y aún no de baja ESE día:
-  // un trabajador dado de alta el 21 no debe salir como faltante el 16.
-  const empleados = ((empsRaw ?? []) as Array<{
+  const delSupervisor = ((empsRaw ?? []) as Array<{
     id: string; numero_empleado: string; nombre: string; sede_id: string; jornada: string;
     fecha_alta: string | null; fecha_baja: string | null;
     sedes: { abrev: string } | { abrev: string }[] | null;
-  }>).filter(
-    (e) =>
-      comboOk.has(`${e.sede_id}|${e.jornada}`)
-      && (!e.fecha_alta || e.fecha_alta <= fecha)
-      && (!e.fecha_baja || e.fecha_baja >= fecha),
-  );
+  }>).filter((e) => comboOk.has(`${e.sede_id}|${e.jornada}`));
 
   const { data: marcas } = await supabase
     .from("asistencias")
     .select("empleado_id")
     .eq("fecha", fecha)
-    .in("empleado_id", empleados.map((e) => e.id));
+    .in("empleado_id", delSupervisor.map((e) => e.id));
   const yaMarcados = new Set(((marcas ?? []) as Array<{ empleado_id: string }>).map((m) => m.empleado_id));
+
+  // Misma regla que la rejilla: no se exige marca el día del alta (RH la
+  // captura un día antes de que entren), ni a quien ya estaba de baja.
+  const empleados = delSupervisor.filter((e) => seEsperaEseDia(e, fecha, yaMarcados));
 
   const faltantes: FaltanteRow[] = empleados
     .filter((e) => !yaMarcados.has(e.id))
@@ -106,7 +103,7 @@ export async function detalleDiaAction(fecha: string): Promise<DetalleDiaResult>
     fecha,
     faltantes,
     esperados: empleados.length,
-    capturados: yaMarcados.size,
+    capturados: empleados.filter((e) => yaMarcados.has(e.id)).length,
     abierta,
     motivoCierre,
   };

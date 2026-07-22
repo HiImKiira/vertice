@@ -41,6 +41,27 @@ export function diasEntre(start: string, end: string): string[] {
   return out;
 }
 
+/**
+ * ¿Se le debe exigir marca a este trabajador ESE día?
+ *
+ * Regla operativa (provisional, acordada con RH): el alta se captura **un día
+ * antes** de que la persona entre a laborar, así que se le empieza a contar a
+ * partir del día SIGUIENTE a su fecha_alta. Excepción: si ya tiene marca ese
+ * día, sí se cuenta (entonces sí trabajó y no debe romper el porcentaje).
+ *
+ * También quedan fuera quienes ya estaban dados de baja ese día.
+ */
+export function seEsperaEseDia(
+  e: { id: string; fecha_alta: string | null; fecha_baja: string | null },
+  fecha: string,
+  marcadosEseDia: Set<string>,
+): boolean {
+  if (e.fecha_baja && e.fecha_baja < fecha) return false;
+  if (!e.fecha_alta) return true;
+  if (e.fecha_alta < fecha) return true;   // ya llevaba al menos un día de alta
+  return marcadosEseDia.has(e.id);          // es su día de alta: solo si ya se marcó
+}
+
 export interface DiaCobertura {
   fecha: string;
   esperados: number;
@@ -121,10 +142,13 @@ export async function coberturaQuincena(
   // 4) Cálculo por día
   const dias: DiaCobertura[] = fechas.map((f) => {
     const futuro = f > hoy;
-    const esperados = empleados.filter(
-      (e) => (!e.fecha_alta || e.fecha_alta <= f) && (!e.fecha_baja || e.fecha_baja >= f),
-    ).length;
-    const capturados = futuro ? 0 : (porDia.get(f)?.size ?? 0);
+    const marcados = porDia.get(f) ?? new Set<string>();
+    // Quiénes DEBEN estar marcados ese día (ver seEsperaEse Día).
+    const esperadosArr = empleados.filter((e) => seEsperaEseDia(e, f, marcados));
+    const esperados = esperadosArr.length;
+    // Solo cuentan como capturados los que además eran esperados, para que
+    // el porcentaje nunca pase de 100%.
+    const capturados = futuro ? 0 : esperadosArr.filter((e) => marcados.has(e.id)).length;
     const pct = esperados > 0 && !futuro ? Math.round((capturados / esperados) * 100) : 0;
     return { fecha: f, esperados, capturados, pct, completo: !futuro && esperados > 0 && capturados >= esperados, futuro };
   });
