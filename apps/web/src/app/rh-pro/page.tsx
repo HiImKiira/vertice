@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireUser, requireAdminLike } from "@/lib/session";
+import { requireUser, requireAdminLikeOrCoord } from "@/lib/session";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Topbar } from "@/components/Topbar";
 import { AsignacionesEditor, type SupervisorRow } from "./AsignacionesEditor";
@@ -9,7 +9,7 @@ export const metadata = { title: "RH Pro" };
 
 export default async function RHProPage() {
   const { profile } = await requireUser();
-  requireAdminLike(profile.rol);
+  requireAdminLikeOrCoord(profile.rol);
   const supabase = await createSupabaseServerClient();
 
   // Quincena actual (Mérida = UTC-6)

@@ -51,6 +51,15 @@ function modulosFor(rol: string): Modulo[] {
       badge: { label: "Todos", cls: "pill" },
     },
     {
+      href: "/mi-quincena",
+      icon: "📈",
+      iconBg: "rgba(16,185,129,0.12)",
+      iconBorder: "rgba(16,185,129,0.35)",
+      title: "Mi quincena",
+      sub: "Qué tan completo llevas tu pase de lista, día por día. Avisa a RH y comparte por WhatsApp.",
+      badge: { label: "Todos", cls: "pill pill-green" },
+    },
+    {
       href: "/incapacidades",
       icon: "🏥",
       iconBg: "rgba(239,68,68,0.12)",
@@ -177,6 +186,15 @@ function modulosFor(rol: string): Modulo[] {
       badge: { label: "ADMIN+", cls: "pill pill-violet" },
     },
     {
+      href: "/rh-pro/supervisores",
+      icon: "🧭",
+      iconBg: "rgba(6,182,212,0.12)",
+      iconBorder: "rgba(6,182,212,0.3)",
+      title: "Centro de supervisores",
+      sub: "Avance de quincena por supervisor, recordatorio push y WhatsApp de días faltantes.",
+      badge: { label: "ADMIN+", cls: "pill pill-cyan" },
+    },
+    {
       href: "/reportes",
       icon: "📊",
       iconBg: "rgba(201,169,97,0.12)",
@@ -187,8 +205,17 @@ function modulosFor(rol: string): Modulo[] {
     },
   ];
 
+  // COORDINACION (perfil acotado): solo reportes, contratos, consulta,
+  // supervisión de quincena y el hub de RH (desde ahí entra a alta/baja).
+  if (rol === "COORDINACION") {
+    const permitidos = new Set([
+      "/reportes", "/rh-pro", "/rh-pro/contratos", "/rh-pro/consulta", "/rh-pro/supervisores",
+    ]);
+    return all.filter((m) => permitidos.has(m.href));
+  }
+
   const adminLike = ["ADMIN", "SUPERADMIN", "CEO", "SOPORTE"].includes(rol);
-  const adminOnly = new Set(["/live", "/rh-pro", "/rh-pro/empleados", "/rh-pro/contratos", "/rh-pro/sedes", "/rh-pro/descansos-semanales", "/rh-pro/consulta", "/rh-pro/actividad", "/reportes"]);
+  const adminOnly = new Set(["/live", "/rh-pro", "/rh-pro/empleados", "/rh-pro/contratos", "/rh-pro/sedes", "/rh-pro/descansos-semanales", "/rh-pro/consulta", "/rh-pro/actividad", "/rh-pro/supervisores", "/reportes"]);
   return all.filter((m) => (adminOnly.has(m.href) ? adminLike : true));
 }
 

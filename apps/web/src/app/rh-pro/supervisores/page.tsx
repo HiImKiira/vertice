@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireUser, requireAdminLike } from "@/lib/session";
+import { requireUser, requireAdminLikeOrCoord } from "@/lib/session";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Topbar } from "@/components/Topbar";
 import { Icon } from "@/components/Icon";
@@ -33,7 +33,7 @@ interface SupRow {
 
 export default async function SupervisoresPage({ searchParams }: PageProps) {
   const { profile } = await requireUser();
-  requireAdminLike(profile.rol);
+  requireAdminLikeOrCoord(profile.rol);
   const supabase = await createSupabaseServerClient();
   const params = await searchParams;
   const q = (params.q ?? "").trim().toLowerCase();

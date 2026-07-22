@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { requireUser, requireAdminLike } from "@/lib/session";
+import { requireUser, requireAdminLikeOrCoord } from "@/lib/session";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Topbar } from "@/components/Topbar";
 import { EditContratoForm, type ContratoFullRow } from "./EditContratoForm";
@@ -12,7 +12,7 @@ interface PageProps { params: Promise<{ id: string }> }
 
 export default async function EditContratoPage({ params }: PageProps) {
   const { profile } = await requireUser();
-  requireAdminLike(profile.rol);
+  requireAdminLikeOrCoord(profile.rol);
   const { id } = await params;
   const supabase = await createSupabaseServerClient();
 

@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   fetchSede,
+  enriquecerConAltaBaja,
   fetchEmpleadosPorSedePeriodo,
   fetchMarcasConSnapshot,
   quincenaRange,
@@ -22,8 +23,8 @@ export async function GET(req: NextRequest) {
     .select("rol, nombre, username")
     .eq("id", user.id)
     .single<{ rol: string; nombre: string; username: string }>();
-  if (!perfil || !["ADMIN", "SUPERADMIN", "CEO"].includes(perfil.rol)) {
-    return NextResponse.json({ error: "Solo ADMIN/SUPERADMIN/CEO." }, { status: 403 });
+  if (!perfil || !["ADMIN", "SUPERADMIN", "CEO", "SOPORTE", "COORDINACION"].includes(perfil.rol)) {
+    return NextResponse.json({ error: "Solo ADMIN/SUPERADMIN/CEO/COORDINACION." }, { status: 403 });
   }
 
   const url = new URL(req.url);
@@ -40,7 +41,10 @@ export async function GET(req: NextRequest) {
 
   const { start, end } = quincenaRange(mes, q);
   const fechas = rangeDates(start, end);
-  const empleados = await fetchEmpleadosPorSedePeriodo(supabase, sedeId, start, end);
+  const empleados = await enriquecerConAltaBaja(
+    supabase,
+    await fetchEmpleadosPorSedePeriodo(supabase, sedeId, start, end),
+  );
   const marcas = await fetchMarcasConSnapshot(
     supabase,
     empleados.map((e) => e.id),

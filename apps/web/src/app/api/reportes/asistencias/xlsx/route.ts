@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   fetchSede,
+  enriquecerConAltaBaja,
   fetchEmpleadosPorSedePeriodo,
   fetchMarcasConSnapshot,
   rangeDates,
@@ -22,7 +23,7 @@ export async function GET(req: NextRequest) {
     .select("rol, nombre, username")
     .eq("id", user.id)
     .single<{ rol: string; nombre: string; username: string }>();
-  if (!perfil || !["ADMIN", "SUPERADMIN", "CEO", "SOPORTE"].includes(perfil.rol)) {
+  if (!perfil || !["ADMIN", "SUPERADMIN", "CEO", "SOPORTE", "COORDINACION"].includes(perfil.rol)) {
     return NextResponse.json({ error: "Acceso restringido." }, { status: 403 });
   }
 
@@ -71,7 +72,10 @@ export async function GET(req: NextRequest) {
   if (fechas.length > 62) {
     return NextResponse.json({ error: "Rango máximo: 62 días" }, { status: 400 });
   }
-  const empleados = await fetchEmpleadosPorSedePeriodo(supabase, sedeId, start, end);
+  const empleados = await enriquecerConAltaBaja(
+    supabase,
+    await fetchEmpleadosPorSedePeriodo(supabase, sedeId, start, end),
+  );
   const marcas = await fetchMarcasConSnapshot(supabase, empleados.map((e) => e.id), sedeId, start, end);
 
   const buffer = await buildAsistenciasXlsx({

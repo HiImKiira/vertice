@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition, useEffect } from "react";
 import { VortexLoader } from "@/components/VortexLoader";
+import { Icon } from "@/components/Icon";
 import { useRouter } from "next/navigation";
 import { sueldoEnLetra } from "@vertice/shared/numbers";
 import { crearContratoAction, type ContratoInput } from "./actions";
@@ -123,16 +124,41 @@ export function AltaForm({ sedes, config }: { sedes: Sede[]; config: Record<stri
       {/* Sección 1: Identidad */}
       <section className="surface-glow p-5">
         <div className="section-label">Identidad del trabajador</div>
+
+        {/* Guía de captura — el nombre DEBE ir en este orden */}
+        <div className="mb-4 rounded-lg border border-amber-400/30 bg-amber-500/[0.06] p-3">
+          <p className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-amber-200">
+            <Icon name="alert-triangle" size={13} /> Cómo escribir el nombre (importante)
+          </p>
+          <p className="text-[11px] leading-relaxed text-amber-100/90">
+            Escríbelo <strong>en este orden</strong>, tal como aparece en el acta o INE:
+          </p>
+          <ol className="mt-1.5 space-y-0.5 text-[11px] text-amber-100/90">
+            <li><strong>1º</strong> Apellido paterno &nbsp;→&nbsp; <span className="font-mono">PECH</span></li>
+            <li><strong>2º</strong> Apellido materno &nbsp;→&nbsp; <span className="font-mono">CANUL</span></li>
+            <li><strong>3º</strong> Nombre(s) &nbsp;→&nbsp; <span className="font-mono">MARIA JOSE</span></li>
+          </ol>
+          <p className="mt-2 rounded bg-black/20 px-2 py-1 font-mono text-[11px] text-emerald-200">
+            ✓ Se escribe así: PECH CANUL MARIA JOSE
+          </p>
+          <p className="mt-1 font-mono text-[11px] text-red-300/90">
+            ✗ NO así: Maria Jose Pech Canul
+          </p>
+        </div>
+
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="field sm:col-span-2">
-            <label>Nombre completo *</label>
+            <label>Nombre completo * — apellido paterno, apellido materno y luego nombre(s)</label>
             <input
               type="text"
               value={f.nombre_trabajador}
               onChange={(e) => set("nombre_trabajador", e.target.value)}
-              placeholder="APELLIDO PATERNO APELLIDO MATERNO NOMBRE(S)"
+              placeholder="PECH CANUL MARIA JOSE"
               autoFocus
             />
+            <p className="mt-1 text-[10px] text-muted-2">
+              Primero los <strong>dos apellidos</strong>, al final el nombre. Todo en mayúsculas, sin comas ni acentos raros.
+            </p>
           </div>
           <div className="field">
             <label>Sexo *</label>
@@ -150,26 +176,32 @@ export function AltaForm({ sedes, config }: { sedes: Sede[]; config: Record<stri
             </div>
           </div>
           <div className="field">
-            <label>RFC</label>
+            <label>RFC — 13 caracteres, como viene en su constancia</label>
             <input
               type="text"
               value={f.rfc}
               onChange={(e) => set("rfc", e.target.value.toUpperCase())}
-              placeholder="AAAA000000XXX"
+              placeholder="PECA900115ABC"
               maxLength={13}
             />
+            <p className="mt-1 text-[10px] text-muted-2">
+              4 letras + fecha de nacimiento (AAMMDD) + 3 caracteres. Si no lo tienes, déjalo vacío.
+            </p>
           </div>
           <div className="field sm:col-span-2">
-            <label>Domicilio completo *</label>
+            <label>Domicilio completo * — calle, número, colonia, ciudad y estado</label>
             <input
               type="text"
               value={f.domicilio_completo}
               onChange={(e) => set("domicilio_completo", e.target.value.toUpperCase())}
-              placeholder="CALLE 00 000 INT. 00 ENTRE 00 Y 00 COL. ..., MÉRIDA, YUCATÁN"
+              placeholder="CALLE 50 #123 X 21 Y 23, COL. CENTRO, MÉRIDA, YUCATÁN"
             />
+            <p className="mt-1 text-[10px] text-muted-2">
+              Todo en <strong>un solo renglón</strong>. Incluye la colonia y la ciudad — se usa tal cual en el contrato.
+            </p>
           </div>
           <div className="field">
-            <label>Código postal</label>
+            <label>Código postal — 5 números</label>
             <input
               type="text"
               value={f.cp}

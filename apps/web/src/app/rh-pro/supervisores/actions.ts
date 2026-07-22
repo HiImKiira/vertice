@@ -17,8 +17,8 @@ async function requireAdminLike() {
   if (!user) return { sb: null, userId: null, rol: null, error: "Sin sesión" };
   const { data: perfil } = await supabase
     .from("usuarios").select("rol").eq("id", user.id).single<{ rol: string }>();
-  if (!perfil || !["ADMIN", "SUPERADMIN", "CEO", "SOPORTE"].includes(perfil.rol)) {
-    return { sb: null, userId: null, rol: null, error: "Solo admin/superadmin/soporte" };
+  if (!perfil || !["ADMIN", "SUPERADMIN", "CEO", "SOPORTE", "COORDINACION"].includes(perfil.rol)) {
+    return { sb: null, userId: null, rol: null, error: "Solo admin/superadmin/soporte/coordinacion" };
   }
   return { sb: supabase, userId: user.id, rol: perfil.rol, error: null };
 }
@@ -311,7 +311,7 @@ export async function toggleAccesoFacturacionAction(
 // ─────────────────────────────────────────────────────────────────────
 // CREAR / EDITAR / ELIMINAR supervisor (usuario)
 // ─────────────────────────────────────────────────────────────────────
-const ROLES_VALIDOS = ["USER", "ADMIN", "SUPERADMIN", "CEO", "SOPORTE", "FACTURACION"] as const;
+const ROLES_VALIDOS = ["USER", "ADMIN", "SUPERADMIN", "CEO", "SOPORTE", "FACTURACION", "COORDINACION"] as const;
 type RolValido = (typeof ROLES_VALIDOS)[number];
 
 export type CrearSupResult =

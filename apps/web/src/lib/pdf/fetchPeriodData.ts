@@ -18,6 +18,54 @@ export interface Empleado {
   cambio_durante_periodo?: boolean | undefined;
   /** Días que efectivamente estuvo en la sede del reporte (post-snapshot) */
   dias_en_sede?: number | undefined;
+  /** Fecha de ingreso — para marcar NUEVO INGRESO en el periodo */
+  fecha_alta?: string | undefined;
+  /** Fecha de baja — para marcar BAJA en el periodo */
+  fecha_baja?: string | null | undefined;
+}
+
+/** DD/MM para las notas del reporte. */
+export function ddmm(iso: string): string {
+  const p = iso.split("-");
+  return `${p[2]}/${p[1]}`;
+}
+
+/** ¿El trabajador ingresó DENTRO del periodo del reporte? */
+export function esNuevoIngreso(e: Empleado, start: string, end: string): boolean {
+  return !!e.fecha_alta && e.fecha_alta >= start && e.fecha_alta <= end;
+}
+
+/** ¿El trabajador fue dado de baja DENTRO del periodo del reporte? */
+export function esBajaEnPeriodo(e: Empleado, start: string, end: string): boolean {
+  return !!e.fecha_baja && e.fecha_baja >= start && e.fecha_baja <= end;
+}
+
+/**
+ * Completa fecha_alta / fecha_baja de los empleados del reporte. El RPC de
+ * periodo ya trae fecha_baja, pero no fecha_alta; aquí se resuelven ambas de
+ * una sola consulta para poder marcar altas y bajas en PDF y Excel.
+ */
+export async function enriquecerConAltaBaja(
+  sb: SupabaseClient,
+  empleados: Empleado[],
+): Promise<Empleado[]> {
+  if (!empleados.length) return empleados;
+  const { data } = await sb
+    .from("empleados")
+    .select("id, fecha_alta, fecha_baja")
+    .in("id", empleados.map((e) => e.id));
+  const map = new Map(
+    ((data ?? []) as Array<{ id: string; fecha_alta: string | null; fecha_baja: string | null }>)
+      .map((r) => [r.id, r]),
+  );
+  return empleados.map((e) => {
+    const d = map.get(e.id);
+    return {
+      ...e,
+      fecha_alta: d?.fecha_alta ?? undefined,
+      fecha_baja: d?.fecha_baja ?? e.fecha_baja ?? null,
+    };
+  });
 }
 
 /** Genera el array de fechas YYYY-MM-DD entre start y end (inclusive). */
@@ -92,6 +140,7 @@ export async function fetchEmpleadosPorSedePeriodo(
     nombre: string;
     jornada: string;
     salario_diario: number;
+    fecha_baja: string | null;
     cambio_durante_periodo: boolean;
     dias_en_sede: number;
   }>).map((r) => ({
@@ -100,6 +149,7 @@ export async function fetchEmpleadosPorSedePeriodo(
     nombre: r.nombre,
     jornada: r.jornada,
     salario_diario: r.salario_diario,
+    fecha_baja: r.fecha_baja,
     cambio_durante_periodo: r.cambio_durante_periodo,
     dias_en_sede: r.dias_en_sede,
   }));

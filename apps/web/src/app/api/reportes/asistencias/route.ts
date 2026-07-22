@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AsistenciasDoc } from "@/lib/pdf/AsistenciasDoc";
-import { fetchSede, fetchEmpleadosPorSedePeriodo, fetchMarcasConSnapshot, rangeDates, quincenaRange } from "@/lib/pdf/fetchPeriodData";
+import { fetchSede, fetchEmpleadosPorSedePeriodo, fetchMarcasConSnapshot, rangeDates, quincenaRange, enriquecerConAltaBaja } from "@/lib/pdf/fetchPeriodData";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
     .select("rol, nombre, username")
     .eq("id", user.id)
     .single<{ rol: string; nombre: string; username: string }>();
-  if (!perfil || !["ADMIN", "SUPERADMIN", "CEO", "SOPORTE"].includes(perfil.rol)) {
+  if (!perfil || !["ADMIN", "SUPERADMIN", "CEO", "SOPORTE", "COORDINACION"].includes(perfil.rol)) {
     return NextResponse.json({ error: "Acceso restringido." }, { status: 403 });
   }
 
@@ -72,7 +72,10 @@ export async function GET(req: NextRequest) {
   }
   // Snapshot histórico: incluye empleados que estuvieron en esta sede
   // durante el periodo, aunque hoy ya no estén ahí.
-  const empleados = await fetchEmpleadosPorSedePeriodo(supabase, sedeId, start, end);
+  const empleados = await enriquecerConAltaBaja(
+    supabase,
+    await fetchEmpleadosPorSedePeriodo(supabase, sedeId, start, end),
+  );
   const marcas = await fetchMarcasConSnapshot(supabase, empleados.map((e) => e.id), sedeId, start, end);
 
   const buffer = await renderToBuffer(

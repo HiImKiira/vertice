@@ -9,7 +9,7 @@ import { logoutAction } from "@/app/login/actions";
 export interface TopbarUser {
   username: string;
   nombre: string;
-  rol: "USER" | "ADMIN" | "SUPERADMIN" | "CEO" | "SOPORTE" | "FACTURACION";
+  rol: "USER" | "ADMIN" | "SUPERADMIN" | "CEO" | "SOPORTE" | "FACTURACION" | "COORDINACION";
 }
 
 interface NavItem {

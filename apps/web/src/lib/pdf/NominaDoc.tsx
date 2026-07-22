@@ -1,4 +1,5 @@
 import { Document, Page, Text, View, StyleSheet, Svg, Polygon, Line, Defs, LinearGradient, Stop } from "@react-pdf/renderer";
+import { esNuevoIngreso, esBajaEnPeriodo, ddmm } from "./fetchPeriodData";
 import {
   CODIGO_SPEC,
   type CodigoAsistencia,
@@ -137,6 +138,10 @@ export interface NominaDocProps {
     cambio_durante_periodo?: boolean | undefined;
     /** Días que estuvo en la sede de este reporte */
     dias_en_sede?: number | undefined;
+    /** Fecha de ingreso — se marca si cae dentro del periodo */
+    fecha_alta?: string | undefined;
+    /** Fecha de baja — se marca si cae dentro del periodo */
+    fecha_baja?: string | null | undefined;
   }[];
   marcas: Record<string, Record<string, CodigoAsistencia>>; // [empleado_id][fecha] = codigo
   generadoPor: string;
@@ -269,6 +274,16 @@ export function NominaDoc(props: NominaDocProps) {
                 {f.emp.cambio_durante_periodo && (
                   <Text style={{ fontSize: 6, color: "#854F0B", fontFamily: "Helvetica-Bold", marginTop: 1 }}>
                     ⚑ Se cambió de sede{typeof f.emp.dias_en_sede === "number" ? ` · ${f.emp.dias_en_sede}d aquí` : ""}
+                  </Text>
+                )}
+                {esNuevoIngreso(f.emp, props.fechaInicio, props.fechaFin) && (
+                  <Text style={{ fontSize: 6, color: "#047857", fontFamily: "Helvetica-Bold", marginTop: 1 }}>
+                    ★ NUEVO INGRESO · alta {ddmm(f.emp.fecha_alta!)}
+                  </Text>
+                )}
+                {esBajaEnPeriodo(f.emp, props.fechaInicio, props.fechaFin) && (
+                  <Text style={{ fontSize: 6, color: "#B91C1C", fontFamily: "Helvetica-Bold", marginTop: 1 }}>
+                    ■ DADO DE BAJA el {ddmm(f.emp.fecha_baja!)}
                   </Text>
                 )}
               </View>

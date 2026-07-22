@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireUser, requireAdminLike } from "@/lib/session";
+import { requireUser, requireAdminLikeOrCoord } from "@/lib/session";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Topbar } from "@/components/Topbar";
 import { BajaForm } from "./BajaForm";
@@ -19,7 +19,7 @@ interface SedeRow { id: string; abrev: string; nombre: string }
 
 export default async function BajaPage() {
   const { profile } = await requireUser();
-  requireAdminLike(profile.rol);
+  requireAdminLikeOrCoord(profile.rol);
   const supabase = await createSupabaseServerClient();
 
   const [{ data: emps }, { data: sedes }] = await Promise.all([

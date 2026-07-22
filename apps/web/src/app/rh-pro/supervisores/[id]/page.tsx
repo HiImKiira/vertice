@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { requireUser, requireAdminLike } from "@/lib/session";
+import { requireUser, requireAdminLikeOrCoord } from "@/lib/session";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Topbar } from "@/components/Topbar";
 import { Icon } from "@/components/Icon";
@@ -10,6 +10,8 @@ import { GestionPanel } from "./GestionPanel";
 import { DatosEditor } from "./DatosEditor";
 import { AsignacionesEditorInline } from "./AsignacionesEditor";
 import { AutoRefresh } from "../../../live/AutoRefresh";
+import { WhatsAppButton } from "@/components/WhatsAppButton";
+import { coberturaQuincena } from "@/lib/quincena";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Supervisor · RH Pro" };
@@ -69,7 +71,7 @@ function meridaToday(): string {
 
 export default async function SupervisorDetailPage({ params }: PageProps) {
   const { profile } = await requireUser();
-  requireAdminLike(profile.rol);
+  requireAdminLikeOrCoord(profile.rol);
   const { id } = await params;
   const supabase = await createSupabaseServerClient();
 
@@ -145,6 +147,12 @@ export default async function SupervisorDetailPage({ params }: PageProps) {
   const colorPct = resumen.pct_hoy >= 95 ? "#10B981" : resumen.pct_hoy >= 50 ? "#F59E0B" : "#EF4444";
   const hoy = meridaToday();
 
+  // Avance de la quincena día por día + mensaje de recordatorio para WhatsApp
+  const quincena = await coberturaQuincena(supabase, id);
+  const mensajeWA = quincena.diasIncompletos.length === 0
+    ? `Hola ${resumen.nombre}, tu pase de lista de la quincena ${quincena.quincena.label} está COMPLETO (${quincena.diasCompletos}/${quincena.diasTranscurridos} días al 100%). ¡Gracias!`
+    : `Hola ${resumen.nombre}, te faltan capturar estos días de la quincena ${quincena.quincena.label}:\n${quincena.diasIncompletos.join(", ")}\n\nLlevas ${quincena.diasCompletos}/${quincena.diasTranscurridos} días al 100% (${quincena.pctGlobal}%). Por favor complétalos en Vortex. Gracias.`;
+
   // Agrupar asignaciones por sede
   const porSede = new Map<string, { sede: { abrev: string; nombre: string }; jornadas: string[] }>();
   for (const a of asignaciones) {
@@ -217,6 +225,44 @@ export default async function SupervisorDetailPage({ params }: PageProps) {
           />
           <KPI label="Capturas del mes" value={resumen.capturas_mes} sub={mensual ? `${mensual.pct_a_hoy ?? 0}% del esperado` : ""} color="emerald" />
         </section>
+
+        {/* Quincena día por día + recordatorio por WhatsApp */}
+        {!quincena.sinAsignaciones && (
+          <section className="mb-6 rounded-xl border border-white/10 bg-[color:var(--card)] p-4">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h2 className="font-display text-sm">Quincena {quincena.quincena.label}</h2>
+                <p className="text-[11px] text-muted">
+                  {quincena.diasCompletos}/{quincena.diasTranscurridos} días al 100% · avance {quincena.pctGlobal}%
+                  {quincena.diasIncompletos.length > 0 && ` · ${quincena.diasIncompletos.length} día(s) pendientes`}
+                </p>
+              </div>
+              <WhatsAppButton mensaje={mensajeWA} label="Recordar por WhatsApp" />
+            </div>
+            <ul className="grid grid-cols-8 gap-1.5 sm:grid-cols-16">
+              {quincena.dias.map((d) => {
+                const num = Number(d.fecha.split("-")[2]);
+                const estilo = d.futuro
+                  ? "border-white/5 bg-white/[0.02] text-muted-2"
+                  : d.completo
+                    ? "border-emerald-400/40 bg-emerald-500/[0.12] text-emerald-200"
+                    : d.capturados === 0
+                      ? "border-red-400/40 bg-red-500/[0.10] text-red-200"
+                      : "border-amber-400/40 bg-amber-500/[0.10] text-amber-200";
+                return (
+                  <li
+                    key={d.fecha}
+                    className={`rounded border px-1 py-1 text-center ${estilo}`}
+                    title={d.futuro ? "Aún no llega" : `${d.fecha}: ${d.capturados}/${d.esperados} (${d.pct}%)`}
+                  >
+                    <div className="font-display text-sm leading-tight">{num}</div>
+                    <div className="font-mono text-[8px]">{d.futuro ? "—" : `${d.pct}%`}</div>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        )}
 
         <div className="grid gap-6 lg:grid-cols-[3fr_2fr]">
           <div className="space-y-6">

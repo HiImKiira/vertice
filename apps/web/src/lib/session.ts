@@ -30,6 +30,28 @@ export function requireAdminLike(rol: TopbarUser["rol"]): void {
   if (!isAdminLike(rol)) redirect("/dashboard");
 }
 
+/**
+ * COORDINACION: perfil acotado (ej. Pedro). Solo tiene:
+ *   · Reportes PDF/Excel
+ *   · Alta y baja de empleados + módulo de contratos + consulta
+ *   · Medición de supervisores (avance de quincena) y push a supervisores
+ * NO entra a facturación, sedes, descansos, liberaciones, LIVE, etc.
+ * A propósito NO está en isAdminLike: no debe heredar permisos de RH completo
+ * (por ejemplo sobrescribir marcas ya capturadas en pase de lista).
+ */
+export function isCoordinacion(rol: TopbarUser["rol"]): boolean {
+  return rol === "COORDINACION";
+}
+
+/** Áreas que COORDINACION comparte con RH. */
+export function isAdminLikeOrCoord(rol: TopbarUser["rol"]): boolean {
+  return isAdminLike(rol) || isCoordinacion(rol);
+}
+
+export function requireAdminLikeOrCoord(rol: TopbarUser["rol"]): void {
+  if (!isAdminLikeOrCoord(rol)) redirect("/dashboard");
+}
+
 /** El rol FACTURACION es exclusivo del módulo de facturación. */
 export function isFacturacion(rol: TopbarUser["rol"]): boolean {
   return rol === "FACTURACION";

@@ -7,7 +7,20 @@ import {
   PRIMA_DOMINICAL_DEFAULT,
   DESCUENTO_FALTA_DEFAULT,
 } from "@vertice/shared/codes";
-import type { Empleado } from "@/lib/pdf/fetchPeriodData";
+import { esNuevoIngreso, esBajaEnPeriodo, ddmm, type Empleado } from "@/lib/pdf/fetchPeriodData";
+
+/**
+ * Nombre + marcas del periodo: cambio de sede, NUEVO INGRESO (alta dentro del
+ * periodo) y BAJA (dado de baja dentro del periodo). Así el export deja
+ * constancia de altas y bajas de esa quincena.
+ */
+function nombreConMarcas(emp: Empleado, inicio: string, fin: string): string {
+  let s = emp.nombre;
+  if (emp.cambio_durante_periodo) s += ` ⚑ (${emp.dias_en_sede ?? 0}d aquí)`;
+  if (esNuevoIngreso(emp, inicio, fin)) s += ` ★ NUEVO INGRESO (alta ${ddmm(emp.fecha_alta!)})`;
+  if (esBajaEnPeriodo(emp, inicio, fin)) s += ` ■ DADO DE BAJA ${ddmm(emp.fecha_baja!)}`;
+  return s;
+}
 
 // Branding colors (mismo que PDF para coherencia)
 const COLOR_BG = "FF0A1428";
@@ -137,7 +150,7 @@ export async function buildAsistenciasXlsx(ctx: BuildContext): Promise<Buffer> {
     let totA = 0, totF = 0, totDS = 0, totDT = 0;
     const rowData: Record<string, string | number> = {
       id: emp.numero_empleado,
-      nombre: emp.nombre + (emp.cambio_durante_periodo ? ` ⚑ (${emp.dias_en_sede ?? 0}d aquí)` : ""),
+      nombre: nombreConMarcas(emp, ctx.fechaInicio, ctx.fechaFin),
       jornada: emp.jornada,
     };
     for (const f of fechasObj) {
@@ -360,7 +373,7 @@ export async function buildNominaXlsx(ctx: BuildContext): Promise<Buffer> {
     const calc = calcEmp(emp, ctx.fechas, ctx.marcas[emp.id]);
     const rowData: Record<string, string | number> = {
       id: emp.numero_empleado,
-      nombre: emp.nombre + (emp.cambio_durante_periodo ? ` ⚑ (${emp.dias_en_sede ?? 0}d aquí)` : ""),
+      nombre: nombreConMarcas(emp, ctx.fechaInicio, ctx.fechaFin),
       jornada: emp.jornada,
       diasLab: calc.diasLab,
       diasDS: calc.diasDS,

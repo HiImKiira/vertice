@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireUser, requireAdminLike } from "@/lib/session";
+import { requireUser, requireAdminLikeOrCoord } from "@/lib/session";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Topbar } from "@/components/Topbar";
 import { AltaForm } from "./AltaForm";
@@ -22,7 +22,7 @@ interface ContratoRow {
 
 export default async function AltaPage() {
   const { profile } = await requireUser();
-  requireAdminLike(profile.rol);
+  requireAdminLikeOrCoord(profile.rol);
   const supabase = await createSupabaseServerClient();
 
   // Sedes con su ultimo_folio para preview
