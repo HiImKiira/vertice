@@ -132,7 +132,7 @@ export async function cambiarEstadoIncapacidadAction(input: {
 }): Promise<IncapResult> {
   const auth = await getProfile();
   if (!auth.sb || !auth.user) return { ok: false, error: auth.error ?? "Sin sesión" };
-  if (!["ADMIN", "SUPERADMIN", "CEO", "SOPORTE"].includes(auth.rol ?? "")) {
+  if (!["ADMIN", "SUPERADMIN", "CEO", "SOPORTE", "COORDINACION"].includes(auth.rol ?? "")) {
     return { ok: false, error: "Solo ADMIN/SUPERADMIN/SOPORTE pueden avanzar el estado" };
   }
 
@@ -242,7 +242,7 @@ export async function aplicarDiasIncapacidadAction(input: {
 }): Promise<{ ok: true; marcados: number; dias: number; rango: string } | { ok: false; error: string }> {
   const auth = await getProfile();
   if (!auth.sb || !auth.user) return { ok: false, error: auth.error ?? "Sin sesión" };
-  if (!["ADMIN", "SUPERADMIN", "CEO", "SOPORTE"].includes(auth.rol ?? "")) {
+  if (!["ADMIN", "SUPERADMIN", "CEO", "SOPORTE", "COORDINACION"].includes(auth.rol ?? "")) {
     return { ok: false, error: "Solo RH (ADMIN/SUPERADMIN/SOPORTE) puede marcar días de incapacidad" };
   }
   const start = (input.fecha_inicio ?? "").slice(0, 10);
@@ -333,7 +333,7 @@ export async function dictaminarIncapacidadAction(input: {
 }): Promise<IncapResult> {
   const auth = await getProfile();
   if (!auth.sb || !auth.user) return { ok: false, error: auth.error ?? "Sin sesión" };
-  if (!["ADMIN", "SUPERADMIN", "CEO", "SOPORTE"].includes(auth.rol ?? "")) {
+  if (!["ADMIN", "SUPERADMIN", "CEO", "SOPORTE", "COORDINACION"].includes(auth.rol ?? "")) {
     return { ok: false, error: "Solo ADMIN/SUPERADMIN/SOPORTE" };
   }
 

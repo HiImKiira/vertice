@@ -210,6 +210,7 @@ function modulosFor(rol: string): Modulo[] {
   if (rol === "COORDINACION") {
     const permitidos = new Set([
       "/reportes", "/rh-pro", "/rh-pro/contratos", "/rh-pro/consulta", "/rh-pro/supervisores",
+      "/incapacidades", // gestión de incapacidades IMSS (ver v31: RLS propia)
       "/soporte", // para que pueda levantar tickets a RH
     ]);
     return all.filter((m) => permitidos.has(m.href));

@@ -159,7 +159,7 @@ export async function eliminarDocumentoAction(documentoId: string): Promise<{ ok
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Sin sesión" };
   const { data: perfil } = await supabase.from("usuarios").select("rol").eq("id", user.id).single<{ rol: string }>();
-  if (!perfil || !["ADMIN", "SUPERADMIN", "CEO", "SOPORTE"].includes(perfil.rol)) {
+  if (!perfil || !["ADMIN", "SUPERADMIN", "CEO", "SOPORTE", "COORDINACION"].includes(perfil.rol)) {
     return { ok: false, error: "Solo admin-like puede eliminar documentos" };
   }
 

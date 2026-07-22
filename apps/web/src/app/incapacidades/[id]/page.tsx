@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { requireUser , blockCoordinacion } from "@/lib/session";
+import { requireUser } from "@/lib/session";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Topbar } from "@/components/Topbar";
 import { Icon } from "@/components/Icon";
@@ -57,10 +57,9 @@ interface RawEvento {
 
 export default async function IncapacidadDetailPage({ params }: PageProps) {
   const { profile } = await requireUser();
-  blockCoordinacion(profile.rol);
   const { id } = await params;
   const supabase = await createSupabaseServerClient();
-  const isAdmin = ["ADMIN", "SUPERADMIN", "CEO", "SOPORTE"].includes(profile.rol);
+  const isAdmin = ["ADMIN", "SUPERADMIN", "CEO", "SOPORTE", "COORDINACION"].includes(profile.rol);
 
   const { data: raw } = await supabase
     .from("incapacidades")
