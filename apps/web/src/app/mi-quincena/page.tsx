@@ -6,17 +6,10 @@ import { Icon } from "@/components/Icon";
 import { WhatsAppButton } from "@/components/WhatsAppButton";
 import { coberturaQuincena } from "@/lib/quincena";
 import { AvisarRH } from "./AvisarRH";
+import { DiasQuincena } from "./DiasQuincena";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Mi quincena · Vortex" };
-
-const DIAS_CORTO = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
-
-function diaNum(iso: string): { d: number; dow: number } {
-  const p = iso.split("-");
-  const dt = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
-  return { d: dt.getDate(), dow: dt.getDay() };
-}
 
 export default async function MiQuincenaPage() {
   const { id: userId, profile } = await requireUser();
@@ -79,37 +72,13 @@ export default async function MiQuincenaPage() {
               <div className="h-full rounded-full transition-all" style={{ width: `${cob.pctGlobal}%`, background: colorPct }} />
             </div>
 
-            {/* Grid de días */}
+            {/* Grid de días — clicable: abre quién falta y deja marcarlo ahí mismo */}
             <section className="mb-5">
               <div className="section-label mb-2">Día por día</div>
-              <ul className="grid grid-cols-4 gap-2 sm:grid-cols-8">
-                {cob.dias.map((d) => {
-                  const { d: num, dow } = diaNum(d.fecha);
-                  const estilo = d.futuro
-                    ? "border-white/5 bg-white/[0.02] text-muted-2"
-                    : d.completo
-                      ? "border-emerald-400/40 bg-emerald-500/[0.12] text-emerald-200"
-                      : d.capturados === 0
-                        ? "border-red-400/40 bg-red-500/[0.10] text-red-200"
-                        : "border-amber-400/40 bg-amber-500/[0.10] text-amber-200";
-                  return (
-                    <li
-                      key={d.fecha}
-                      className={`rounded-lg border p-2 text-center ${estilo}`}
-                      title={d.futuro ? "Aún no llega" : `${d.capturados}/${d.esperados} capturados (${d.pct}%)`}
-                    >
-                      <div className="text-[9px] uppercase opacity-70">{DIAS_CORTO[dow]}</div>
-                      <div className="font-display text-lg leading-tight">{num}</div>
-                      <div className="font-mono text-[9px]">
-                        {d.futuro ? "—" : d.completo ? "100%" : `${d.pct}%`}
-                      </div>
-                      {!d.futuro && !d.completo && (
-                        <div className="text-[8px] opacity-80">{d.capturados}/{d.esperados}</div>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
+              <p className="mb-2 text-[11px] text-muted">
+                Toca un día para ver <strong>quién falta por marcar</strong> y capturarlo sin salir de aquí.
+              </p>
+              <DiasQuincena dias={cob.dias} />
               <div className="mt-2 flex flex-wrap gap-3 text-[10px] text-muted-2">
                 <span><span className="mr-1 inline-block h-2 w-2 rounded-sm bg-emerald-400" />100% completo</span>
                 <span><span className="mr-1 inline-block h-2 w-2 rounded-sm bg-amber-400" />Incompleto</span>
