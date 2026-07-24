@@ -37,7 +37,7 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
 
   const { data: perfil } = await supabase
     .from("usuarios").select("rol").eq("id", user.id).single<{ rol: string }>();
-  if (!perfil || !["ADMIN", "SUPERADMIN", "CEO", "SOPORTE"].includes(perfil.rol)) {
+  if (!perfil || !["ADMIN", "SUPERADMIN", "CEO", "SOPORTE", "COORDINACION"].includes(perfil.rol)) {
     return NextResponse.json({ error: "Acceso restringido" }, { status: 403 });
   }
 

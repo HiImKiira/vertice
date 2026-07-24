@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireUser , blockCoordinacion } from "@/lib/session";
+import { requireUser } from "@/lib/session";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Topbar } from "@/components/Topbar";
 import { Icon } from "@/components/Icon";
@@ -13,7 +13,6 @@ export const metadata = { title: "Mi quincena · Vortex" };
 
 export default async function MiQuincenaPage() {
   const { id: userId, profile } = await requireUser();
-  blockCoordinacion(profile.rol);
   const supabase = await createSupabaseServerClient();
   const cob = await coberturaQuincena(supabase, userId);
 

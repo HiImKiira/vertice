@@ -44,7 +44,7 @@ export async function actualizarContratoAction(input: ContratoUpdateInput): Prom
   if (!user) return { ok: false, error: "Sin sesión." };
 
   const { data: perfil } = await supabase.from("usuarios").select("rol").eq("id", user.id).single<{ rol: string }>();
-  if (!perfil || !["ADMIN", "SUPERADMIN"].includes(perfil.rol)) {
+  if (!perfil || !["ADMIN", "SUPERADMIN", "COORDINACION"].includes(perfil.rol)) {
     return { ok: false, error: "Solo ADMIN o SUPERADMIN." };
   }
 

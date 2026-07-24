@@ -15,7 +15,7 @@ export async function guardarNotaAction(empleadoId: string, notas: string): Prom
     .select("rol")
     .eq("id", user.id)
     .single<{ rol: string }>();
-  if (!perfil || !["ADMIN", "SUPERADMIN", "CEO", "SOPORTE"].includes(perfil.rol)) {
+  if (!perfil || !["ADMIN", "SUPERADMIN", "CEO", "SOPORTE", "COORDINACION"].includes(perfil.rol)) {
     return { ok: false, error: "Solo ADMIN/SUPERADMIN/SOPORTE." };
   }
 
@@ -68,7 +68,7 @@ export async function actualizarDatosEmpleadoAction(
     .single<{ rol: string; acceso_facturacion: boolean }>();
   if (!perfil) return { ok: false, error: "Perfil no encontrado" };
 
-  const esAdminLike = ["ADMIN", "SUPERADMIN", "CEO", "SOPORTE"].includes(perfil.rol);
+  const esAdminLike = ["ADMIN", "SUPERADMIN", "CEO", "SOPORTE", "COORDINACION"].includes(perfil.rol);
   const tieneAcceso = perfil.acceso_facturacion === true;
   if (!esAdminLike && !tieneAcceso) {
     return { ok: false, error: "Solo admin-like o acceso_facturacion." };

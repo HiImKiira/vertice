@@ -66,7 +66,7 @@ async function generarYSubir(contratoId: string) {
   if (!user) return { error: "Sin sesión", status: 401 as const };
 
   const { data: perfil } = await supabase.from("usuarios").select("rol").eq("id", user.id).single<{ rol: string }>();
-  if (!perfil || !["ADMIN", "SUPERADMIN"].includes(perfil.rol)) {
+  if (!perfil || !["ADMIN", "SUPERADMIN", "COORDINACION"].includes(perfil.rol)) {
     return { error: "Solo ADMIN/SUPERADMIN", status: 403 as const };
   }
 
@@ -115,7 +115,7 @@ async function getSignedUrl(contratoId: string) {
   if (!user) return { error: "Sin sesión", status: 401 as const };
 
   const { data: perfil } = await supabase.from("usuarios").select("rol").eq("id", user.id).single<{ rol: string }>();
-  if (!perfil || !["ADMIN", "SUPERADMIN", "CEO"].includes(perfil.rol)) {
+  if (!perfil || !["ADMIN", "SUPERADMIN", "CEO", "COORDINACION"].includes(perfil.rol)) {
     return { error: "Acceso restringido", status: 403 as const };
   }
 

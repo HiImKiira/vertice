@@ -1,5 +1,5 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { requireUser , blockCoordinacion } from "@/lib/session";
+import { requireUser } from "@/lib/session";
 import { Topbar } from "@/components/Topbar";
 import { PaseListaClient, type Asignacion, type Empleado, type SedeShape } from "./PaseListaClient";
 
@@ -29,7 +29,6 @@ function previousDay(iso: string): string {
 
 export default async function PaseListaPage({ searchParams }: PageProps) {
   const { id: userId, profile } = await requireUser();
-  blockCoordinacion(profile.rol);
   const supabase = await createSupabaseServerClient();
 
   const params = await searchParams;
