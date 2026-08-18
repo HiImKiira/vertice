@@ -284,6 +284,18 @@ export default async function DashboardPage() {
   const sedesAgrupadas = [...porSede.values()];
 
   const tieneAccesoFacturacion = perfilFacRes.data?.acceso_facturacion === true;
+
+  // ¿RH le restableció la contraseña y aún no define la suya? (v34; defensivo
+  // por si la columna no existe todavía — en ese caso simplemente no hay banner)
+  let passwordPendiente = false;
+  try {
+    const { data: prp } = await supabase
+      .from("usuarios")
+      .select("password_reset_pendiente")
+      .eq("id", id)
+      .maybeSingle<{ password_reset_pendiente: boolean }>();
+    passwordPendiente = prp?.password_reset_pendiente === true;
+  } catch { /* columna ausente */ }
   const esAdminLike = isAdminLike(profile.rol);
   const esFacturacion = profile.rol === "FACTURACION";
 
@@ -307,6 +319,27 @@ export default async function DashboardPage() {
       <Topbar user={profile} />
 
       <div className="relative z-10 mx-auto max-w-[1280px] px-4 py-6 sm:px-6 sm:py-10">
+        {/* Aviso: RH restableció tu contraseña — define la nueva */}
+        {passwordPendiente && (
+          <a
+            href="/cuenta"
+            className="mb-6 flex items-center gap-3 rounded-xl border border-amber-400/50 bg-amber-500/[0.12] p-4 transition hover:bg-amber-500/[0.2]"
+          >
+            <span className="text-2xl">🔑</span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-semibold text-amber-100">
+                RH restableció tu contraseña — define la nueva ahora
+              </span>
+              <span className="block text-xs text-amber-200/80">
+                Toca aquí para ir a Mi cuenta. Tu sesión sigue activa; solo escribe tu nueva contraseña y guarda.
+              </span>
+            </span>
+            <span className="shrink-0 rounded-md bg-amber-500/90 px-3 py-1.5 text-xs font-bold text-black">
+              Cambiar →
+            </span>
+          </a>
+        )}
+
         <section className="mb-8 animate-fade-up sm:mb-10">
           <p className={`role-badge role-${profile.rol} mb-3`}>{profile.rol}</p>
           <h1 className="font-display text-3xl leading-[1.1] sm:text-5xl">

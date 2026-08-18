@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { Icon } from "@/components/Icon";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { confirmarPasswordCambiadaAction } from "./actions";
 
 export function CambiarPasswordForm() {
   const [pending, start] = useTransition();
@@ -20,6 +21,8 @@ export function CambiarPasswordForm() {
       const { error } = await supabase.auth.updateUser({ password: nueva });
       if (error) { setMsg({ ok: false, text: `No se pudo cambiar: ${error.message}` }); return; }
       setNueva(""); setConfirma("");
+      // Apagar el aviso "define tu nueva contraseña" del dashboard
+      await confirmarPasswordCambiadaAction().catch(() => {});
       setMsg({ ok: true, text: "✓ Contraseña actualizada. Úsala la próxima vez que inicies sesión." });
     });
   }
