@@ -6,7 +6,13 @@ const PUBLIC_PATHS = new Set(["/", "/login", "/favicon.svg"]);
 function isPublic(pathname: string): boolean {
   if (PUBLIC_PATHS.has(pathname)) return true;
   if (pathname.startsWith("/_next")) return true;
-  if (pathname.startsWith("/api/public")) return true;
+  // Las rutas /api/* traen su propia autenticación (rol en reportes/contratos,
+  // CRON_SECRET en crons, etc. — todas nacieron sin middleware). Redirigirlas
+  // a /login rompería pg_cron y los fetch de la app.
+  if (pathname.startsWith("/api/")) return true;
+  // Archivos estáticos de /public (sw.js, manifest, iconos, sonidos,
+  // reset-sw.html…). Un service worker NO acepta redirects al registrarse.
+  if (/\.[a-z0-9]+$/i.test(pathname)) return true;
   return false;
 }
 
