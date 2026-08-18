@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { notifyAdminLike } from "@/lib/push";
+import { crearTicketAction } from "@/app/soporte/actions";
 import { coberturaQuincena, seEsperaEseDia } from "@/lib/quincena";
 import { CODIGOS, type CodigoAsistencia } from "@vertice/shared/codes";
 
@@ -170,50 +171,24 @@ export async function guardarMarcasDiaAction(input: {
 export type LiberacionResult = { ok: true; mensaje: string } | { ok: false; error: string };
 
 /**
- * Pide a Soporte/SuperAdmin habilitar una fecha cerrada. Crea un ticket
- * DESBLOQUEO con la fecha, que ellos liberan con un clic desde /soporte.
+ * Pide a Soporte/SuperAdmin habilitar una fecha cerrada. Reusa el flujo real
+ * de tickets (crearTicketAction: ticket DESBLOQUEO + primer mensaje + push a
+ * admins), que ellos liberan con un clic desde /soporte.
  */
 export async function solicitarHabilitarFechaAction(fecha: string, motivo: string): Promise<LiberacionResult> {
-  const supabase = await createSupabaseServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { ok: false, error: "Sin sesión" };
   if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return { ok: false, error: "Fecha inválida" };
 
-  const { data: perfil } = await supabase
-    .from("usuarios").select("nombre, username").eq("id", user.id)
-    .single<{ nombre: string; username: string }>();
-  const quien = perfil?.nombre ?? perfil?.username ?? "Supervisor";
-
-  const { data: ticket, error } = await supabase
-    .from("tickets_soporte")
-    .insert({
-      supervisor_id: user.id,
-      tipo: "DESBLOQUEO",
-      asunto: `Habilitar ${fecha} para capturar pase de lista`,
-      mensaje: motivo.trim() || `${quien} solicita habilitar la fecha ${fecha} para completar su pase de lista de la quincena.`,
-      urgencia: "URGENTE",
-      fecha_solicitada: fecha,
-    })
-    .select("folio")
-    .single<{ folio: string }>();
-  if (error) return { ok: false, error: error.message };
-
-  void notifyAdminLike(
-    {
-      title: "Vortex · Solicitud de desbloqueo",
-      body: `${quien} pide habilitar el ${fecha} para completar su pase de lista.`,
-      url: "/soporte",
-      tag: `desbloqueo-${fecha}-${user.id}`,
-      icon: "/icons/icon-192.png",
-      data: { tipo: "desbloqueo", fecha },
-      requireInteraction: true,
-    },
-    "ticket_desbloqueo",
-    user.id,
-  ).catch((e) => console.error("[mi-quincena] push desbloqueo:", e));
+  const r = await crearTicketAction({
+    tipo: "DESBLOQUEO",
+    asunto: `Habilitar ${fecha} para capturar pase de lista`,
+    mensaje: motivo.trim() || `Solicito habilitar la fecha ${fecha} para completar mi pase de lista de la quincena.`,
+    urgencia: "URGENTE",
+    fecha_solicitada: fecha,
+  });
+  if (!r.ok) return { ok: false, error: r.error };
 
   revalidatePath("/mi-quincena");
-  return { ok: true, mensaje: `Solicitud enviada${ticket?.folio ? ` (${ticket.folio})` : ""}. Soporte recibió la notificación.` };
+  return { ok: true, mensaje: "Solicitud enviada. Soporte recibió la notificación y puede liberar la fecha con un clic." };
 }
 
 export type AvisoResult = { ok: true; mensaje: string } | { ok: false; error: string };

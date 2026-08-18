@@ -177,6 +177,15 @@ function modulosFor(rol: string): Modulo[] {
       badge: { label: "ADMIN+", cls: "pill pill-amber" },
     },
     {
+      href: "/rh-pro/correcciones",
+      icon: "🛠️",
+      iconBg: "rgba(239,68,68,0.12)",
+      iconBorder: "rgba(239,68,68,0.3)",
+      title: "Correcciones",
+      sub: "Elimina incapacidades mal registradas y corrige marcas de asistencia. Todo queda en bitácora.",
+      badge: { label: "ADMIN+", cls: "pill pill-red" },
+    },
+    {
       href: "/rh-pro/actividad",
       icon: "🗂️",
       iconBg: "rgba(139,92,246,0.12)",
@@ -219,7 +228,7 @@ function modulosFor(rol: string): Modulo[] {
   }
 
   const adminLike = ["ADMIN", "SUPERADMIN", "CEO", "SOPORTE"].includes(rol);
-  const adminOnly = new Set(["/live", "/rh-pro", "/rh-pro/empleados", "/rh-pro/contratos", "/rh-pro/sedes", "/rh-pro/descansos-semanales", "/rh-pro/consulta", "/rh-pro/actividad", "/rh-pro/supervisores", "/reportes"]);
+  const adminOnly = new Set(["/live", "/rh-pro", "/rh-pro/empleados", "/rh-pro/contratos", "/rh-pro/sedes", "/rh-pro/descansos-semanales", "/rh-pro/consulta", "/rh-pro/actividad", "/rh-pro/correcciones", "/rh-pro/supervisores", "/reportes"]);
   return all.filter((m) => (adminOnly.has(m.href) ? adminLike : true));
 }
 

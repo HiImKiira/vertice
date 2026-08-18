@@ -20,7 +20,7 @@ function diasTxt(arr: string[] | null): string {
   return arr.map((d) => DIA_FULL[d] ?? d).join(" y ");
 }
 
-type Categoria = "descanso_fijo" | "cambio_sede" | "descanso_temporal" | "incapacidad";
+type Categoria = "descanso_fijo" | "cambio_sede" | "descanso_temporal" | "incapacidad" | "correccion";
 
 interface Item {
   key: string;
@@ -39,6 +39,7 @@ const CAT_SPEC: Record<Categoria, { label: string; color: string; icon: IconName
   descanso_temporal: { label: "Descanso temporal", color: "#60A5FA", icon: "calendar" },
   cambio_sede:       { label: "Cambio sede/jornada", color: "#8B5CF6", icon: "arrow-right" },
   incapacidad:       { label: "Incapacidad",       color: "#F59E0B", icon: "file-text" },
+  correccion:        { label: "Corrección",        color: "#EF4444", icon: "edit" },
 };
 
 function empNombre(e: unknown): string {
@@ -100,6 +101,17 @@ export default async function ActividadPage({ searchParams }: PageProps) {
         detalle: `${diasTxt(m.dia_descanso_anterior as string[] | null)} → ${diasTxt(m.dia_descanso_nuevo as string[] | null)}`,
         empleado: empNombre(m.empleados),
         motivo: (m.motivo as string) ?? null,
+      });
+    } else if (tipo === "correccion") {
+      items.push({
+        key: `mov-${m.id}`,
+        ts: String(m.efectuado_en),
+        actorId: (m.efectuado_por as string) ?? null,
+        categoria: "correccion",
+        titulo: "Corrección de registro",
+        detalle: ((m.motivo as string) ?? "—").slice(0, 120),
+        empleado: empNombre(m.empleados),
+        motivo: null,
       });
     } else {
       const sa = m.sede_anterior ? sedeMap.get(m.sede_anterior as string) ?? "—" : null;
