@@ -114,6 +114,15 @@ function modulosFor(rol: string): Modulo[] {
       badge: { label: "Todos", cls: "pill" },
     },
     {
+      href: "/cuenta",
+      icon: "🔑",
+      iconBg: "rgba(148,163,184,0.12)",
+      iconBorder: "rgba(148,163,184,0.3)",
+      title: "Mi cuenta",
+      sub: "Cambia tu contraseña cuando lo necesites.",
+      badge: { label: "Todos", cls: "pill" },
+    },
+    {
       href: "/sonidos",
       icon: "🔔",
       iconBg: "rgba(245,158,11,0.12)",
@@ -223,6 +232,7 @@ function modulosFor(rol: string): Modulo[] {
       "/pase-lista",     // captura de su sede asignada (ProDetail) — ve solo la suya
       "/mi-quincena",    // control de avance de su sede
       "/soporte",        // para que pueda levantar tickets a RH
+      "/cuenta",         // cambiar su propia contraseña
     ]);
     return all.filter((m) => permitidos.has(m.href));
   }
