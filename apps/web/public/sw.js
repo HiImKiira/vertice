@@ -15,7 +15,7 @@
  *
  * Para forzar refresh del SW en producción: cambiar CACHE_VERSION.
  */
-const CACHE_VERSION = "vortex-v9";
+const CACHE_VERSION = "vortex-v10";
 
 self.addEventListener("install", () => {
   // Activar de inmediato la versión nueva, sin esperar.
@@ -85,6 +85,10 @@ self.addEventListener("push", (event) => {
   );
 });
 
+// Al tocar la notificación: SIEMPRE abrir la URL de lo notificado
+// (ej. reset de contraseña → /cuenta, ticket → /soporte/<id>, etc.).
+// Si hay una ventana abierta se enfoca y navega; si navigate falla
+// (cliente no controlado) o no hay ventana, se abre una nueva en esa URL.
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   const url = (event.notification.data && event.notification.data.url) || "/dashboard";
@@ -93,8 +97,10 @@ self.addEventListener("notificationclick", (event) => {
       for (const client of clients) {
         if ("focus" in client) {
           client.focus();
-          if ("navigate" in client) client.navigate(url);
-          return;
+          if ("navigate" in client) {
+            return client.navigate(url).catch(() => self.clients.openWindow(url));
+          }
+          return self.clients.openWindow(url);
         }
       }
       return self.clients.openWindow(url);

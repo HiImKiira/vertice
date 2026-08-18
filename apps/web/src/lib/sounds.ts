@@ -50,6 +50,18 @@ export type EventoTipo =
   | "solicitud_compra_estado"
   | "acceso_facturacion"
   | "cambio_descanso_fijo"
+  | "incapacidad_nueva"
+  | "incapacidad_estado"
+  | "incapacidad_documento"
+  | "incapacidad_atorada"
+  | "incapacidad_atorada_reporter"
+  | "quincena_supervisor"
+  | "correccion_registro"
+  | "reset_password"
+  | "reasignacion_sede"
+  | "recordatorio_manual_supervisor"
+  | "recordatorio_masivo_rh"
+  | "mensaje_rh_individual"
   | "test";
 
 export interface EventoSpec {
@@ -71,6 +83,18 @@ export const EVENTOS: EventoSpec[] = [
   { id: "solicitud_compra_estado", label: "Cambio en tu solicitud de compra", description: "Tu solicitud fue aprobada, comprada o entregada",                       default: "campana" },
   { id: "acceso_facturacion",   label: "Acceso a Facturación",              description: "Te habilitaron / quitaron acceso al módulo de facturación",                default: "acorde" },
   { id: "cambio_descanso_fijo", label: "Cambio de descanso fijo",           description: "RH cambió el día de descanso permanente de un trabajador de tu sede",      default: "pulso-doble" },
+  { id: "incapacidad_nueva",    label: "Incapacidad nueva",                 description: "Se reportó una incapacidad — abre directo su expediente",                  default: "triple-ding" },
+  { id: "incapacidad_estado",   label: "Incapacidad avanza de etapa",       description: "El flujo ST-7 cambió de estado (RH valida, dictamen, alta…)",               default: "campana" },
+  { id: "incapacidad_documento", label: "Documento de incapacidad",          description: "Se subió un documento al expediente (ST-7, ST-2, etc.)",                   default: "beep" },
+  { id: "incapacidad_atorada",  label: "Incapacidad atorada (RH)",          description: "Recordatorio automático: una incapacidad lleva días sin avanzar",          default: "urgente" },
+  { id: "incapacidad_atorada_reporter", label: "Tu incapacidad está atorada", description: "Recordatorio al supervisor que la reportó",                              default: "pulso-doble" },
+  { id: "quincena_supervisor",  label: "Avance de quincena",                description: "Un supervisor avisó a RH su avance de quincena",                            default: "acorde" },
+  { id: "correccion_registro",  label: "Corrección de registro",            description: "RH corrigió o eliminó un registro (incapacidad o marca)",                   default: "discreto" },
+  { id: "reset_password",       label: "Contraseña restablecida",           description: "RH restableció tu contraseña — abre Mi cuenta para definir la nueva",       default: "urgente" },
+  { id: "reasignacion_sede",    label: "Reasignación de sede",              description: "Trabajadores reasignados de sede/jornada",                                  default: "campana" },
+  { id: "recordatorio_manual_supervisor", label: "Recordatorio de RH",       description: "RH te mandó un recordatorio de captura personalizado",                     default: "triple-ding" },
+  { id: "recordatorio_masivo_rh", label: "Recordatorio masivo",              description: "RH mandó recordatorio a todos los supervisores incompletos",               default: "beep" },
+  { id: "mensaje_rh_individual", label: "Mensaje directo de RH",             description: "RH te escribió un mensaje directo desde tu ficha",                          default: "acorde" },
   { id: "test",                 label: "Push de prueba",                    description: "Disparo manual desde el panel de soporte",                                 default: "glissando" },
 ];
 
