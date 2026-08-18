@@ -11,7 +11,7 @@ function isPublic(pathname: string): boolean {
 }
 
 export async function middleware(req: NextRequest) {
-  const { response, user } = await updateSession(req);
+  const { response, user, dejarPasar } = await updateSession(req);
   const { pathname } = req.nextUrl;
 
   if (isPublic(pathname)) {
@@ -25,6 +25,8 @@ export async function middleware(req: NextRequest) {
   }
 
   if (!user) {
+    // Sesión presente pero Auth server inaccesible (blip de red): no expulsar.
+    if (dejarPasar) return response;
     const url = req.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("next", pathname);

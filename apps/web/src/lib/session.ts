@@ -8,14 +8,26 @@ import type { TopbarUser } from "@/components/Topbar";
  */
 export async function requireUser(): Promise<{ id: string; profile: TopbarUser & { email: string; nombre: string } }> {
   const supabase = await createSupabaseServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  // Reintento anti-blip: un fallo transitorio de red no debe mandar a /login
+  // a alguien con sesión válida (la sesión persiste hasta que haga logout).
+  let { data: { user } } = await supabase.auth.getUser().catch(() => ({ data: { user: null } }));
+  if (!user) {
+    ({ data: { user } } = await supabase.auth.getUser().catch(() => ({ data: { user: null } })));
+  }
   if (!user) redirect("/login");
 
-  const { data: profile } = await supabase
+  let { data: profile } = await supabase
     .from("usuarios")
     .select("username, email, nombre, rol")
     .eq("id", user.id)
     .single<{ username: string; email: string; nombre: string; rol: TopbarUser["rol"] }>();
+  if (!profile) {
+    ({ data: profile } = await supabase
+      .from("usuarios")
+      .select("username, email, nombre, rol")
+      .eq("id", user.id)
+      .single<{ username: string; email: string; nombre: string; rol: TopbarUser["rol"] }>());
+  }
 
   if (!profile) redirect("/login");
 
