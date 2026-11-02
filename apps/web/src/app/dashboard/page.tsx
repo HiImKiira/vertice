@@ -56,7 +56,7 @@ function modulosFor(rol: string): Modulo[] {
       iconBg: "rgba(16,185,129,0.12)",
       iconBorder: "rgba(16,185,129,0.35)",
       title: "Escáner QR",
-      sub: "Escanea la credencial del trabajador y su asistencia se marca sola.",
+      sub: "Eventos Extraordinarios (Xmatkuil): escanea la credencial del trabajador y su asistencia se marca sola.",
       badge: { label: "Todos", cls: "pill pill-green" },
     },
     {
@@ -196,11 +196,11 @@ function modulosFor(rol: string): Modulo[] {
     },
     {
       href: "/rh-pro/qr",
-      icon: "🪪",
+      icon: "🎡",
       iconBg: "rgba(6,182,212,0.12)",
       iconBorder: "rgba(6,182,212,0.3)",
-      title: "Credenciales QR",
-      sub: "Designa la sede, genera e imprime las credenciales QR por turno.",
+      title: "Eventos Extraordinarios",
+      sub: "Xmatkuil: credenciales QR por turno, geocerca y pase separado del diario.",
       badge: { label: "ADMIN+", cls: "pill pill-cyan" },
     },
     {

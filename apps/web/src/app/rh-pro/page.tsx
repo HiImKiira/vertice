@@ -189,6 +189,16 @@ export default async function RHProPage() {
               badgeCls="pill pill-violet"
             />
             <ActionCard
+              href="/rh-pro/qr"
+              icon="🎡"
+              iconBg="rgba(6,182,212,0.12)"
+              iconBorder="rgba(6,182,212,0.3)"
+              title="Eventos Extraordinarios"
+              sub="Xmatkuil: credenciales QR por turno, geocerca de la sede y escáner. Pase separado del diario. Designa supervisores como Captura XMA desde su ficha."
+              badge="ADMIN / SUPERADMIN"
+              badgeCls="pill pill-cyan"
+            />
+            <ActionCard
               href="/rh-pro/consulta"
               icon="🔍"
               iconBg="rgba(245,158,11,0.12)"

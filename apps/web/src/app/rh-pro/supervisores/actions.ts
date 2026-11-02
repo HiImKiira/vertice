@@ -308,6 +308,76 @@ export async function toggleAccesoFacturacionAction(
   return { ok: true };
 }
 
+/**
+ * Designa (o retira) al supervisor como "Captura XMA" — Eventos Extraordinarios:
+ * lo asigna a la sede XMK (Xmatkuil) en MATUTINO, VESPERTINO y EVENTUAL para
+ * que pueda tomar asistencia con el Escáner QR. Con asignaciones activas, al
+ * entrar a Vortex cae directo al dashboard (no al redirect de facturación).
+ */
+export async function toggleCapturaXmaAction(
+  supervisorId: string,
+  habilitar: boolean,
+): Promise<SupResult> {
+  const auth = await requireSuperOrSoporte();
+  if (!auth.sb || !auth.userId) return { ok: false, error: auth.error ?? "Sin permisos" };
+
+  const admin = supabaseAdmin();
+  const { data: sede } = await admin
+    .from("sedes").select("id, abrev").eq("abrev", "XMK")
+    .maybeSingle<{ id: string; abrev: string }>();
+  if (!sede) return { ok: false, error: "No existe la sede XMK (Xmatkuil)" };
+
+  const JORNADAS_XMA = ["MATUTINO", "VESPERTINO", "EVENTUAL"] as const;
+  if (habilitar) {
+    for (const jornada of JORNADAS_XMA) {
+      const { data: ya } = await admin
+        .from("asignaciones_supervisor")
+        .select("id, activo")
+        .eq("usuario_id", supervisorId)
+        .eq("sede_id", sede.id)
+        .eq("jornada", jornada)
+        .maybeSingle<{ id: string; activo: boolean }>();
+      if (ya) {
+        if (!ya.activo) {
+          const { error } = await admin.from("asignaciones_supervisor").update({ activo: true }).eq("id", ya.id);
+          if (error) return { ok: false, error: error.message };
+        }
+      } else {
+        const { error } = await admin.from("asignaciones_supervisor").insert({
+          usuario_id: supervisorId, sede_id: sede.id, jornada, activo: true,
+        });
+        if (error) return { ok: false, error: error.message };
+      }
+    }
+  } else {
+    const { error } = await admin
+      .from("asignaciones_supervisor")
+      .update({ activo: false })
+      .eq("usuario_id", supervisorId)
+      .eq("sede_id", sede.id);
+    if (error) return { ok: false, error: error.message };
+  }
+
+  void sendPush(
+    {
+      title: habilitar ? "Captura XMA habilitada" : "Captura XMA retirada",
+      body: habilitar
+        ? "Ya puedes tomar asistencia de Eventos Extraordinarios (Xmatkuil) con el Escáner QR."
+        : "Tu designación de captura en Xmatkuil fue retirada.",
+      url: habilitar ? "/dashboard" : "/dashboard",
+      tag: `captura-xma-${supervisorId}-${Date.now()}`,
+      icon: "/icons/icon-192.png",
+    },
+    [supervisorId],
+    "reasignacion_sede",
+  ).catch(() => {});
+
+  revalidatePath(`/rh-pro/supervisores/${supervisorId}`);
+  revalidatePath("/rh-pro/supervisores");
+  revalidatePath("/rh-pro");
+  return { ok: true };
+}
+
 // ─────────────────────────────────────────────────────────────────────
 // CREAR / EDITAR / ELIMINAR supervisor (usuario)
 // ─────────────────────────────────────────────────────────────────────

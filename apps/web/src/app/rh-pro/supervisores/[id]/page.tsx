@@ -103,6 +103,16 @@ export default async function SupervisorDetailPage({ params }: PageProps) {
       .order("abrev"),
   ]);
   const accesoFacturacion = ((flagRes.data as { acceso_facturacion?: boolean } | null)?.acceso_facturacion) === true;
+
+  // ¿Está designado como Captura XMA (Eventos Extraordinarios · Xmatkuil)?
+  const { data: xmaAsig } = await supabase
+    .from("asignaciones_supervisor")
+    .select("id, sedes!inner(abrev)")
+    .eq("usuario_id", id)
+    .eq("activo", true)
+    .eq("sedes.abrev", "XMK")
+    .limit(1);
+  const capturaXma = (xmaAsig?.length ?? 0) > 0;
   const sedesActivas = (sedesRes.data ?? []) as Array<{ id: string; abrev: string; nombre: string }>;
 
   const resumen = (resumenRes.data as ResumenRow[] | null)?.[0];
@@ -392,6 +402,7 @@ export default async function SupervisorDetailPage({ params }: PageProps) {
               ausenteHasta={resumen.ausente_hasta}
               ausenteMotivo={resumen.ausente_motivo}
               accesoFacturacion={accesoFacturacion}
+              capturaXma={capturaXma}
             />
 
             {/* Stats secundarios */}

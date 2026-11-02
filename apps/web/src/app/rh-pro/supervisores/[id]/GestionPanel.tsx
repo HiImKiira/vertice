@@ -8,6 +8,7 @@ import {
   quitarAusenciaAction,
   resetPasswordSupervisorAction,
   toggleAccesoFacturacionAction,
+  toggleCapturaXmaAction,
 } from "../actions";
 
 interface Props {
@@ -18,6 +19,7 @@ interface Props {
   ausenteHasta: string | null;
   ausenteMotivo: string | null;
   accesoFacturacion: boolean;
+  capturaXma: boolean;
 }
 
 export function GestionPanel({
@@ -28,6 +30,7 @@ export function GestionPanel({
   ausenteHasta,
   ausenteMotivo,
   accesoFacturacion,
+  capturaXma,
 }: Props) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -91,6 +94,23 @@ export function GestionPanel({
         text: accesoFacturacion
           ? "✓ Acceso a Facturación retirado"
           : "✓ Acceso a Facturación habilitado · le llegó push de notificación",
+      });
+      router.refresh();
+    });
+  }
+
+  async function toggleXma() {
+    const accion = capturaXma ? "Retirar" : "Designar";
+    if (!confirm(`${accion} a ${supervisorNombre} como Captura XMA (Eventos Extraordinarios · Xmatkuil)?`)) return;
+    setMsg(null);
+    start(async () => {
+      const r = await toggleCapturaXmaAction(supervisorId, !capturaXma);
+      if (!r.ok) { setMsg({ kind: "err", text: r.error }); return; }
+      setMsg({
+        kind: "ok",
+        text: capturaXma
+          ? "✓ Designación Captura XMA retirada"
+          : "✓ Designado como Captura XMA · ya ve Xmatkuil (MAT/VES/EVE) y el Escáner QR del dashboard",
       });
       router.refresh();
     });
@@ -239,6 +259,38 @@ export function GestionPanel({
         >
           <Icon name={accesoFacturacion ? "x" : "check"} size={12} />
           {pending ? "Guardando..." : accesoFacturacion ? "Retirar acceso" : "Habilitar acceso"}
+        </button>
+      </div>
+
+      {/* Captura XMA · Eventos Extraordinarios */}
+      <div className={`rounded-xl border p-3 ${
+        capturaXma
+          ? "border-cyan-400/30 bg-cyan-500/[0.05]"
+          : "border-white/10 bg-[color:var(--card)]"
+      }`}>
+        <div className="mb-2 flex items-center gap-2">
+          <Icon name="users" size={14} className={capturaXma ? "text-cyan-300" : "text-muted"} />
+          <p className="text-xs font-semibold">
+            Captura XMA · Eventos Extraordinarios {capturaXma && <span className="ml-1 text-[10px] text-cyan-300">· DESIGNADO</span>}
+          </p>
+        </div>
+        <p className="mb-3 text-[11px] text-muted">
+          {capturaXma
+            ? "Este supervisor está designado para Xmatkuil: ve la sede XMK en sus tres turnos (MAT/VES/EVE) y marca asistencia con el Escáner QR. Al entrar a Vortex cae directo al dashboard."
+            : "Desígnalo para que tome asistencia de los Eventos Extraordinarios (Xmatkuil): lo asigna a XMK en MATUTINO, VESPERTINO y EVENTUAL de un jalón, y al entrar a Vortex cae directo al dashboard con el Escáner QR."}
+        </p>
+        <button
+          type="button"
+          onClick={toggleXma}
+          disabled={pending}
+          className={`inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-semibold disabled:opacity-40 ${
+            capturaXma
+              ? "border-red-400/30 bg-red-500/10 text-red-200 hover:bg-red-500/25"
+              : "border-cyan-400/30 bg-cyan-500/10 text-cyan-200 hover:bg-cyan-500/25"
+          }`}
+        >
+          <Icon name={capturaXma ? "x" : "check"} size={12} />
+          {pending ? "Guardando..." : capturaXma ? "Retirar designación" : "Designar Captura XMA"}
         </button>
       </div>
 

@@ -22,7 +22,7 @@ export default async function EscanerPage() {
             Escáner <span className="text-gradient-blue serif-italic">QR</span>
           </h1>
           <p className="mt-1 text-xs text-muted">
-            Escanea la credencial del trabajador y su asistencia de hoy queda marcada (A) al instante.
+            Eventos Extraordinarios · Escanea la credencial del trabajador y su asistencia de hoy queda marcada (A) al instante.
           </p>
         </header>
 

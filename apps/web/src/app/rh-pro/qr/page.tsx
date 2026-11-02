@@ -6,7 +6,7 @@ import { Icon } from "@/components/Icon";
 import { QRAdminClient, type SedeOpt } from "./QRAdminClient";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Credenciales QR · RH Pro" };
+export const metadata = { title: "Eventos Extraordinarios · RH Pro" };
 
 export default async function QRPage() {
   const { profile } = await requireUser();
@@ -53,12 +53,13 @@ export default async function QRPage() {
           <Link href="/rh-pro" className="inline-flex items-center gap-1 text-xs text-muted hover:text-text">
             <Icon name="arrow-left" size={12} /> RH Pro
           </Link>
-          <p className="role-badge role-ADMIN mt-2 mb-2">ASISTENCIA POR QR · ADMIN+</p>
+          <p className="role-badge role-ADMIN mt-2 mb-2">EVENTOS EXTRAORDINARIOS · ADMIN+</p>
           <h1 className="font-display text-3xl sm:text-4xl">
-            Credenciales <span className="text-gradient-blue serif-italic">QR</span>
+            Eventos <span className="text-gradient-blue serif-italic">Extraordinarios</span>
           </h1>
           <p className="mt-1 max-w-2xl text-sm text-muted">
-            Designa la sede, genera las credenciales de sus trabajadores (separadas por turno) e imprímelas.
+            Asistencia por QR para sedes de evento (Xmatkuil), separada del pase de lista diario.
+            Designa la sede, genera e imprime las credenciales por turno, y vincula la geocerca.
             El supervisor las escanea desde <strong>Escáner QR</strong> y la asistencia se marca sola.
             Si una credencial se pierde, regenera su token y la anterior queda invalidada.
           </p>
