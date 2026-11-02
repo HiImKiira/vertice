@@ -155,24 +155,46 @@ function NominaPanel({ sedes }: { sedes: Sede[] }) {
   );
 }
 
+/** Lunes y domingo de la semana a la que pertenece una fecha (ISO). */
+function semanaDe(iso: string): { lunes: string; domingo: string } {
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(y!, m! - 1, d!);
+  const offset = (dt.getDay() + 6) % 7; // lunes=0 … domingo=6
+  const lunes = new Date(dt); lunes.setDate(dt.getDate() - offset);
+  const domingo = new Date(lunes); domingo.setDate(lunes.getDate() + 6);
+  const f = (x: Date) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`;
+  return { lunes: f(lunes), domingo: f(domingo) };
+}
+
+function hoyISO(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 function AsistenciasPanel({ sedes }: { sedes: Sede[] }) {
   const [sedeId, setSedeId] = useState(sedes[0]?.id ?? "");
-  const [rango, setRango] = useState<"Q1" | "Q2" | "MES" | "CUSTOM">("Q1");
+  const [rango, setRango] = useState<"Q1" | "Q2" | "MES" | "SEMANA" | "CUSTOM">("Q1");
   const [mes, setMes] = useState(currentYM());
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
+  const [semanaDia, setSemanaDia] = useState(hoyISO());
   const [loading, setLoading] = useState<"pdf" | "xlsx" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const sede = sedes.find((s) => s.id === sedeId);
+  const semana = semanaDe(semanaDia);
 
   async function descargar(formato: "pdf" | "xlsx") {
     if (!sedeId) return;
     setLoading(formato);
     setError(null);
     try {
-      const params = new URLSearchParams({ sede: sedeId, rango });
-      if (rango === "CUSTOM") {
+      // SEMANA usa el rango CUSTOM del API con lunes→domingo calculados
+      const params = new URLSearchParams({ sede: sedeId, rango: rango === "SEMANA" ? "CUSTOM" : rango });
+      if (rango === "SEMANA") {
+        params.set("start", semana.lunes);
+        params.set("end", semana.domingo);
+      } else if (rango === "CUSTOM") {
         if (!start || !end) throw new Error("Faltan fechas inicio/fin");
         params.set("start", start);
         params.set("end", end);
@@ -227,13 +249,39 @@ function AsistenciasPanel({ sedes }: { sedes: Sede[] }) {
           <div className="field">
             <label>Tipo de rango</label>
             <select value={rango} onChange={(e) => setRango(e.target.value as typeof rango)}>
+              <option value="SEMANA">Semana (pagos) · lunes a domingo</option>
               <option value="Q1">Q1 (1 al 15)</option>
               <option value="Q2">Q2 (16 al fin)</option>
               <option value="MES">Mes completo</option>
               <option value="CUSTOM">Personalizado</option>
             </select>
           </div>
-          {rango === "CUSTOM" ? (
+          {rango === "SEMANA" ? (
+            <div className="field">
+              <label>Cualquier día de la semana a pagar</label>
+              <input type="date" value={semanaDia} onChange={(e) => setSemanaDia(e.target.value)} />
+              <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setSemanaDia(hoyISO())}
+                  className="rounded border border-white/10 px-2 py-0.5 text-[10px] text-muted hover:border-white/30 hover:text-text"
+                >
+                  Esta semana
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const d = new Date(); d.setDate(d.getDate() - 7);
+                    setSemanaDia(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`);
+                  }}
+                  className="rounded border border-white/10 px-2 py-0.5 text-[10px] text-muted hover:border-white/30 hover:text-text"
+                >
+                  Semana pasada
+                </button>
+                <span className="font-mono text-[10px] text-emerald-300">{semana.lunes} → {semana.domingo}</span>
+              </div>
+            </div>
+          ) : rango === "CUSTOM" ? (
             <div className="grid grid-cols-2 gap-2">
               <div className="field">
                 <label>Desde</label>
