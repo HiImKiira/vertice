@@ -2,12 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/Icon";
-import { marcarPorQRAction, type ScanResult } from "./actions";
+import { marcarPorQRAction, type GeoScan, type ScanResult } from "./actions";
 
 interface Registro {
   ts: number;
   resultado: ScanResult;
 }
+
+type GeoEstado = "pidiendo" | "ok" | "denegado" | "no_disponible";
 
 /** Beep corto de feedback (sin depender del catálogo de sonidos). */
 function beep(ok: boolean) {
@@ -30,10 +32,35 @@ export function EscanerClient() {
   const streamRef = useRef<MediaStream | null>(null);
   const pausadoRef = useRef(false);
   const recientesRef = useRef<Map<string, number>>(new Map());
+  const geoRef = useRef<GeoScan | null>(null);
   const [estado, setEstado] = useState<"inicial" | "activo" | "sin_camara">("inicial");
+  const [geoEstado, setGeoEstado] = useState<GeoEstado>("pidiendo");
+  const [geoAcc, setGeoAcc] = useState<number | null>(null);
   const [ultimo, setUltimo] = useState<Registro | null>(null);
   const [historial, setHistorial] = useState<Registro[]>([]);
   const [marcados, setMarcados] = useState(0);
+
+  // Ubicación en vivo: las sedes con geocerca exigen estar físicamente ahí.
+  useEffect(() => {
+    if (!("geolocation" in navigator)) { setGeoEstado("no_disponible"); return; }
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        geoRef.current = {
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          acc: Number.isFinite(pos.coords.accuracy) ? Math.round(pos.coords.accuracy) : undefined,
+        };
+        setGeoEstado("ok");
+        setGeoAcc(geoRef.current.acc ?? null);
+      },
+      (err) => {
+        geoRef.current = null;
+        setGeoEstado(err.code === err.PERMISSION_DENIED ? "denegado" : "no_disponible");
+      },
+      { enableHighAccuracy: true, maximumAge: 15000, timeout: 20000 },
+    );
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, []);
 
   useEffect(() => {
     let vivo = true;
@@ -50,7 +77,7 @@ export function EscanerClient() {
       recientesRef.current.set(token, ahora);
       pausadoRef.current = true;
 
-      const r = await marcarPorQRAction(token);
+      const r = await marcarPorQRAction(token, geoRef.current);
       const reg: Registro = { ts: ahora, resultado: r };
       setUltimo(reg);
       setHistorial((h) => [reg, ...h].slice(0, 20));
@@ -156,7 +183,32 @@ export function EscanerClient() {
         <div className="absolute right-3 top-3 rounded-full bg-emerald-500/90 px-3 py-1 font-mono text-sm font-bold text-black">
           ✓ {marcados}
         </div>
+        {/* Estado de ubicación (geocerca) */}
+        <div
+          className={`absolute left-3 top-3 rounded-full px-2.5 py-1 text-[10px] font-bold ${
+            geoEstado === "ok"
+              ? "bg-emerald-500/20 text-emerald-200 ring-1 ring-emerald-400/40"
+              : geoEstado === "pidiendo"
+                ? "bg-white/10 text-white/70 ring-1 ring-white/20"
+                : "bg-red-500/25 text-red-200 ring-1 ring-red-400/50"
+          }`}
+        >
+          {geoEstado === "ok"
+            ? `📍 Ubicación activa${geoAcc != null ? ` ±${geoAcc} m` : ""}`
+            : geoEstado === "pidiendo"
+              ? "📍 Obteniendo ubicación…"
+              : geoEstado === "denegado"
+                ? "📍 Ubicación DENEGADA"
+                : "📍 Sin GPS"}
+        </div>
       </div>
+
+      {geoEstado === "denegado" && (
+        <p className="rounded-lg border border-red-400/40 bg-red-500/10 px-3 py-2 text-[11px] text-red-200">
+          Negaste el permiso de ubicación. En sedes con geocerca <strong>no podrás marcar</strong> hasta activarlo:
+          candado de la barra de dirección → Permisos → Ubicación → Permitir, y recarga.
+        </p>
+      )}
 
       {/* Resultado del último escaneo */}
       {r && (

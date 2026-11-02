@@ -13,17 +13,37 @@ export default async function QRPage() {
   requireAdminLike(profile.rol);
   const admin = supabaseAdmin();
 
-  const [{ data: sedesRaw }, { data: empsRaw }] = await Promise.all([
-    admin.from("sedes").select("id, abrev, nombre, qr_habilitado").or("activa.is.null,activa.eq.true").order("abrev"),
-    admin.from("empleados").select("sede_id").is("fecha_baja", null),
-  ]);
+  // geo_* puede no existir si v36 no se ha corrido — fallback sin geocerca.
+  let sedesRaw: Array<Record<string, unknown>> | null = null;
+  {
+    const r = await admin
+      .from("sedes")
+      .select("id, abrev, nombre, qr_habilitado, geo_lat, geo_lng, geo_radio_m")
+      .or("activa.is.null,activa.eq.true")
+      .order("abrev");
+    if (r.error) {
+      const r2 = await admin.from("sedes").select("id, abrev, nombre, qr_habilitado").or("activa.is.null,activa.eq.true").order("abrev");
+      sedesRaw = r2.data as Array<Record<string, unknown>> | null;
+    } else {
+      sedesRaw = r.data as Array<Record<string, unknown>> | null;
+    }
+  }
+  const { data: empsRaw } = await admin.from("empleados").select("sede_id").is("fecha_baja", null);
 
   const conteo = new Map<string, number>();
   for (const e of (empsRaw ?? []) as Array<{ sede_id: string }>) {
     conteo.set(e.sede_id, (conteo.get(e.sede_id) ?? 0) + 1);
   }
-  const sedes: SedeOpt[] = ((sedesRaw ?? []) as Array<{ id: string; abrev: string; nombre: string; qr_habilitado: boolean | null }>)
-    .map((s) => ({ id: s.id, abrev: s.abrev, nombre: s.nombre, qr_habilitado: s.qr_habilitado === true, activos: conteo.get(s.id) ?? 0 }));
+  const sedes: SedeOpt[] = (sedesRaw ?? []).map((s) => ({
+    id: s.id as string,
+    abrev: s.abrev as string,
+    nombre: s.nombre as string,
+    qr_habilitado: s.qr_habilitado === true,
+    activos: conteo.get(s.id as string) ?? 0,
+    geo_lat: typeof s.geo_lat === "number" ? s.geo_lat : null,
+    geo_lng: typeof s.geo_lng === "number" ? s.geo_lng : null,
+    geo_radio_m: typeof s.geo_radio_m === "number" ? s.geo_radio_m : null,
+  }));
 
   return (
     <main className="min-h-screen overflow-x-hidden text-text">
@@ -44,7 +64,7 @@ export default async function QRPage() {
           </p>
         </header>
 
-        <QRAdminClient sedes={sedes} />
+        <QRAdminClient sedes={sedes} rol={profile.rol} />
       </div>
     </main>
   );

@@ -18,17 +18,39 @@ export type ScanResult =
     }
   | { ok: false; error: string };
 
+export interface GeoScan {
+  lat: number;
+  lng: number;
+  /** Precisión reportada por el GPS, en metros. */
+  acc?: number | undefined;
+}
+
+/** Distancia en metros entre dos coordenadas (haversine). */
+function distanciaM(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371000;
+  const rad = Math.PI / 180;
+  const dLat = (lat2 - lat1) * rad;
+  const dLng = (lng2 - lng1) * rad;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
 /**
  * Marca la asistencia del día (A) a partir del token del QR escaneado.
  *
  * Validaciones:
  *  1. Token con formato VTX1.* y existente.
  *  2. Trabajador activo y su sede con QR habilitado (sede designada).
- *  3. Quien escanea es supervisor con esa sede×jornada asignada (admin-like
+ *  3. Geocerca: si la sede tiene ubicación vinculada, quien escanea debe
+ *     estar físicamente dentro del radio (nadie marca desde su casa con
+ *     fotos de credenciales).
+ *  4. Quien escanea es supervisor con esa sede×jornada asignada (admin-like
  *     pasa sin asignación). COORDINACION marca solo sus sedes asignadas.
- *  4. Sin doble marca: si ya tiene asistencia hoy, se informa, no se pisa.
+ *  5. Sin doble marca: si ya tiene asistencia hoy, se informa, no se pisa.
  */
-export async function marcarPorQRAction(token: string): Promise<ScanResult> {
+export async function marcarPorQRAction(token: string, geo?: GeoScan | null): Promise<ScanResult> {
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Sin sesión" };
@@ -43,18 +65,46 @@ export async function marcarPorQRAction(token: string): Promise<ScanResult> {
   // Trabajador por token + su sede
   const { data: emp } = await admin
     .from("empleados")
-    .select("id, numero_empleado, nombre, jornada, sede_id, fecha_baja, sedes(abrev, nombre, qr_habilitado)")
+    .select("id, numero_empleado, nombre, jornada, sede_id, fecha_baja, sedes(abrev, nombre, qr_habilitado, geo_lat, geo_lng, geo_radio_m)")
     .eq("qr_token", limpio)
     .maybeSingle<{
       id: string; numero_empleado: string; nombre: string; jornada: string;
       sede_id: string; fecha_baja: string | null;
-      sedes: { abrev: string; nombre: string; qr_habilitado: boolean } | { abrev: string; nombre: string; qr_habilitado: boolean }[] | null;
+      sedes:
+        | { abrev: string; nombre: string; qr_habilitado: boolean; geo_lat: number | null; geo_lng: number | null; geo_radio_m: number | null }
+        | { abrev: string; nombre: string; qr_habilitado: boolean; geo_lat: number | null; geo_lng: number | null; geo_radio_m: number | null }[]
+        | null;
     }>();
   if (!emp) return { ok: false, error: "Credencial no reconocida (QR inválido o revocado)" };
   if (emp.fecha_baja) return { ok: false, error: `${emp.nombre} está dado de baja` };
   const sede = Array.isArray(emp.sedes) ? emp.sedes[0] : emp.sedes;
   if (!sede?.qr_habilitado) {
     return { ok: false, error: `La sede ${sede?.abrev ?? "—"} no tiene asistencia por QR habilitada` };
+  }
+
+  // Geocerca: si la sede tiene ubicación vinculada, el escaneo debe venir de ahí.
+  // La migración puede no estar aplicada aún (geo_lat llega undefined) → sin candado.
+  if (typeof sede.geo_lat === "number" && typeof sede.geo_lng === "number") {
+    const coordsValidas =
+      geo && Number.isFinite(geo.lat) && Number.isFinite(geo.lng) &&
+      Math.abs(geo.lat) <= 90 && Math.abs(geo.lng) <= 180;
+    if (!coordsValidas) {
+      return {
+        ok: false,
+        error: `${sede.abrev} exige ubicación para marcar. Activa el GPS y dale permiso de ubicación a Vortex, luego vuelve a escanear.`,
+      };
+    }
+    const dist = distanciaM(geo.lat, geo.lng, sede.geo_lat, sede.geo_lng);
+    const radio = sede.geo_radio_m ?? 150;
+    // Tolerancia extra por imprecisión del GPS (tope 60 m para que no se abuse)
+    const tolerancia = radio + Math.min(Math.max(geo.acc ?? 0, 0), 60);
+    if (dist > tolerancia) {
+      const distTxt = dist >= 1000 ? `${(dist / 1000).toFixed(1)} km` : `${Math.round(dist)} m`;
+      return {
+        ok: false,
+        error: `Estás a ~${distTxt} de ${sede.abrev} (límite ${radio} m). Hay que estar en la sede para marcar asistencia.`,
+      };
+    }
   }
 
   // ¿Quién escanea puede marcar a este trabajador?

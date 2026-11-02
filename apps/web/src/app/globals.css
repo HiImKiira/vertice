@@ -68,13 +68,29 @@
     input, select, textarea { font-size: inherit; }
   }
 
+  /* ── UI v2: aurora más rica (misma paleta, más profundidad) ── */
   body {
     background-image:
-      radial-gradient(ellipse 80% 50% at 50% -10%, rgba(59, 130, 246, 0.10), transparent 60%),
-      radial-gradient(ellipse 60% 40% at 0% 100%, rgba(139, 92, 246, 0.06), transparent 60%),
-      radial-gradient(ellipse 40% 30% at 100% 30%, rgba(201, 169, 97, 0.04), transparent 50%);
+      radial-gradient(ellipse 80% 50% at 50% -10%, rgba(59, 130, 246, 0.14), transparent 60%),
+      radial-gradient(ellipse 50% 36% at 85% -5%, rgba(6, 182, 212, 0.07), transparent 60%),
+      radial-gradient(ellipse 60% 40% at 0% 100%, rgba(139, 92, 246, 0.08), transparent 60%),
+      radial-gradient(ellipse 40% 30% at 100% 30%, rgba(201, 169, 97, 0.05), transparent 50%);
     background-attachment: fixed;
     min-height: 100vh;
+  }
+
+  ::selection { background: rgba(59, 130, 246, 0.35); color: #fff; }
+
+  /* Scrollbar discreto a juego (desktop) */
+  @media (min-width: 768px) {
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb {
+      background: var(--border2);
+      border-radius: 999px;
+      border: 2px solid var(--bg);
+    }
+    ::-webkit-scrollbar-thumb:hover { background: #2E4E85; }
   }
 
   /* Grid pattern sutil */
@@ -165,11 +181,15 @@
   .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
 
   .btn-primary {
-    background: #1D4ED8;
-    border-color: #2563EB;
+    background: linear-gradient(180deg, #2563EB 0%, #1D4ED8 100%);
+    border-color: #3B82F6;
     color: white;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.15) inset, 0 4px 14px -4px rgba(37, 99, 235, 0.5);
   }
-  .btn-primary:hover:not(:disabled) { background: #2563EB; }
+  .btn-primary:hover:not(:disabled) {
+    background: linear-gradient(180deg, #3B82F6 0%, #2563EB 100%);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.2) inset, 0 6px 20px -4px rgba(59, 130, 246, 0.55);
+  }
 
   .btn-success {
     background: rgba(16, 185, 129, 0.15);
@@ -274,7 +294,7 @@
   /* ─── CARD-ACTION (clickable card del legacy) ─── */
   .card-action {
     position: relative;
-    background: var(--card);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.015) 0%, transparent 40%), var(--card);
     border: 1px solid var(--border);
     border-radius: var(--r);
     padding: 18px;
@@ -283,12 +303,28 @@
     display: flex;
     flex-direction: column;
     gap: 12px;
+    overflow: hidden;
+  }
+  /* UI v2: filo luminoso superior que se enciende al hover */
+  .card-action::after {
+    content: "";
+    position: absolute;
+    top: 0; left: 10%; right: 10%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(147, 197, 253, 0.0), transparent);
+    transition: background 0.25s;
+    pointer-events: none;
+  }
+  .card-action:hover::after {
+    background: linear-gradient(90deg, transparent, rgba(147, 197, 253, 0.55), transparent);
   }
   .card-action:hover {
     border-color: var(--border2);
     transform: translateY(-2px);
     box-shadow: 0 12px 32px -12px rgba(0, 0, 0, 0.5);
   }
+  .card-action-icon { transition: transform 0.2s; }
+  .card-action:hover .card-action-icon { transform: scale(1.08) rotate(-3deg); }
   .card-action-icon {
     width: 44px;
     height: 44px;
@@ -333,7 +369,10 @@
     transition: border-color 0.15s;
     width: 100%;
   }
-  .field select:focus, .field input:focus, .field textarea:focus { border-color: var(--blue); }
+  .field select:focus, .field input:focus, .field textarea:focus {
+    border-color: var(--blue);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.18);
+  }
   .field input[disabled] { opacity: 0.6; }
 
   /* ─── CHIPS DE CÓDIGO ─── */

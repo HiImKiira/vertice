@@ -27,6 +27,61 @@ async function requireRH(): Promise<string | null> {
   return user.id;
 }
 
+/** Regla de negocio: la geocerca SOLO la cambian SUPERADMIN y ADMIN. */
+async function requireGeoAdmin(): Promise<string | null> {
+  const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+  const { data: perfil } = await supabase
+    .from("usuarios").select("rol").eq("id", user.id).single<{ rol: string }>();
+  if (!perfil || !["ADMIN", "SUPERADMIN"].includes(perfil.rol)) return null;
+  return user.id;
+}
+
+/**
+ * Vincula la ubicación física de la sede (geocerca). Con geocerca activa, el
+ * escáner QR solo marca asistencia si el teléfono está dentro del radio.
+ * Solo SUPERADMIN y ADMIN.
+ */
+export async function vincularUbicacionAction(
+  sedeId: string,
+  lat: number,
+  lng: number,
+  radioM: number,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const quien = await requireGeoAdmin();
+  if (!quien) return { ok: false, error: "La geocerca solo la cambian SUPERADMIN y ADMIN" };
+
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+    return { ok: false, error: "Coordenadas inválidas" };
+  }
+  const radio = Math.round(Number(radioM));
+  if (!Number.isFinite(radio) || radio < 30 || radio > 2000) {
+    return { ok: false, error: "El radio debe estar entre 30 y 2000 metros" };
+  }
+
+  const { error } = await supabaseAdmin()
+    .from("sedes")
+    .update({ geo_lat: lat, geo_lng: lng, geo_radio_m: radio })
+    .eq("id", sedeId);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/rh-pro/qr");
+  return { ok: true };
+}
+
+/** Quita la geocerca de la sede (el escáner vuelve a funcionar sin candado de ubicación). Solo SUPERADMIN y ADMIN. */
+export async function desvincularUbicacionAction(sedeId: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const quien = await requireGeoAdmin();
+  if (!quien) return { ok: false, error: "La geocerca solo la cambian SUPERADMIN y ADMIN" };
+  const { error } = await supabaseAdmin()
+    .from("sedes")
+    .update({ geo_lat: null, geo_lng: null })
+    .eq("id", sedeId);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/rh-pro/qr");
+  return { ok: true };
+}
+
 /**
  * Designa la sede para asistencia por QR y genera el token de cada trabajador
  * activo que aún no tenga. Devuelve TODAS las credenciales para imprimir.
