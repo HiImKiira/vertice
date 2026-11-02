@@ -64,7 +64,7 @@
   input, select, textarea {
     font-size: 16px;
   }
-  @media (min-width: 768px) {
+  @media screen and (min-width: 768px) {
     input, select, textarea { font-size: inherit; }
   }
 
@@ -81,8 +81,39 @@
 
   ::selection { background: rgba(59, 130, 246, 0.35); color: #fff; }
 
+  /* ── UI v2 desktop: aurora viva + glass ──
+     Solo en pantallas grandes: los teléfonos se quedan con el fondo estático
+     (backdrop-filter y animaciones constantes pegan en batería/perf móvil). */
+  @media screen and (min-width: 768px) and (prefers-reduced-motion: no-preference) {
+    body::after {
+      content: "";
+      position: fixed;
+      inset: -30%;
+      z-index: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(ellipse 32% 42% at 28% 28%, rgba(59, 130, 246, 0.09), transparent 62%),
+        radial-gradient(ellipse 26% 36% at 72% 62%, rgba(139, 92, 246, 0.07), transparent 62%),
+        radial-gradient(ellipse 22% 30% at 56% 18%, rgba(6, 182, 212, 0.055), transparent 60%);
+      animation: auroraDrift 30s ease-in-out infinite alternate;
+      will-change: transform;
+    }
+    @keyframes auroraDrift {
+      from { transform: translate3d(-2.5%, -1.5%, 0) scale(1) rotate(-1deg); }
+      to   { transform: translate3d(2.5%, 2%, 0) scale(1.07) rotate(1deg); }
+    }
+  }
+
+  /* El grid sutil respira: visible arriba, se desvanece hacia abajo */
+  @media screen and (min-width: 768px) {
+    body::before {
+      mask-image: radial-gradient(ellipse 90% 70% at 50% 0%, black 30%, transparent 85%);
+      -webkit-mask-image: radial-gradient(ellipse 90% 70% at 50% 0%, black 30%, transparent 85%);
+    }
+  }
+
   /* Scrollbar discreto a juego (desktop) */
-  @media (min-width: 768px) {
+  @media screen and (min-width: 768px) {
     ::-webkit-scrollbar { width: 10px; height: 10px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb {
@@ -138,6 +169,21 @@
     border: 1px solid var(--border2);
     border-radius: var(--r);
     box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 10px 40px -10px rgba(0, 0, 0, 0.5);
+  }
+
+  /* UI v2 desktop: superficies con glass real (translúcidas + blur del fondo) */
+  @media screen and (min-width: 768px) {
+    .surface-card {
+      background: rgba(13, 26, 48, 0.72);
+      backdrop-filter: blur(16px) saturate(1.25);
+      -webkit-backdrop-filter: blur(16px) saturate(1.25);
+      box-shadow: 0 1px 0 rgba(255, 255, 255, 0.035) inset;
+    }
+    .surface-glow {
+      background: linear-gradient(180deg, rgba(17, 32, 61, 0.78) 0%, rgba(13, 26, 48, 0.72) 100%);
+      backdrop-filter: blur(16px) saturate(1.25);
+      -webkit-backdrop-filter: blur(16px) saturate(1.25);
+    }
   }
 
   /* ─── GRADIENT TEXT ─── */
@@ -325,6 +371,25 @@
   }
   .card-action-icon { transition: transform 0.2s; }
   .card-action:hover .card-action-icon { transform: scale(1.08) rotate(-3deg); }
+
+  /* UI v2 desktop: cards glass + hover con más vida */
+  @media screen and (min-width: 768px) {
+    .card-action {
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.025) 0%, transparent 45%),
+        rgba(13, 26, 48, 0.68);
+      backdrop-filter: blur(14px) saturate(1.25);
+      -webkit-backdrop-filter: blur(14px) saturate(1.25);
+    }
+    .card-action:hover {
+      transform: translateY(-3px) scale(1.012);
+      border-color: rgba(59, 130, 246, 0.45);
+      box-shadow:
+        0 18px 44px -14px rgba(59, 130, 246, 0.35),
+        0 10px 28px -14px rgba(0, 0, 0, 0.6),
+        0 0 0 1px rgba(59, 130, 246, 0.18);
+    }
+  }
   .card-action-icon {
     width: 44px;
     height: 44px;
@@ -418,6 +483,16 @@
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
   }
+  /* UI v2 desktop: topbar más vidrio con hairline azul */
+  @media screen and (min-width: 768px) {
+    .topbar {
+      background: rgba(5, 11, 24, 0.68);
+      backdrop-filter: blur(26px) saturate(1.4);
+      -webkit-backdrop-filter: blur(26px) saturate(1.4);
+      border-bottom-color: rgba(59, 130, 246, 0.16);
+      box-shadow: 0 10px 30px -22px rgba(0, 0, 0, 0.8);
+    }
+  }
   .nav-btn {
     display: flex;
     align-items: center;
@@ -442,6 +517,13 @@
     background: var(--blue-dim);
     border-color: rgba(59, 130, 246, 0.35);
     color: #93C5FD;
+    box-shadow: 0 0 16px -6px rgba(59, 130, 246, 0.55);
+  }
+
+  /* UI v2 desktop: hover genérico en filas de tablas */
+  @media screen and (min-width: 768px) {
+    tbody tr { transition: background-color 0.15s; }
+    tbody tr:hover { background-color: rgba(59, 130, 246, 0.05); }
   }
 
   /* ─── ANIMACIONES ─── */
