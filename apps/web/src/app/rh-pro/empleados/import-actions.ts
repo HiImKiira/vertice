@@ -9,7 +9,7 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 // TIPOS
 // ─────────────────────────────────────────────────────────────────────
 
-const JORNADAS_VALIDAS = ["MATUTINO", "VESPERTINO", "NOCTURNO", "TURNO_ROTATIVO", "CUBRETURNOS", "DIURNO"] as const;
+const JORNADAS_VALIDAS = ["MATUTINO", "VESPERTINO", "NOCTURNO", "EVENTUAL", "TURNO_ROTATIVO", "CUBRETURNOS", "DIURNO"] as const;
 type JornadaValida = (typeof JORNADAS_VALIDAS)[number];
 
 const DIAS_VALIDOS = ["LUN", "MAR", "MIE", "JUE", "VIE", "SAB", "DOM"] as const;

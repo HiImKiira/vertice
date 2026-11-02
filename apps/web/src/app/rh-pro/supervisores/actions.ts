@@ -520,7 +520,7 @@ export async function eliminarSupervisorAction(supervisorId: string): Promise<El
 // ─────────────────────────────────────────────────────────────────────
 // ASIGNACIONES (sede × jornada) — agregar/quitar desde detalle supervisor
 // ─────────────────────────────────────────────────────────────────────
-type Jornada = "MATUTINO" | "VESPERTINO" | "NOCTURNO" | "TURNO_ROTATIVO" | "CUBRETURNOS" | "DIURNO";
+type Jornada = "MATUTINO" | "VESPERTINO" | "NOCTURNO" | "EVENTUAL" | "TURNO_ROTATIVO" | "CUBRETURNOS" | "DIURNO";
 
 export async function agregarAsignacionSupervisorAction(input: {
   supervisorId: string;

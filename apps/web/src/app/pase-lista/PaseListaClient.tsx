@@ -88,6 +88,7 @@ const JORNADA_STYLE: Record<string, { label: string; bg: string; text: string; b
   NOCTURNO:        { label: "NOC", bg: "rgba(139,92,246,0.18)", text: "#C4B5FD", border: "rgba(139,92,246,0.4)"  },
   TURNO_ROTATIVO:  { label: "ROT", bg: "rgba(6,182,212,0.15)",  text: "#67E8F9", border: "rgba(6,182,212,0.35)"  },
   CUBRETURNOS:     { label: "CUB", bg: "rgba(20,184,166,0.15)", text: "#5EEAD4", border: "rgba(20,184,166,0.35)" },
+  EVENTUAL:        { label: "EVE", bg: "rgba(236,72,153,0.15)", text: "#F9A8D4", border: "rgba(236,72,153,0.35)" },
   DIURNO:          { label: "DIA", bg: "rgba(34,197,94,0.15)",  text: "#86EFAC", border: "rgba(34,197,94,0.35)"  },
 };
 function jornadaChip(j: string) {

@@ -62,7 +62,7 @@ export default async function PaseListaPage({ searchParams }: PageProps) {
       .or("activa.is.null,activa.eq.true")
       .order("nombre");
     for (const s of (data ?? []) as SedeShape[]) {
-      asignaciones.push({ sede: s, jornadas: ["MATUTINO", "VESPERTINO", "NOCTURNO"] });
+      asignaciones.push({ sede: s, jornadas: ["MATUTINO", "VESPERTINO", "NOCTURNO", "EVENTUAL"] });
     }
   }
 
@@ -70,7 +70,7 @@ export default async function PaseListaPage({ searchParams }: PageProps) {
   const sedeActual = asignaciones.find((a) => a.sede.id === sedeId);
   // jornadaActual puede ser "ALL" (todas las jornadas asignadas) o una específica
   const jornadaActual = params.jornada || "ALL";
-  const jornadasAsignadas = sedeActual?.jornadas ?? ["MATUTINO", "VESPERTINO", "NOCTURNO"];
+  const jornadasAsignadas = sedeActual?.jornadas ?? ["MATUTINO", "VESPERTINO", "NOCTURNO", "EVENTUAL"];
 
   // Empleados activos — filtrados a las jornadas asignadas del supervisor
   let empleados: Empleado[] = [];

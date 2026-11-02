@@ -7,7 +7,7 @@ import { generarCredencialesSedeAction, type CredencialRow } from "./actions";
 
 export interface SedeOpt { id: string; abrev: string; nombre: string; qr_habilitado: boolean; activos: number }
 
-const JORNADAS = ["TODAS", "MATUTINO", "VESPERTINO", "NOCTURNO"] as const;
+const JORNADAS = ["TODAS", "MATUTINO", "VESPERTINO", "NOCTURNO", "EVENTUAL"] as const;
 
 export function QRAdminClient({ sedes }: { sedes: SedeOpt[] }) {
   const [pending, start] = useTransition();

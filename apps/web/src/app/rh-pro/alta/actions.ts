@@ -20,7 +20,7 @@ export interface ContratoInput {
 
   // Asignación
   sede_id: string;
-  jornada_legacy: "MATUTINO" | "VESPERTINO" | "NOCTURNO" | "TURNO_ROTATIVO" | "CUBRETURNOS" | "DIURNO";
+  jornada_legacy: "MATUTINO" | "VESPERTINO" | "NOCTURNO" | "EVENTUAL" | "TURNO_ROTATIVO" | "CUBRETURNOS" | "DIURNO";
   dia_descanso: string[]; // ["DOM"] o ["SAB","DOM"]
   puesto: string;
   segmento_original?: string;

@@ -8,9 +8,9 @@ import {
   eliminarAsignacionSupervisorAction,
 } from "../actions";
 
-type Jornada = "MATUTINO" | "VESPERTINO" | "NOCTURNO" | "TURNO_ROTATIVO" | "CUBRETURNOS" | "DIURNO";
+type Jornada = "MATUTINO" | "VESPERTINO" | "NOCTURNO" | "EVENTUAL" | "TURNO_ROTATIVO" | "CUBRETURNOS" | "DIURNO";
 
-const JORNADAS: Jornada[] = ["MATUTINO", "VESPERTINO", "NOCTURNO", "TURNO_ROTATIVO", "CUBRETURNOS", "DIURNO"];
+const JORNADAS: Jornada[] = ["MATUTINO", "VESPERTINO", "NOCTURNO", "EVENTUAL", "TURNO_ROTATIVO", "CUBRETURNOS", "DIURNO"];
 
 interface SedeOpt { id: string; abrev: string; nombre: string }
 interface AsignRow { id: string; sede_id: string; sede_abrev: string; sede_nombre: string; jornada: string }

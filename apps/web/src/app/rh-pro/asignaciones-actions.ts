@@ -8,7 +8,7 @@ export type AsignResult = { ok: true } | { ok: false; error: string };
 interface AgregarInput {
   usuario_id: string;
   sede_id: string;
-  jornada: "MATUTINO" | "VESPERTINO" | "NOCTURNO" | "TURNO_ROTATIVO" | "CUBRETURNOS" | "DIURNO";
+  jornada: "MATUTINO" | "VESPERTINO" | "NOCTURNO" | "EVENTUAL" | "TURNO_ROTATIVO" | "CUBRETURNOS" | "DIURNO";
 }
 
 async function requireAdmin() {

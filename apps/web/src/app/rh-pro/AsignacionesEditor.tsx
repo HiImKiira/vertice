@@ -19,7 +19,7 @@ export interface SupervisorRow {
   asignaciones: Asign[];
 }
 
-const JORNADAS = ["MATUTINO", "VESPERTINO", "NOCTURNO", "TURNO_ROTATIVO", "CUBRETURNOS", "DIURNO"] as const;
+const JORNADAS = ["MATUTINO", "VESPERTINO", "NOCTURNO", "EVENTUAL", "TURNO_ROTATIVO", "CUBRETURNOS", "DIURNO"] as const;
 type Jornada = (typeof JORNADAS)[number];
 
 export function AsignacionesEditor({ supervisores, sedes }: { supervisores: SupervisorRow[]; sedes: Sede[] }) {

@@ -19,7 +19,7 @@ const DIAS = [
   { v: "DOM", l: "Domingo" },
 ];
 
-const JORNADAS_DB = ["MATUTINO", "VESPERTINO", "NOCTURNO", "TURNO_ROTATIVO", "CUBRETURNOS", "DIURNO"] as const;
+const JORNADAS_DB = ["MATUTINO", "VESPERTINO", "NOCTURNO", "EVENTUAL", "TURNO_ROTATIVO", "CUBRETURNOS", "DIURNO"] as const;
 
 export function AltaForm({ sedes, config }: { sedes: Sede[]; config: Record<string, string> }) {
   const router = useRouter();
