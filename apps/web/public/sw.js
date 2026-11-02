@@ -15,7 +15,7 @@
  *
  * Para forzar refresh del SW en producción: cambiar CACHE_VERSION.
  */
-const CACHE_VERSION = "vortex-v10";
+const CACHE_VERSION = "vortex-v11";
 
 self.addEventListener("install", () => {
   // Activar de inmediato la versión nueva, sin esperar.
