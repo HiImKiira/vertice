@@ -51,6 +51,15 @@ function modulosFor(rol: string): Modulo[] {
       badge: { label: "Todos", cls: "pill" },
     },
     {
+      href: "/escaner",
+      icon: "📷",
+      iconBg: "rgba(16,185,129,0.12)",
+      iconBorder: "rgba(16,185,129,0.35)",
+      title: "Escáner QR",
+      sub: "Escanea la credencial del trabajador y su asistencia se marca sola.",
+      badge: { label: "Todos", cls: "pill pill-green" },
+    },
+    {
       href: "/mi-quincena",
       icon: "📈",
       iconBg: "rgba(16,185,129,0.12)",
@@ -186,6 +195,15 @@ function modulosFor(rol: string): Modulo[] {
       badge: { label: "ADMIN+", cls: "pill pill-amber" },
     },
     {
+      href: "/rh-pro/qr",
+      icon: "🪪",
+      iconBg: "rgba(6,182,212,0.12)",
+      iconBorder: "rgba(6,182,212,0.3)",
+      title: "Credenciales QR",
+      sub: "Designa la sede, genera e imprime las credenciales QR por turno.",
+      badge: { label: "ADMIN+", cls: "pill pill-cyan" },
+    },
+    {
       href: "/rh-pro/correcciones",
       icon: "🛠️",
       iconBg: "rgba(239,68,68,0.12)",
@@ -238,7 +256,7 @@ function modulosFor(rol: string): Modulo[] {
   }
 
   const adminLike = ["ADMIN", "SUPERADMIN", "CEO", "SOPORTE"].includes(rol);
-  const adminOnly = new Set(["/live", "/rh-pro", "/rh-pro/empleados", "/rh-pro/contratos", "/rh-pro/sedes", "/rh-pro/descansos-semanales", "/rh-pro/consulta", "/rh-pro/actividad", "/rh-pro/correcciones", "/rh-pro/supervisores", "/reportes"]);
+  const adminOnly = new Set(["/live", "/rh-pro", "/rh-pro/empleados", "/rh-pro/contratos", "/rh-pro/sedes", "/rh-pro/descansos-semanales", "/rh-pro/consulta", "/rh-pro/actividad", "/rh-pro/correcciones", "/rh-pro/qr", "/rh-pro/supervisores", "/reportes"]);
   return all.filter((m) => (adminOnly.has(m.href) ? adminLike : true));
 }
 
