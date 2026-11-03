@@ -124,6 +124,21 @@ export function QRAdminClient({ sedes, rol }: { sedes: SedeOpt[]; rol: string })
     () => (creds ?? []).filter((c) => filtro === "TODAS" || c.jornada === filtro),
     [creds, filtro],
   );
+  // Agrupadas por turno (MAT → VES → NOC → EVE): cada turno arranca en hoja nueva
+  const grupos = useMemo(() => {
+    const orden = ["MATUTINO", "VESPERTINO", "NOCTURNO", "EVENTUAL"];
+    const m = new Map<string, CredencialRow[]>();
+    for (const c of visibles) {
+      if (!m.has(c.jornada)) m.set(c.jornada, []);
+      m.get(c.jornada)!.push(c);
+    }
+    return [...m.entries()]
+      .sort((a, b) => {
+        const ia = orden.indexOf(a[0]); const ib = orden.indexOf(b[0]);
+        return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+      })
+      .map(([jornada, items]) => ({ jornada, items }));
+  }, [visibles]);
   const porJornada = useMemo(() => {
     const m = new Map<string, number>();
     for (const c of creds ?? []) m.set(c.jornada, (m.get(c.jornada) ?? 0) + 1);
@@ -250,38 +265,75 @@ export function QRAdminClient({ sedes, rol }: { sedes: SedeOpt[]; rol: string })
         </section>
       )}
 
-      {/* Hoja de credenciales (lo único que se imprime) */}
+      {/* Hoja de credenciales (lo único que se imprime), agrupada por turno */}
       {creds && (
         <section id="hoja-credenciales">
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 print:grid-cols-3 print:gap-2">
-            {visibles.map((c) => (
-              <div
-                key={c.id}
-                className="credencial flex flex-col items-center rounded-xl border border-white/15 bg-white p-3 text-center text-black"
-              >
-                <p className="text-[10px] font-bold tracking-widest text-neutral-500">VORTEX · MHS</p>
-                {qrs[c.id] ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={qrs[c.id]} alt={`QR ${c.numero_empleado}`} className="my-1 h-32 w-32" />
-                ) : (
-                  <div className="my-1 flex h-32 w-32 items-center justify-center text-[10px] text-neutral-400">…</div>
-                )}
-                <p className="w-full truncate text-xs font-bold leading-tight">{c.nombre}</p>
-                <p className="font-mono text-[11px] text-neutral-700">#{c.numero_empleado}</p>
-                <p className="text-[10px] font-semibold text-neutral-500">{sedeAbrev} · {c.jornada}</p>
+          {grupos.map((g) => (
+            <div key={g.jornada} className="grupo-credenciales mb-6">
+              <p className="grupo-titulo mb-2 text-[11px] font-bold uppercase tracking-widest text-muted">
+                {sedeAbrev} · {g.jornada} · {g.items.length} credencial(es)
+              </p>
+              <div className="grid-credenciales grid grid-cols-2 gap-3 sm:grid-cols-3">
+                {g.items.map((c) => (
+                  <div
+                    key={c.id}
+                    className="credencial flex flex-col items-center justify-center rounded-xl border border-white/15 bg-white p-3 text-center text-black"
+                  >
+                    <p className="cred-marca text-[10px] font-bold tracking-widest text-neutral-500">VORTEX · MHS</p>
+                    {qrs[c.id] ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={qrs[c.id]} alt={`QR ${c.numero_empleado}`} className="my-1 h-32 w-32" />
+                    ) : (
+                      <div className="my-1 flex h-32 w-32 items-center justify-center text-[10px] text-neutral-400">…</div>
+                    )}
+                    <p className="cred-nombre w-full truncate text-xs font-bold leading-tight">{c.nombre}</p>
+                    <p className="cred-numero font-mono text-[11px] text-neutral-700">#{c.numero_empleado}</p>
+                    <p className="cred-sede text-[10px] font-semibold text-neutral-500">{sedeAbrev} · {c.jornada}</p>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
         </section>
       )}
 
-      {/* Estilos de impresión: solo la hoja, fondo blanco, sin cortes de tarjeta */}
+      {/* Impresión: gafetes de 63×82 mm, 9 por hoja carta, sin cortes.
+          OJO: no usamos CSS grid al imprimir — Chrome corta las celdas entre
+          páginas. inline-flex + break-inside:avoid sí fragmenta bien. */}
       <style>{`
         @media print {
+          @page { size: letter portrait; margin: 7mm; }
+          html, body { background: #fff !important; }
+          body::before, body::after { display: none !important; }
           body * { visibility: hidden; }
           #hoja-credenciales, #hoja-credenciales * { visibility: visible; }
-          #hoja-credenciales { position: absolute; left: 0; top: 0; width: 100%; }
-          .credencial { break-inside: avoid; border: 1.5px solid #000 !important; }
+          #hoja-credenciales { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 0; }
+          .grupo-credenciales { margin: 0 !important; }
+          .grupo-credenciales + .grupo-credenciales { break-before: page; page-break-before: always; }
+          .grupo-titulo { color: #000 !important; margin: 0 0 2mm 0 !important; font-size: 9pt !important; }
+          .grid-credenciales { display: block !important; }
+          .credencial {
+            display: inline-flex !important;
+            vertical-align: top;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 63mm !important;
+            height: 82mm !important;
+            margin: 0 2.5mm 3mm 0 !important;
+            padding: 3mm !important;
+            border: 1.2px solid #000 !important;
+            border-radius: 3mm !important;
+            break-inside: avoid;
+            page-break-inside: avoid;
+            overflow: hidden;
+            box-shadow: none !important;
+          }
+          .credencial img { width: 44mm !important; height: 44mm !important; margin: 1.5mm 0 !important; }
+          .cred-marca { font-size: 7pt !important; }
+          .cred-nombre { font-size: 8.5pt !important; max-width: 56mm; }
+          .cred-numero { font-size: 9pt !important; }
+          .cred-sede { font-size: 7.5pt !important; }
         }
       `}</style>
     </div>
