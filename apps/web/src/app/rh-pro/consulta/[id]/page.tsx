@@ -7,6 +7,7 @@ import { Icon } from "@/components/Icon";
 import { CODIGO_SPEC, type CodigoAsistencia } from "@vertice/shared/codes";
 import { NotasEditor } from "./NotasEditor";
 import { DatosPersonalesEditor } from "./DatosPersonalesEditor";
+import { GafeteEmpleado } from "@/components/GafeteEmpleado";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Empleado · Consulta" };
@@ -193,6 +194,19 @@ export default async function EmpleadoDetailPage({ params }: PageProps) {
           <div className="grid gap-4 lg:grid-cols-2">
             <StatsBlock title={`Últimos 60 días (${last60.total} capturados)`} stats={last60} />
             <StatsBlock title={`Histórico total (${lifetime.total} capturados)`} stats={lifetime} showOtros />
+          </div>
+        </section>
+
+        {/* Gafete QR (Eventos Extraordinarios) */}
+        <section className="mb-6 print:contents">
+          <div className="section-label mb-3 print:hidden">Gafete QR · Eventos Extraordinarios</div>
+          <div className="surface-card p-4 print:contents">
+            <p className="mb-2 text-xs text-muted print:hidden">
+              Genera (o reimprime) el gafete de este trabajador para la asistencia por QR.
+              Formato mica 8×11.5 cm con espacio para foto. El QR apunta al trabajador:
+              sigue sirviendo aunque cambie de sede o turno.
+            </p>
+            <GafeteEmpleado empleadoId={emp.id} />
           </div>
         </section>
 

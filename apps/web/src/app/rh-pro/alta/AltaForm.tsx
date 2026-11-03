@@ -6,6 +6,7 @@ import { Icon } from "@/components/Icon";
 import { useRouter } from "next/navigation";
 import { sueldoEnLetra } from "@vertice/shared/numbers";
 import { crearContratoAction, type ContratoInput } from "./actions";
+import { GafeteEmpleado } from "@/components/GafeteEmpleado";
 
 interface Sede { id: string; codigo: string; abrev: string; nombre: string; ultimo_folio: number }
 
@@ -419,6 +420,12 @@ export function AltaForm({ sedes, config }: { sedes: Sede[]; config: Record<stri
               Puedes regenerarlo desde la lista de contratos.
             </p>
           )}
+          <div className="mt-3 border-t border-emerald-400/20 pt-3">
+            <p className="mb-1.5 text-xs text-emerald-100/80">
+              ¿Va a marcar asistencia por QR (Eventos Extraordinarios)? Genera e imprime su gafete de una vez:
+            </p>
+            <GafeteEmpleado empleadoId={success.empleadoId} />
+          </div>
         </div>
       )}
 

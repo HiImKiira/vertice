@@ -29,6 +29,55 @@ async function requireRH(): Promise<string | null> {
   return user.id;
 }
 
+export type GafeteResult =
+  | {
+      ok: true;
+      gafete: {
+        numero: string; nombre: string; jornada: string;
+        sede_abrev: string; token: string; qr_habilitado: boolean;
+      };
+    }
+  | { ok: false; error: string };
+
+/**
+ * Gafete individual: genera (si no tiene) el token QR de UN empleado y
+ * devuelve sus datos para imprimir el gafete al momento — pensado para
+ * altas nuevas desde /rh-pro/alta o la ficha del empleado.
+ */
+export async function gafeteEmpleadoAction(empleadoId: string): Promise<GafeteResult> {
+  const rh = await requireRH();
+  if (!rh) return { ok: false, error: "Solo RH (ADMIN/SUPERADMIN/SOPORTE)" };
+
+  const admin = supabaseAdmin();
+  const { data: emp } = await admin
+    .from("empleados")
+    .select("id, numero_empleado, nombre, jornada, fecha_baja, qr_token, sedes(abrev, qr_habilitado)")
+    .eq("id", empleadoId)
+    .maybeSingle<{
+      id: string; numero_empleado: string; nombre: string; jornada: string;
+      fecha_baja: string | null; qr_token: string | null;
+      sedes: { abrev: string; qr_habilitado: boolean } | { abrev: string; qr_habilitado: boolean }[] | null;
+    }>();
+  if (!emp) return { ok: false, error: "Empleado no encontrado" };
+  if (emp.fecha_baja) return { ok: false, error: `${emp.nombre} está dado de baja` };
+
+  let token = emp.qr_token;
+  if (!token) {
+    token = `VTX1.${randomBytes(16).toString("base64url")}`;
+    const { error } = await admin.from("empleados").update({ qr_token: token }).eq("id", emp.id);
+    if (error) return { ok: false, error: error.message };
+  }
+  const sede = Array.isArray(emp.sedes) ? emp.sedes[0] : emp.sedes;
+  revalidatePath("/rh-pro/qr");
+  return {
+    ok: true,
+    gafete: {
+      numero: emp.numero_empleado, nombre: emp.nombre, jornada: emp.jornada,
+      sede_abrev: sede?.abrev ?? "—", token, qr_habilitado: sede?.qr_habilitado === true,
+    },
+  };
+}
+
 /** Regla de negocio: la geocerca SOLO la cambian SUPERADMIN y ADMIN. */
 async function requireGeoAdmin(): Promise<string | null> {
   const supabase = await createSupabaseServerClient();
