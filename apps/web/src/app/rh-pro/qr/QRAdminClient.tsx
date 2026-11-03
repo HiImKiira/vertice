@@ -279,7 +279,7 @@ export function QRAdminClient({ sedes, rol }: { sedes: SedeOpt[]; rol: string })
                     key={c.id}
                     className="credencial flex flex-col items-center justify-center rounded-xl border border-white/15 bg-white p-3 text-center text-black"
                   >
-                    <p className="cred-marca text-[10px] font-bold tracking-widest text-neutral-500">VORTEX · MHS</p>
+                    <p className="cred-marca text-[10px] font-bold tracking-widest text-neutral-500">MHS INTEGRADORA</p>
                     <div className="cred-foto my-1 flex h-20 w-16 items-center justify-center rounded-md border-2 border-dashed border-neutral-300 text-[9px] font-bold tracking-widest text-neutral-400">
                       FOTO
                     </div>

@@ -8,7 +8,7 @@ import { meridaToday } from "@/lib/quincena";
 export type ScanResult =
   | {
       ok: true;
-      estado: "marcado" | "ya_marcado";
+      estado: "marcado" | "ya_marcado" | "prueba";
       nombre: string;
       numero: string;
       jornada: string;
@@ -49,8 +49,12 @@ function distanciaM(lat1: number, lng1: number, lat2: number, lng2: number): num
  *  4. Quien escanea es supervisor con esa sede×jornada asignada (admin-like
  *     pasa sin asignación). COORDINACION marca solo sus sedes asignadas.
  *  5. Sin doble marca: si ya tiene asistencia hoy, se informa, no se pisa.
+ *
+ * `prueba: true` (solo SUPERADMIN/SOPORTE): corre TODAS las validaciones,
+ * geocerca incluida, pero NO inserta la asistencia — para probar el flujo
+ * sin ensuciar el pase de lista.
  */
-export async function marcarPorQRAction(token: string, geo?: GeoScan | null): Promise<ScanResult> {
+export async function marcarPorQRAction(token: string, geo?: GeoScan | null, prueba?: boolean): Promise<ScanResult> {
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Sin sesión" };
@@ -111,6 +115,9 @@ export async function marcarPorQRAction(token: string, geo?: GeoScan | null): Pr
   const { data: perfil } = await supabase
     .from("usuarios").select("rol").eq("id", user.id).single<{ rol: string }>();
   const esAdmin = ["ADMIN", "SUPERADMIN", "CEO", "SOPORTE"].includes(perfil?.rol ?? "");
+  if (prueba && !["SUPERADMIN", "SOPORTE"].includes(perfil?.rol ?? "")) {
+    return { ok: false, error: "El modo prueba es solo para SUPERADMIN y SOPORTE" };
+  }
   if (!esAdmin) {
     const { data: asig } = await supabase
       .from("asignaciones_supervisor")
@@ -142,6 +149,15 @@ export async function marcarPorQRAction(token: string, geo?: GeoScan | null): Pr
       hora: ya.actualizado_en
         ? new Date(ya.actualizado_en).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })
         : undefined,
+    };
+  }
+
+  // Modo prueba: todo validó (credencial, sede, geocerca, permisos) — no se marca.
+  if (prueba) {
+    return {
+      ok: true, estado: "prueba",
+      nombre: emp.nombre, numero: emp.numero_empleado, jornada: emp.jornada, sede: sede.abrev,
+      codigo: "A",
     };
   }
 

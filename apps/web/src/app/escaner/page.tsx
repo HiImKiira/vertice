@@ -26,7 +26,7 @@ export default async function EscanerPage() {
           </p>
         </header>
 
-        <EscanerClient />
+        <EscanerClient esTester={["SUPERADMIN", "SOPORTE"].includes(profile.rol)} />
       </div>
     </main>
   );

@@ -16,7 +16,7 @@ const nombres = [
 ];
 function card(n, i, j) {
   return `<div class="credencial">
-    <p class="cred-marca">VORTEX &middot; MHS</p>
+    <p class="cred-marca">MHS INTEGRADORA</p>
     <div class="cred-foto">FOTO</div>
     <img src="${qr}">
     <p class="cred-nombre">${n}</p>

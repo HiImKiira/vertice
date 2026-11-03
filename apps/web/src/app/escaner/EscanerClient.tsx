@@ -26,13 +26,15 @@ function beep(ok: boolean) {
   } catch { /* sin audio */ }
 }
 
-export function EscanerClient() {
+export function EscanerClient({ esTester = false }: { esTester?: boolean }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const pausadoRef = useRef(false);
   const recientesRef = useRef<Map<string, number>>(new Map());
   const geoRef = useRef<GeoScan | null>(null);
+  const pruebaRef = useRef(false);
+  const [modoPrueba, setModoPrueba] = useState(false);
   const [estado, setEstado] = useState<"inicial" | "activo" | "sin_camara">("inicial");
   const [geoEstado, setGeoEstado] = useState<GeoEstado>("pidiendo");
   const [geoAcc, setGeoAcc] = useState<number | null>(null);
@@ -77,12 +79,12 @@ export function EscanerClient() {
       recientesRef.current.set(token, ahora);
       pausadoRef.current = true;
 
-      const r = await marcarPorQRAction(token, geoRef.current);
+      const r = await marcarPorQRAction(token, geoRef.current, pruebaRef.current);
       const reg: Registro = { ts: ahora, resultado: r };
       setUltimo(reg);
       setHistorial((h) => [reg, ...h].slice(0, 20));
       if (r.ok && r.estado === "marcado") setMarcados((n) => n + 1);
-      beep(r.ok && r.estado === "marcado");
+      beep(r.ok && (r.estado === "marcado" || r.estado === "prueba"));
       if (navigator.vibrate) navigator.vibrate(r.ok ? 80 : [60, 60, 60]);
 
       setTimeout(() => { pausadoRef.current = false; }, 1200);
@@ -154,8 +156,37 @@ export function EscanerClient() {
 
   const r = ultimo?.resultado;
 
+  function toggleModoPrueba() {
+    setModoPrueba((v) => {
+      pruebaRef.current = !v;
+      return !v;
+    });
+  }
+
   return (
     <div className="space-y-4">
+      {/* Modo prueba (solo SUPERADMIN/SOPORTE): valida todo sin marcar */}
+      {esTester && (
+        <button
+          type="button"
+          onClick={toggleModoPrueba}
+          className={`flex w-full items-center justify-between rounded-xl border px-3.5 py-2.5 text-left text-xs transition ${
+            modoPrueba
+              ? "border-violet-400/50 bg-violet-500/[0.14] text-violet-100"
+              : "border-white/10 bg-[color:var(--card)] text-muted"
+          }`}
+        >
+          <span>
+            <span className="font-bold">🧪 Modo prueba</span>{" "}
+            {modoPrueba
+              ? "— ACTIVO: valida credencial, sede y geocerca, pero NO marca asistencia"
+              : "— toca para probar el flujo sin marcar asistencia"}
+          </span>
+          <span className={`ml-2 shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${modoPrueba ? "bg-violet-400 text-black" : "bg-white/10"}`}>
+            {modoPrueba ? "ON" : "OFF"}
+          </span>
+        </button>
+      )}
       {/* Cámara */}
       <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-black">
         <video ref={videoRef} playsInline muted className="h-[46vh] w-full object-cover" />
@@ -218,15 +249,23 @@ export function EscanerClient() {
               ? "border-red-400/50 bg-red-500/[0.12]"
               : r.estado === "marcado"
                 ? "border-emerald-400/50 bg-emerald-500/[0.12]"
-                : "border-amber-400/50 bg-amber-500/[0.12]"
+                : r.estado === "prueba"
+                  ? "border-violet-400/50 bg-violet-500/[0.12]"
+                  : "border-amber-400/50 bg-amber-500/[0.12]"
           }`}
         >
           {!r.ok ? (
             <p className="text-sm font-semibold text-red-200">✕ {r.error}</p>
           ) : (
             <>
-              <p className={`text-base font-bold ${r.estado === "marcado" ? "text-emerald-200" : "text-amber-200"}`}>
-                {r.estado === "marcado" ? "✓ Asistencia registrada" : "⚠ Ya estaba marcado"}
+              <p className={`text-base font-bold ${
+                r.estado === "marcado" ? "text-emerald-200" : r.estado === "prueba" ? "text-violet-200" : "text-amber-200"
+              }`}>
+                {r.estado === "marcado"
+                  ? "✓ Asistencia registrada"
+                  : r.estado === "prueba"
+                    ? "🧪 Prueba OK — credencial válida (NO se marcó)"
+                    : "⚠ Ya estaba marcado"}
               </p>
               <p className="mt-1 text-sm text-text">
                 #{r.numero} · {r.nombre}
@@ -249,7 +288,7 @@ export function EscanerClient() {
               const x = h.resultado;
               return (
                 <li key={h.ts} className="flex items-center gap-2 rounded-md border border-white/5 bg-[color:var(--card)] px-2.5 py-1.5 text-xs">
-                  <span>{!x.ok ? "✕" : x.estado === "marcado" ? "✅" : "⚠️"}</span>
+                  <span>{!x.ok ? "✕" : x.estado === "marcado" ? "✅" : x.estado === "prueba" ? "🧪" : "⚠️"}</span>
                   <span className="min-w-0 flex-1 truncate">
                     {x.ok ? `#${x.numero} ${x.nombre}` : x.error}
                   </span>
