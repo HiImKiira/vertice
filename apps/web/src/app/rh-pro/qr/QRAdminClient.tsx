@@ -309,9 +309,12 @@ export function QRAdminClient({ sedes, rol }: { sedes: SedeOpt[]; rol: string })
           @page { size: letter portrait; margin: 7mm; }
           html, body { background: #fff !important; }
           body::before, body::after { display: none !important; }
-          body * { visibility: hidden; }
-          #hoja-credenciales, #hoja-credenciales * { visibility: visible; }
-          #hoja-credenciales { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 0; }
+          /* OJO: nada de position:absolute aquí — saca la hoja del flujo y el
+             navegador solo imprime UNA página. Se oculta el resto con display
+             y la hoja pagina sola en flujo normal. */
+          .topbar { display: none !important; }
+          main { padding: 0 !important; margin: 0 !important; }
+          #hoja-credenciales { width: 100%; margin: 0; padding: 0; }
           .grupo-credenciales { margin: 0 !important; }
           .grupo-credenciales + .grupo-credenciales { break-before: page; page-break-before: always; }
           .grupo-titulo { color: #000 !important; margin: 0 0 2mm 0 !important; font-size: 9pt !important; }

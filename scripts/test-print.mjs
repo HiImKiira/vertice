@@ -57,7 +57,7 @@ const html = `<!doctype html><html><head><meta charset="utf-8"><style>
   .credencial img { width: 46mm; height: 46mm; margin: 1mm 0; }
   .cred-marca { font-size: 8pt; } .cred-nombre { font-size: 10pt; max-width: 72mm; }
   .cred-numero { font-size: 11pt; } .cred-sede { font-size: 8.5pt; }
-</style></head><body>${grupo("MATUTINO", 14)}${grupo("VESPERTINO", 5)}</body></html>`;
+</style></head><body>${grupo("MATUTINO", 60)}${grupo("EVENTUAL", 19)}</body></html>`;
 
 writeFileSync(`${OUT}/test-print.html`, html);
 const browser = await puppeteer.launch({ executablePath: "C:/Program Files/Google/Chrome/Application/chrome.exe", headless: "new" });
