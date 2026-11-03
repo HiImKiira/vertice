@@ -11,6 +11,8 @@ export interface CredencialRow {
   nombre: string;
   jornada: string;
   token: string;
+  /** true si el token se generó en ESTA corrida (trabajador recién dado de alta). */
+  nuevo: boolean;
 }
 
 export type GenerarResult =
@@ -116,12 +118,13 @@ export async function generarCredencialesSedeAction(sedeId: string): Promise<Gen
 
   // 3) Token nuevo solo a quien no tiene
   let nuevos = 0;
+  const generados = new Set<string>();
   const lista = (emps ?? []) as Array<{ id: string; numero_empleado: string; nombre: string; jornada: string; qr_token: string | null }>;
   for (const e of lista) {
     if (!e.qr_token) {
       const token = `VTX1.${randomBytes(16).toString("base64url")}`;
       const { error } = await admin.from("empleados").update({ qr_token: token }).eq("id", e.id);
-      if (!error) { e.qr_token = token; nuevos++; }
+      if (!error) { e.qr_token = token; nuevos++; generados.add(e.id); }
     }
   }
 
@@ -132,7 +135,10 @@ export async function generarCredencialesSedeAction(sedeId: string): Promise<Gen
     nuevos,
     credenciales: lista
       .filter((e) => !!e.qr_token)
-      .map((e) => ({ id: e.id, numero_empleado: e.numero_empleado, nombre: e.nombre, jornada: e.jornada, token: e.qr_token! })),
+      .map((e) => ({
+        id: e.id, numero_empleado: e.numero_empleado, nombre: e.nombre, jornada: e.jornada,
+        token: e.qr_token!, nuevo: generados.has(e.id),
+      })),
   };
 }
 

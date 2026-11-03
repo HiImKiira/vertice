@@ -27,6 +27,10 @@ export function QRAdminClient({ sedes, rol }: { sedes: SedeOpt[]; rol: string })
   const [filtro, setFiltro] = useState<(typeof JORNADAS)[number]>("TODAS");
   const [msg, setMsg] = useState<string | null>(null);
 
+  // ── Gafetes individuales: selección manual para altas nuevas ──
+  const [seleccion, setSeleccion] = useState<Set<string>>(new Set());
+  const [busqueda, setBusqueda] = useState("");
+
   // ── Geocerca (solo SUPERADMIN y ADMIN la cambian) ──
   const puedeGeo = rol === "SUPERADMIN" || rol === "ADMIN";
   const [geoPending, geoStart] = useTransition();
@@ -83,6 +87,7 @@ export function QRAdminClient({ sedes, rol }: { sedes: SedeOpt[]; rol: string })
   function generar() {
     if (!sedeId) return;
     setMsg(null); setCreds(null); setQrs({});
+    setSeleccion(new Set()); setBusqueda("");
     start(async () => {
       const r = await generarCredencialesSedeAction(sedeId);
       if (!r.ok) { setMsg(`Error: ${r.error}`); return; }
@@ -120,12 +125,20 @@ export function QRAdminClient({ sedes, rol }: { sedes: SedeOpt[]; rol: string })
     return () => { vivo = false; };
   }, [creds]);
 
+  // Con selección individual activa, la hoja es SOLO lo seleccionado;
+  // si no, aplica el filtro por turno de siempre.
+  const haySeleccion = seleccion.size > 0;
   const visibles = useMemo(
-    () => (creds ?? []).filter((c) => filtro === "TODAS" || c.jornada === filtro),
-    [creds, filtro],
+    () =>
+      haySeleccion
+        ? (creds ?? []).filter((c) => seleccion.has(c.id))
+        : (creds ?? []).filter((c) => filtro === "TODAS" || c.jornada === filtro),
+    [creds, filtro, seleccion, haySeleccion],
   );
-  // Agrupadas por turno (MAT → VES → NOC → EVE): cada turno arranca en hoja nueva
+  // Agrupadas por turno (MAT → VES → NOC → EVE): cada turno arranca en hoja
+  // nueva. La selección individual va en UN solo grupo (sin saltos de hoja).
   const grupos = useMemo(() => {
+    if (haySeleccion) return visibles.length ? [{ jornada: "INDIVIDUALES", items: visibles }] : [];
     const orden = ["MATUTINO", "VESPERTINO", "NOCTURNO", "EVENTUAL"];
     const m = new Map<string, CredencialRow[]>();
     for (const c of visibles) {
@@ -138,7 +151,25 @@ export function QRAdminClient({ sedes, rol }: { sedes: SedeOpt[]; rol: string })
         return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
       })
       .map(([jornada, items]) => ({ jornada, items }));
-  }, [visibles]);
+  }, [visibles, haySeleccion]);
+
+  const nuevosIds = useMemo(() => (creds ?? []).filter((c) => c.nuevo).map((c) => c.id), [creds]);
+  const coincidencias = useMemo(() => {
+    const q = busqueda.trim().toUpperCase();
+    if (!q || !creds) return [];
+    return creds
+      .filter((c) => !seleccion.has(c.id) && (c.nombre.toUpperCase().includes(q) || c.numero_empleado.includes(q)))
+      .slice(0, 8);
+  }, [busqueda, creds, seleccion]);
+  const seleccionados = useMemo(() => (creds ?? []).filter((c) => seleccion.has(c.id)), [creds, seleccion]);
+
+  function agregarSel(id: string) {
+    setSeleccion((s) => new Set(s).add(id));
+    setBusqueda("");
+  }
+  function quitarSel(id: string) {
+    setSeleccion((s) => { const n = new Set(s); n.delete(id); return n; });
+  }
   const porJornada = useMemo(() => {
     const m = new Map<string, number>();
     for (const c of creds ?? []) m.set(c.jornada, (m.get(c.jornada) ?? 0) + 1);
@@ -192,6 +223,70 @@ export function QRAdminClient({ sedes, rol }: { sedes: SedeOpt[]; rol: string })
             >
               <Icon name="file-text" size={12} /> {qrsListos ? `Imprimir ${visibles.length} credencial(es)` : "Preparando QRs…"}
             </button>
+          </div>
+        )}
+
+        {/* Gafetes individuales: para altas nuevas sin reimprimir toda la sede */}
+        {creds && (
+          <div className="mt-4 border-t border-white/5 pt-3">
+            <p className="text-xs font-bold text-text">🪪 Gafetes individuales</p>
+            <p className="mb-2 text-[11px] text-muted">
+              ¿Diste de alta trabajadores nuevos en la sede? Vuelve a tocar «Generar credenciales» (los que ya
+              existían no cambian), búscalos aquí y imprime solo sus gafetes.
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                type="text"
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+                placeholder="Buscar por nombre o número…"
+                className="w-full max-w-xs rounded-lg border border-white/10 bg-[color:var(--surface)] px-3 py-2 text-sm outline-none focus:border-blue-400"
+              />
+              {nuevosIds.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setSeleccion(new Set([...seleccion, ...nuevosIds]))}
+                  className="btn btn-violet btn-sm"
+                >
+                  ✨ Seleccionar los nuevos ({nuevosIds.length})
+                </button>
+              )}
+              {haySeleccion && (
+                <button type="button" onClick={() => setSeleccion(new Set())} className="btn btn-ghost btn-sm">
+                  Limpiar selección
+                </button>
+              )}
+            </div>
+            {coincidencias.length > 0 && (
+              <ul className="mt-2 space-y-1">
+                {coincidencias.map((c) => (
+                  <li key={c.id}>
+                    <button
+                      type="button"
+                      onClick={() => agregarSel(c.id)}
+                      className="flex w-full max-w-md items-center gap-2 rounded-md border border-white/10 bg-[color:var(--card)] px-2.5 py-1.5 text-left text-xs hover:border-blue-400/50"
+                    >
+                      <span className="text-blue-300">＋</span>
+                      <span className="min-w-0 flex-1 truncate">#{c.numero_empleado} · {c.nombre}</span>
+                      <span className="shrink-0 text-[10px] text-muted">{c.jornada}{c.nuevo ? " · NUEVO" : ""}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {haySeleccion && (
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                {seleccionados.map((c) => (
+                  <span key={c.id} className="inline-flex items-center gap-1.5 rounded-full border border-blue-400/40 bg-blue-500/15 px-2.5 py-1 text-[11px] text-blue-100">
+                    #{c.numero_empleado} {c.nombre.split(" ").slice(0, 2).join(" ")}
+                    <button type="button" onClick={() => quitarSel(c.id)} className="font-bold text-blue-200 hover:text-white">×</button>
+                  </span>
+                ))}
+                <span className="text-[11px] font-semibold text-emerald-300">
+                  → el botón «Imprimir» ahora saca SOLO estos {seleccion.size} gafete(s)
+                </span>
+              </div>
+            )}
           </div>
         )}
       </section>
