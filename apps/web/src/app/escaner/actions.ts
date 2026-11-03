@@ -169,7 +169,24 @@ export async function marcarPorQRAction(token: string, geo?: GeoScan | null, pru
     codigo: "A",
     capturado_por: user.id,
   });
-  if (error) return { ok: false, error: `No se pudo marcar: ${error.message}` };
+  if (error) {
+    // Traducir los errores técnicos a algo accionable para quien escanea
+    const m = error.message.toLowerCase();
+    if (m.includes("row-level security") || m.includes("violates")) {
+      return {
+        ok: false,
+        error: `Tu usuario no tiene permiso para marcar en ${sede.abrev} hoy. Pide a RH que te asigne el turno (o la designación Captura XMA) y vuelve a intentar.`,
+      };
+    }
+    if (m.includes("duplicate") || m.includes("unique")) {
+      return {
+        ok: true, estado: "ya_marcado",
+        nombre: emp.nombre, numero: emp.numero_empleado, jornada: emp.jornada, sede: sede.abrev,
+        codigo: "A",
+      };
+    }
+    return { ok: false, error: `No se pudo marcar (error del servidor): ${error.message}` };
+  }
 
   revalidatePath("/pase-lista");
   revalidatePath("/mi-quincena");

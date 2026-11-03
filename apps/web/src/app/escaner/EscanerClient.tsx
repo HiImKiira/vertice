@@ -39,6 +39,8 @@ export function EscanerClient({ esTester = false }: { esTester?: boolean }) {
   const [geoEstado, setGeoEstado] = useState<GeoEstado>("pidiendo");
   const [geoAcc, setGeoAcc] = useState<number | null>(null);
   const [ultimo, setUltimo] = useState<Registro | null>(null);
+  const [flash, setFlash] = useState<Registro | null>(null);
+  const flashTimer = useRef<number | null>(null);
   const [historial, setHistorial] = useState<Registro[]>([]);
   const [marcados, setMarcados] = useState(0);
 
@@ -79,9 +81,19 @@ export function EscanerClient({ esTester = false }: { esTester?: boolean }) {
       recientesRef.current.set(token, ahora);
       pausadoRef.current = true;
 
-      const r = await marcarPorQRAction(token, geoRef.current, pruebaRef.current);
+      let r: ScanResult;
+      try {
+        r = await marcarPorQRAction(token, geoRef.current, pruebaRef.current);
+      } catch {
+        // Falla de red o del servidor antes de responder: que se pueda reintentar ya
+        recientesRef.current.delete(token);
+        r = { ok: false, error: "Sin conexión con el servidor — revisa tu internet y vuelve a escanear" };
+      }
       const reg: Registro = { ts: ahora, resultado: r };
       setUltimo(reg);
+      setFlash(reg);
+      if (flashTimer.current) window.clearTimeout(flashTimer.current);
+      flashTimer.current = window.setTimeout(() => setFlash(null), 2200);
       setHistorial((h) => [reg, ...h].slice(0, 20));
       if (r.ok && r.estado === "marcado") setMarcados((n) => n + 1);
       beep(r.ok && (r.estado === "marcado" || r.estado === "prueba"));
@@ -214,6 +226,39 @@ export function EscanerClient({ esTester = false }: { esTester?: boolean }) {
         <div className="absolute right-3 top-3 rounded-full bg-emerald-500/90 px-3 py-1 font-mono text-sm font-bold text-black">
           ✓ {marcados}
         </div>
+        {/* Banner grande por escaneo: se ve sin quitar la vista de la cámara */}
+        {flash && (() => {
+          const f = flash.resultado;
+          const estilo = !f.ok
+            ? "bg-red-600/95 text-white"
+            : f.estado === "marcado"
+              ? "bg-emerald-500/95 text-black"
+              : f.estado === "prueba"
+                ? "bg-violet-500/95 text-white"
+                : "bg-amber-400/95 text-black";
+          return (
+            <div className="pointer-events-none absolute inset-x-2 bottom-2 animate-slide-up">
+              <div className={`rounded-xl px-4 py-3 text-center shadow-2xl ${estilo}`}>
+                {f.ok ? (
+                  <>
+                    <p className="text-lg font-black leading-tight">
+                      {f.estado === "marcado" ? "✓ ASISTENCIA PUESTA" : f.estado === "prueba" ? "🧪 PRUEBA OK (no se marcó)" : "⚠ YA TENÍA ASISTENCIA"}
+                    </p>
+                    <p className="truncate text-sm font-semibold">#{f.numero} · {f.nombre}</p>
+                    {f.estado === "ya_marcado" && (
+                      <p className="text-xs font-medium">código {f.codigo}{f.hora ? ` · desde las ${f.hora}` : ""} — no se pisó</p>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <p className="text-lg font-black leading-tight">✕ NO SE MARCÓ</p>
+                    <p className="text-sm font-semibold leading-snug">{f.error}</p>
+                  </>
+                )}
+              </div>
+            </div>
+          );
+        })()}
         {/* Estado de ubicación (geocerca) */}
         <div
           className={`absolute left-3 top-3 rounded-full px-2.5 py-1 text-[10px] font-bold ${
