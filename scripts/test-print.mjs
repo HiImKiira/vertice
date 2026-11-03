@@ -17,6 +17,7 @@ const nombres = [
 function card(n, i, j) {
   return `<div class="credencial">
     <p class="cred-marca">VORTEX &middot; MHS</p>
+    <div class="cred-foto">FOTO</div>
     <img src="${qr}">
     <p class="cred-nombre">${n}</p>
     <p class="cred-numero">#${466 + i}</p>
@@ -43,14 +44,19 @@ const html = `<!doctype html><html><head><meta charset="utf-8"><style>
   .grid-credenciales { display: block; }
   .credencial {
     display: inline-flex; vertical-align: top; flex-direction: column;
-    align-items: center; justify-content: center;
-    width: 63mm; height: 82mm; margin: 0 2.5mm 3mm 0; padding: 3mm;
+    align-items: center; justify-content: space-evenly;
+    width: 80mm; height: 115mm; margin: 0 4mm 4mm 0; padding: 4mm;
     border: 1.2px solid #000; border-radius: 3mm;
     break-inside: avoid; page-break-inside: avoid; overflow: hidden;
   }
-  .credencial img { width: 44mm; height: 44mm; margin: 1.5mm 0; }
-  .cred-marca { font-size: 7pt; } .cred-nombre { font-size: 8.5pt; max-width: 56mm; }
-  .cred-numero { font-size: 9pt; } .cred-sede { font-size: 7.5pt; }
+  .cred-foto {
+    width: 26mm; height: 32mm; margin: 1mm 0; border: 0.4mm dashed #999;
+    border-radius: 2mm; font-size: 7pt; color: #999; font-weight: 700;
+    letter-spacing: .12em; display: flex; align-items: center; justify-content: center;
+  }
+  .credencial img { width: 46mm; height: 46mm; margin: 1mm 0; }
+  .cred-marca { font-size: 8pt; } .cred-nombre { font-size: 10pt; max-width: 72mm; }
+  .cred-numero { font-size: 11pt; } .cred-sede { font-size: 8.5pt; }
 </style></head><body>${grupo("MATUTINO", 14)}${grupo("VESPERTINO", 5)}</body></html>`;
 
 writeFileSync(`${OUT}/test-print.html`, html);

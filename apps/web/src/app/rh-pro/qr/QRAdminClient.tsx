@@ -280,6 +280,9 @@ export function QRAdminClient({ sedes, rol }: { sedes: SedeOpt[]; rol: string })
                     className="credencial flex flex-col items-center justify-center rounded-xl border border-white/15 bg-white p-3 text-center text-black"
                   >
                     <p className="cred-marca text-[10px] font-bold tracking-widest text-neutral-500">VORTEX · MHS</p>
+                    <div className="cred-foto my-1 flex h-20 w-16 items-center justify-center rounded-md border-2 border-dashed border-neutral-300 text-[9px] font-bold tracking-widest text-neutral-400">
+                      FOTO
+                    </div>
                     {qrs[c.id] ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={qrs[c.id]} alt={`QR ${c.numero_empleado}`} className="my-1 h-32 w-32" />
@@ -297,7 +300,8 @@ export function QRAdminClient({ sedes, rol }: { sedes: SedeOpt[]; rol: string })
         </section>
       )}
 
-      {/* Impresión: gafetes de 63×82 mm, 9 por hoja carta, sin cortes.
+      {/* Impresión: gafetes VERTICALES de 80×115 mm (mica de 8 × 11.5 cm),
+          con espacio para foto. 4 por hoja carta (2×2), sin cortes.
           OJO: no usamos CSS grid al imprimir — Chrome corta las celdas entre
           páginas. inline-flex + break-inside:avoid sí fragmenta bien. */}
       <style>{`
@@ -317,11 +321,11 @@ export function QRAdminClient({ sedes, rol }: { sedes: SedeOpt[]; rol: string })
             vertical-align: top;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
-            width: 63mm !important;
-            height: 82mm !important;
-            margin: 0 2.5mm 3mm 0 !important;
-            padding: 3mm !important;
+            justify-content: space-evenly;
+            width: 80mm !important;
+            height: 115mm !important;
+            margin: 0 4mm 4mm 0 !important;
+            padding: 4mm !important;
             border: 1.2px solid #000 !important;
             border-radius: 3mm !important;
             break-inside: avoid;
@@ -329,11 +333,19 @@ export function QRAdminClient({ sedes, rol }: { sedes: SedeOpt[]; rol: string })
             overflow: hidden;
             box-shadow: none !important;
           }
-          .credencial img { width: 44mm !important; height: 44mm !important; margin: 1.5mm 0 !important; }
-          .cred-marca { font-size: 7pt !important; }
-          .cred-nombre { font-size: 8.5pt !important; max-width: 56mm; }
-          .cred-numero { font-size: 9pt !important; }
-          .cred-sede { font-size: 7.5pt !important; }
+          .cred-foto {
+            width: 26mm !important;
+            height: 32mm !important;
+            margin: 1mm 0 !important;
+            border: 0.4mm dashed #999 !important;
+            border-radius: 2mm !important;
+            font-size: 7pt !important;
+          }
+          .credencial img { width: 46mm !important; height: 46mm !important; margin: 1mm 0 !important; }
+          .cred-marca { font-size: 8pt !important; }
+          .cred-nombre { font-size: 10pt !important; max-width: 72mm; }
+          .cred-numero { font-size: 11pt !important; }
+          .cred-sede { font-size: 8.5pt !important; }
         }
       `}</style>
     </div>
