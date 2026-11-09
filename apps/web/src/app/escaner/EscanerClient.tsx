@@ -11,18 +11,36 @@ interface Registro {
 
 type GeoEstado = "pidiendo" | "ok" | "denegado" | "no_disponible";
 
-/** Beep corto de feedback (sin depender del catálogo de sonidos). */
+/**
+ * Sonido de feedback, fuerte y claro para tabletas en fila:
+ * check = "ding-ding" ascendente (como caja de super); error = doble buzz grave.
+ */
+let audioCtx: AudioContext | null = null;
 function beep(ok: boolean) {
   try {
-    const ctx = new AudioContext();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain); gain.connect(ctx.destination);
-    osc.frequency.value = ok ? 880 : 220;
-    gain.gain.setValueAtTime(0.15, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
-    osc.start(); osc.stop(ctx.currentTime + 0.25);
-    setTimeout(() => ctx.close().catch(() => {}), 400);
+    audioCtx ??= new AudioContext();
+    const ctx = audioCtx;
+    if (ctx.state === "suspended") void ctx.resume().catch(() => {});
+    const nota = (freq: number, t0: number, dur: number, vol: number) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = ok ? "sine" : "square";
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.0001, ctx.currentTime + t0);
+      gain.gain.exponentialRampToValueAtTime(vol, ctx.currentTime + t0 + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + t0 + dur);
+      osc.start(ctx.currentTime + t0); osc.stop(ctx.currentTime + t0 + dur + 0.02);
+    };
+    if (ok) {
+      // Check: dos notas ascendentes, volumen alto
+      nota(880, 0, 0.12, 0.5);
+      nota(1318, 0.1, 0.22, 0.5);
+    } else {
+      // Error: doble buzz grave, inconfundible
+      nota(200, 0, 0.16, 0.45);
+      nota(160, 0.2, 0.22, 0.45);
+    }
   } catch { /* sin audio */ }
 }
 
@@ -34,7 +52,9 @@ export function EscanerClient({ esTester = false }: { esTester?: boolean }) {
   const recientesRef = useRef<Map<string, number>>(new Map());
   const geoRef = useRef<GeoScan | null>(null);
   const pruebaRef = useRef(false);
+  const wakeLockRef = useRef<{ release?: () => Promise<void> } | null>(null);
   const [modoPrueba, setModoPrueba] = useState(false);
+  const [modoTableta, setModoTableta] = useState(false);
   const [estado, setEstado] = useState<"inicial" | "activo" | "sin_camara">("inicial");
   const [geoEstado, setGeoEstado] = useState<GeoEstado>("pidiendo");
   const [geoAcc, setGeoAcc] = useState<number | null>(null);
@@ -43,6 +63,32 @@ export function EscanerClient({ esTester = false }: { esTester?: boolean }) {
   const flashTimer = useRef<number | null>(null);
   const [historial, setHistorial] = useState<Registro[]>([]);
   const [marcados, setMarcados] = useState(0);
+
+  // Modo tableta: pantalla completa + la pantalla NO se apaga durante el turno.
+  async function pedirWakeLock() {
+    try {
+      const nav = navigator as Navigator & { wakeLock?: { request: (t: "screen") => Promise<{ release?: () => Promise<void> }> } };
+      wakeLockRef.current = (await nav.wakeLock?.request("screen")) ?? null;
+    } catch { /* sin wake lock */ }
+  }
+  async function activarTableta() {
+    setModoTableta(true);
+    try { await document.documentElement.requestFullscreen?.(); } catch { /* sin fullscreen */ }
+    void pedirWakeLock();
+  }
+  function salirTableta() {
+    setModoTableta(false);
+    if (document.fullscreenElement) { void document.exitFullscreen?.().catch(() => {}); }
+    void wakeLockRef.current?.release?.().catch(() => {});
+    wakeLockRef.current = null;
+  }
+  // Android suelta el wake lock al minimizar: lo re-pedimos al volver
+  useEffect(() => {
+    if (!modoTableta) return;
+    const onVis = () => { if (document.visibilityState === "visible") void pedirWakeLock(); };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, [modoTableta]);
 
   // Ubicación en vivo: las sedes con geocerca exigen estar físicamente ahí.
   useEffect(() => {
@@ -99,7 +145,8 @@ export function EscanerClient({ esTester = false }: { esTester?: boolean }) {
       beep(r.ok && (r.estado === "marcado" || r.estado === "prueba"));
       if (navigator.vibrate) navigator.vibrate(r.ok ? 80 : [60, 60, 60]);
 
-      setTimeout(() => { pausadoRef.current = false; }, 1200);
+      // Pausa corta: el siguiente de la fila puede pasar casi de inmediato
+      setTimeout(() => { pausadoRef.current = false; }, 600);
     }
 
     async function loop() {
@@ -126,7 +173,9 @@ export function EscanerClient({ esTester = false }: { esTester?: boolean }) {
           }
         } catch { /* frame fallido, seguimos */ }
       }
-      raf = window.setTimeout(loop, 220) as unknown as number;
+      // Detector nativo (tabletas Android/Samsung): ~7 lecturas/seg; jsQR es más
+      // pesado por frame, se queda en ~4.5/seg.
+      raf = window.setTimeout(loop, detector ? 140 : 220) as unknown as number;
     }
 
     async function iniciar() {
@@ -177,6 +226,27 @@ export function EscanerClient({ esTester = false }: { esTester?: boolean }) {
 
   return (
     <div className="space-y-4">
+      {/* Modo tableta: pantalla completa, sin apagado, UI grande para fila */}
+      <button
+        type="button"
+        onClick={modoTableta ? salirTableta : activarTableta}
+        className={`flex w-full items-center justify-between rounded-xl border px-3.5 py-2.5 text-left text-xs transition ${
+          modoTableta
+            ? "border-cyan-400/50 bg-cyan-500/[0.14] text-cyan-100"
+            : "border-white/10 bg-[color:var(--card)] text-muted"
+        }`}
+      >
+        <span>
+          <span className="font-bold">📟 Modo tableta</span>{" "}
+          {modoTableta
+            ? "— ACTIVO: pantalla completa, no se apaga, letras grandes"
+            : "— para dejar la tableta fija tomando asistencia del turno"}
+        </span>
+        <span className={`ml-2 shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${modoTableta ? "bg-cyan-400 text-black" : "bg-white/10"}`}>
+          {modoTableta ? "SALIR" : "ON"}
+        </span>
+      </button>
+
       {/* Modo prueba (solo SUPERADMIN/SOPORTE): valida todo sin marcar */}
       {esTester && (
         <button
@@ -201,12 +271,12 @@ export function EscanerClient({ esTester = false }: { esTester?: boolean }) {
       )}
       {/* Cámara */}
       <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-black">
-        <video ref={videoRef} playsInline muted className="h-[46vh] w-full object-cover" />
+        <video ref={videoRef} playsInline muted className={`${modoTableta ? "h-[72vh]" : "h-[46vh]"} w-full object-cover`} />
         <canvas ref={canvasRef} className="hidden" />
         {/* Marco guía */}
         {estado === "activo" && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            <div className="h-52 w-52 rounded-2xl border-4 border-emerald-400/70 shadow-[0_0_0_9999px_rgba(0,0,0,0.35)]" />
+            <div className={`${modoTableta ? "h-80 w-80" : "h-52 w-52"} rounded-2xl border-4 border-emerald-400/70 shadow-[0_0_0_9999px_rgba(0,0,0,0.35)]`} />
           </div>
         )}
         {estado === "inicial" && (
@@ -223,7 +293,9 @@ export function EscanerClient({ esTester = false }: { esTester?: boolean }) {
           </div>
         )}
         {/* Contador flotante */}
-        <div className="absolute right-3 top-3 rounded-full bg-emerald-500/90 px-3 py-1 font-mono text-sm font-bold text-black">
+        <div className={`absolute right-3 top-3 rounded-full bg-emerald-500/90 font-mono font-bold text-black ${
+          modoTableta ? "px-5 py-2 text-3xl" : "px-3 py-1 text-sm"
+        }`}>
           ✓ {marcados}
         </div>
         {/* Banner grande por escaneo: se ve sin quitar la vista de la cámara */}
@@ -241,18 +313,18 @@ export function EscanerClient({ esTester = false }: { esTester?: boolean }) {
               <div className={`rounded-xl px-4 py-3 text-center shadow-2xl ${estilo}`}>
                 {f.ok ? (
                   <>
-                    <p className="text-lg font-black leading-tight">
+                    <p className={`font-black leading-tight ${modoTableta ? "text-4xl" : "text-lg"}`}>
                       {f.estado === "marcado" ? "✓ ASISTENCIA PUESTA" : f.estado === "prueba" ? "🧪 PRUEBA OK (no se marcó)" : "⚠ YA TENÍA ASISTENCIA"}
                     </p>
-                    <p className="truncate text-sm font-semibold">#{f.numero} · {f.nombre}</p>
+                    <p className={`truncate font-semibold ${modoTableta ? "text-2xl" : "text-sm"}`}>#{f.numero} · {f.nombre}</p>
                     {f.estado === "ya_marcado" && (
-                      <p className="text-xs font-medium">código {f.codigo}{f.hora ? ` · desde las ${f.hora}` : ""} — no se pisó</p>
+                      <p className={`font-medium ${modoTableta ? "text-lg" : "text-xs"}`}>código {f.codigo}{f.hora ? ` · desde las ${f.hora}` : ""} — no se pisó</p>
                     )}
                   </>
                 ) : (
                   <>
-                    <p className="text-lg font-black leading-tight">✕ NO SE MARCÓ</p>
-                    <p className="text-sm font-semibold leading-snug">{f.error}</p>
+                    <p className={`font-black leading-tight ${modoTableta ? "text-4xl" : "text-lg"}`}>✕ NO SE MARCÓ</p>
+                    <p className={`font-semibold leading-snug ${modoTableta ? "text-xl" : "text-sm"}`}>{f.error}</p>
                   </>
                 )}
               </div>
