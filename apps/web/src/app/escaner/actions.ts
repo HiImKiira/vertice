@@ -8,7 +8,7 @@ import { meridaToday } from "@/lib/quincena";
 export type ScanResult =
   | {
       ok: true;
-      estado: "marcado" | "ya_marcado" | "prueba";
+      estado: "marcado" | "ya_marcado" | "prueba" | "baja" | "ya_baja";
       nombre: string;
       numero: string;
       jornada: string;
@@ -194,5 +194,96 @@ export async function marcarPorQRAction(token: string, geo?: GeoScan | null, pru
     ok: true, estado: "marcado",
     nombre: emp.nombre, numero: emp.numero_empleado, jornada: emp.jornada, sede: sede.abrev,
     codigo: "A",
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// MODO BAJA POR QR — protegido con código de autorización.
+// El código vive SOLO en la env var VORTEX_CODIGO_BAJA (el repo es público:
+// nunca se escribe en el código fuente ni llega al cliente). Sin la env var,
+// el modo queda deshabilitado.
+// ─────────────────────────────────────────────────────────────────────
+function codigoBajaConfigurado(): string | null {
+  const v = (process.env.VORTEX_CODIGO_BAJA ?? "").replace(/[\r\n\s]+/g, "");
+  return v.length >= 4 ? v : null;
+}
+
+/** Valida el código para activar el modo baja en el escáner. */
+export async function validarCodigoBajaAction(codigo: string): Promise<{ ok: boolean; error?: string | undefined }> {
+  const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Sin sesión" };
+  const esperado = codigoBajaConfigurado();
+  if (!esperado) return { ok: false, error: "El modo baja no está configurado (falta VORTEX_CODIGO_BAJA)" };
+  return (codigo ?? "").trim() === esperado ? { ok: true } : { ok: false, error: "Código incorrecto" };
+}
+
+/**
+ * Da de baja al trabajador escaneando su gafete. Solo en sedes con QR
+ * habilitado (eventos). Usa las mismas columnas/auditoría que /rh-pro/baja:
+ * fecha_baja hoy, motivo, quién y cuándo. Su QR deja de marcar al instante.
+ */
+export async function bajaPorQRAction(token: string, codigo: string): Promise<ScanResult> {
+  const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Sin sesión" };
+  const esperado = codigoBajaConfigurado();
+  if (!esperado || (codigo ?? "").trim() !== esperado) {
+    return { ok: false, error: "Código de autorización incorrecto — desactiva y vuelve a activar el modo baja" };
+  }
+
+  const limpio = (token ?? "").trim();
+  if (!/^VTX1\.[A-Za-z0-9_-]{8,64}$/.test(limpio)) {
+    return { ok: false, error: "Ese QR no es una credencial Vortex" };
+  }
+
+  const admin = supabaseAdmin();
+  const { data: emp } = await admin
+    .from("empleados")
+    .select("id, numero_empleado, nombre, jornada, fecha_baja, sedes(abrev, qr_habilitado)")
+    .eq("qr_token", limpio)
+    .maybeSingle<{
+      id: string; numero_empleado: string; nombre: string; jornada: string; fecha_baja: string | null;
+      sedes: { abrev: string; qr_habilitado: boolean } | { abrev: string; qr_habilitado: boolean }[] | null;
+    }>();
+  if (!emp) return { ok: false, error: "Credencial no reconocida (QR inválido o revocado)" };
+  const sede = Array.isArray(emp.sedes) ? emp.sedes[0] : emp.sedes;
+  if (!sede?.qr_habilitado) {
+    return { ok: false, error: `La sede ${sede?.abrev ?? "—"} no es de eventos — da de baja desde RH Pro` };
+  }
+  if (emp.fecha_baja) {
+    return {
+      ok: true, estado: "ya_baja",
+      nombre: emp.nombre, numero: emp.numero_empleado, jornada: emp.jornada, sede: sede.abrev,
+      codigo: "BAJA",
+    };
+  }
+
+  const hoy = meridaToday();
+  const { error } = await admin
+    .from("empleados")
+    .update({
+      fecha_baja: hoy,
+      motivo_baja: "Baja por QR (evento)",
+      baja_capturado_por: user.id,
+      baja_ts: new Date().toISOString(),
+      status: "BAJA",
+    })
+    .eq("id", emp.id)
+    .is("fecha_baja", null);
+  if (error) return { ok: false, error: `No se pudo dar de baja: ${error.message}` };
+
+  await admin
+    .from("contratos")
+    .update({ observaciones: `Empleado dado de baja el ${hoy}. Motivo: Baja por QR (evento)` })
+    .eq("empleado_id", emp.id);
+
+  revalidatePath("/pase-lista");
+  revalidatePath("/rh-pro");
+  revalidatePath("/rh-pro/qr");
+  return {
+    ok: true, estado: "baja",
+    nombre: emp.nombre, numero: emp.numero_empleado, jornada: emp.jornada, sede: sede.abrev,
+    codigo: "BAJA",
   };
 }

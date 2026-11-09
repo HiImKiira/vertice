@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/Icon";
-import { marcarPorQRAction, type GeoScan, type ScanResult } from "./actions";
+import { bajaPorQRAction, marcarPorQRAction, validarCodigoBajaAction, type GeoScan, type ScanResult } from "./actions";
 
 interface Registro {
   ts: number;
@@ -55,6 +55,35 @@ export function EscanerClient({ esTester = false }: { esTester?: boolean }) {
   const wakeLockRef = useRef<{ release?: () => Promise<void> } | null>(null);
   const [modoPrueba, setModoPrueba] = useState(false);
   const [modoTableta, setModoTableta] = useState(false);
+  // Modo baja: escanear = dar de baja. Protegido con código (validado en server).
+  const bajaRef = useRef<string | null>(null);
+  const [modoBaja, setModoBaja] = useState(false);
+  const [pedirCodigo, setPedirCodigo] = useState(false);
+  const [codigoInput, setCodigoInput] = useState("");
+  const [errCodigo, setErrCodigo] = useState<string | null>(null);
+  const [validandoCodigo, setValidandoCodigo] = useState(false);
+
+  async function activarModoBaja() {
+    setErrCodigo(null);
+    setValidandoCodigo(true);
+    const r = await validarCodigoBajaAction(codigoInput);
+    setValidandoCodigo(false);
+    if (!r.ok) { setErrCodigo(r.error ?? "Código incorrecto"); return; }
+    bajaRef.current = codigoInput.trim();
+    setModoBaja(true);
+    setPedirCodigo(false);
+    setCodigoInput("");
+    // El modo baja es exclusivo: apaga el modo prueba
+    pruebaRef.current = false;
+    setModoPrueba(false);
+  }
+  function desactivarModoBaja() {
+    bajaRef.current = null;
+    setModoBaja(false);
+    setPedirCodigo(false);
+    setCodigoInput("");
+    setErrCodigo(null);
+  }
   // Cámara activa: trasera por default; la frontal sirve para tableta montada
   // de frente a la fila. Se recuerda por dispositivo.
   const [camara, setCamara] = useState<"environment" | "user">("environment");
@@ -72,6 +101,7 @@ export function EscanerClient({ esTester = false }: { esTester?: boolean }) {
   const [geoEstado, setGeoEstado] = useState<GeoEstado>("pidiendo");
   const [geoAcc, setGeoAcc] = useState<number | null>(null);
   const [ultimo, setUltimo] = useState<Registro | null>(null);
+  const [leyendo, setLeyendo] = useState(false);
   const [flash, setFlash] = useState<Registro | null>(null);
   const flashTimer = useRef<number | null>(null);
   const [historial, setHistorial] = useState<Registro[]>([]);
@@ -140,14 +170,21 @@ export function EscanerClient({ esTester = false }: { esTester?: boolean }) {
       recientesRef.current.set(token, ahora);
       pausadoRef.current = true;
 
+      // Feedback instantáneo de lectura: el QR ya se leyó, se está registrando
+      setLeyendo(true);
+      if (navigator.vibrate) navigator.vibrate(25);
+
       let r: ScanResult;
       try {
-        r = await marcarPorQRAction(token, geoRef.current, pruebaRef.current);
+        r = bajaRef.current
+          ? await bajaPorQRAction(token, bajaRef.current)
+          : await marcarPorQRAction(token, geoRef.current, pruebaRef.current);
       } catch {
         // Falla de red o del servidor antes de responder: que se pueda reintentar ya
         recientesRef.current.delete(token);
         r = { ok: false, error: "Sin conexión con el servidor — revisa tu internet y vuelve a escanear" };
       }
+      setLeyendo(false);
       const reg: Registro = { ts: ahora, resultado: r };
       setUltimo(reg);
       setFlash(reg);
@@ -186,9 +223,10 @@ export function EscanerClient({ esTester = false }: { esTester?: boolean }) {
           }
         } catch { /* frame fallido, seguimos */ }
       }
-      // Detector nativo (tabletas Android/Samsung): ~12 lecturas/seg; jsQR es
-      // más pesado por frame, se queda en ~5/seg.
-      raf = window.setTimeout(loop, detector ? 80 : 180) as unknown as number;
+      // Detector nativo (tabletas Android/Samsung): detección CONTINUA — el
+      // propio detect() marca el ritmo (~25-60 lecturas/seg): en cuanto el QR
+      // entra al cuadro, se lee. jsQR es pesado por frame: 150ms.
+      raf = window.setTimeout(loop, detector ? 10 : 150) as unknown as number;
     }
 
     async function iniciar() {
@@ -283,6 +321,54 @@ export function EscanerClient({ esTester = false }: { esTester?: boolean }) {
           </span>
         </button>
       )}
+      {/* Modo baja: escanear = dar de baja (protegido con código) */}
+      <div
+        className={`rounded-xl border px-3.5 py-2.5 text-xs transition ${
+          modoBaja
+            ? "border-red-400/60 bg-red-500/[0.16] text-red-100"
+            : "border-white/10 bg-[color:var(--card)] text-muted"
+        }`}
+      >
+        <div className="flex items-center justify-between gap-2">
+          <span>
+            <span className="font-bold">🚫 Modo BAJA</span>{" "}
+            {modoBaja
+              ? "— ACTIVO: cada gafete escaneado queda DADO DE BAJA"
+              : "— con código de autorización: escanear un gafete da de baja a esa persona"}
+          </span>
+          <button
+            type="button"
+            onClick={modoBaja ? desactivarModoBaja : () => { setPedirCodigo(!pedirCodigo); setErrCodigo(null); }}
+            className={`shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
+              modoBaja ? "bg-red-400 text-black" : "bg-white/10 text-muted hover:text-text"
+            }`}
+          >
+            {modoBaja ? "DESACTIVAR" : pedirCodigo ? "CANCELAR" : "ACTIVAR"}
+          </button>
+        </div>
+        {pedirCodigo && !modoBaja && (
+          <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-white/10 pt-2">
+            <input
+              type="password"
+              inputMode="numeric"
+              value={codigoInput}
+              onChange={(e) => setCodigoInput(e.target.value)}
+              placeholder="Código de autorización"
+              className="w-44 rounded-lg border border-white/15 bg-[color:var(--surface)] px-3 py-1.5 text-sm outline-none focus:border-red-400"
+            />
+            <button
+              type="button"
+              onClick={activarModoBaja}
+              disabled={validandoCodigo || codigoInput.trim().length < 4}
+              className="btn btn-danger btn-sm"
+            >
+              {validandoCodigo ? "Validando…" : "Activar modo baja"}
+            </button>
+            {errCodigo && <span className="text-[11px] text-red-300">✕ {errCodigo}</span>}
+          </div>
+        )}
+      </div>
+
       {/* Cámara */}
       <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-black">
         <video
@@ -318,6 +404,14 @@ export function EscanerClient({ esTester = false }: { esTester?: boolean }) {
         }`}>
           ✓ {marcados}
         </div>
+        {/* "Leído, registrando…" — feedback instantáneo apenas se detecta el QR */}
+        {leyendo && !flash && (
+          <div className="pointer-events-none absolute inset-x-0 top-1/2 flex -translate-y-1/2 justify-center">
+            <div className={`rounded-full bg-blue-500/95 font-black text-white shadow-2xl ${modoTableta ? "px-8 py-4 text-3xl" : "px-5 py-2 text-base"}`}>
+              ✓ QR leído…
+            </div>
+          </div>
+        )}
         {/* Banner grande por escaneo: se ve sin quitar la vista de la cámara */}
         {flash && (() => {
           const f = flash.resultado;
@@ -327,14 +421,26 @@ export function EscanerClient({ esTester = false }: { esTester?: boolean }) {
               ? "bg-emerald-500/95 text-black"
               : f.estado === "prueba"
                 ? "bg-violet-500/95 text-white"
-                : "bg-amber-400/95 text-black";
+                : f.estado === "baja"
+                  ? "bg-red-800/95 text-white"
+                  : f.estado === "ya_baja"
+                    ? "bg-amber-400/95 text-black"
+                    : "bg-amber-400/95 text-black";
           return (
             <div className="pointer-events-none absolute inset-x-2 bottom-2 animate-slide-up">
               <div className={`rounded-xl px-4 py-3 text-center shadow-2xl ${estilo}`}>
                 {f.ok ? (
                   <>
                     <p className={`font-black leading-tight ${modoTableta ? "text-4xl" : "text-lg"}`}>
-                      {f.estado === "marcado" ? "✓ ASISTENCIA PUESTA" : f.estado === "prueba" ? "🧪 PRUEBA OK (no se marcó)" : "⚠ YA TENÍA ASISTENCIA"}
+                      {f.estado === "marcado"
+                        ? "✓ ASISTENCIA PUESTA"
+                        : f.estado === "prueba"
+                          ? "🧪 PRUEBA OK (no se marcó)"
+                          : f.estado === "baja"
+                            ? "🚫 DADO DE BAJA"
+                            : f.estado === "ya_baja"
+                              ? "⚠ YA ESTABA DADO DE BAJA"
+                              : "⚠ YA TENÍA ASISTENCIA"}
                     </p>
                     <p className={`truncate font-semibold ${modoTableta ? "text-2xl" : "text-sm"}`}>#{f.numero} · {f.nombre}</p>
                     {f.estado === "ya_marcado" && (
@@ -401,7 +507,9 @@ export function EscanerClient({ esTester = false }: { esTester?: boolean }) {
                 ? "border-emerald-400/50 bg-emerald-500/[0.12]"
                 : r.estado === "prueba"
                   ? "border-violet-400/50 bg-violet-500/[0.12]"
-                  : "border-amber-400/50 bg-amber-500/[0.12]"
+                  : r.estado === "baja"
+                    ? "border-red-400/60 bg-red-900/[0.25]"
+                    : "border-amber-400/50 bg-amber-500/[0.12]"
           }`}
         >
           {!r.ok ? (
@@ -409,13 +517,17 @@ export function EscanerClient({ esTester = false }: { esTester?: boolean }) {
           ) : (
             <>
               <p className={`text-base font-bold ${
-                r.estado === "marcado" ? "text-emerald-200" : r.estado === "prueba" ? "text-violet-200" : "text-amber-200"
+                r.estado === "marcado" ? "text-emerald-200" : r.estado === "prueba" ? "text-violet-200" : r.estado === "baja" ? "text-red-200" : "text-amber-200"
               }`}>
                 {r.estado === "marcado"
                   ? "✓ Asistencia registrada"
                   : r.estado === "prueba"
                     ? "🧪 Prueba OK — credencial válida (NO se marcó)"
-                    : "⚠ Ya estaba marcado"}
+                    : r.estado === "baja"
+                      ? "🚫 Dado de baja — su QR dejó de servir"
+                      : r.estado === "ya_baja"
+                        ? "⚠ Ya estaba dado de baja"
+                        : "⚠ Ya estaba marcado"}
               </p>
               <p className="mt-1 text-sm text-text">
                 #{r.numero} · {r.nombre}
@@ -438,7 +550,7 @@ export function EscanerClient({ esTester = false }: { esTester?: boolean }) {
               const x = h.resultado;
               return (
                 <li key={h.ts} className="flex items-center gap-2 rounded-md border border-white/5 bg-[color:var(--card)] px-2.5 py-1.5 text-xs">
-                  <span>{!x.ok ? "✕" : x.estado === "marcado" ? "✅" : x.estado === "prueba" ? "🧪" : "⚠️"}</span>
+                  <span>{!x.ok ? "✕" : x.estado === "marcado" ? "✅" : x.estado === "prueba" ? "🧪" : x.estado === "baja" ? "🚫" : "⚠️"}</span>
                   <span className="min-w-0 flex-1 truncate">
                     {x.ok ? `#${x.numero} ${x.nombre}` : x.error}
                   </span>
