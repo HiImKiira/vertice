@@ -55,6 +55,19 @@ export function EscanerClient({ esTester = false }: { esTester?: boolean }) {
   const wakeLockRef = useRef<{ release?: () => Promise<void> } | null>(null);
   const [modoPrueba, setModoPrueba] = useState(false);
   const [modoTableta, setModoTableta] = useState(false);
+  // Cámara activa: trasera por default; la frontal sirve para tableta montada
+  // de frente a la fila. Se recuerda por dispositivo.
+  const [camara, setCamara] = useState<"environment" | "user">("environment");
+  useEffect(() => {
+    try { if (localStorage.getItem("vtx-escaner-cam") === "user") setCamara("user"); } catch { /* sin storage */ }
+  }, []);
+  function cambiarCamara() {
+    setCamara((c) => {
+      const n = c === "environment" ? "user" : "environment";
+      try { localStorage.setItem("vtx-escaner-cam", n); } catch { /* sin storage */ }
+      return n;
+    });
+  }
   const [estado, setEstado] = useState<"inicial" | "activo" | "sin_camara">("inicial");
   const [geoEstado, setGeoEstado] = useState<GeoEstado>("pidiendo");
   const [geoAcc, setGeoAcc] = useState<number | null>(null);
@@ -146,7 +159,7 @@ export function EscanerClient({ esTester = false }: { esTester?: boolean }) {
       if (navigator.vibrate) navigator.vibrate(r.ok ? 80 : [60, 60, 60]);
 
       // Pausa corta: el siguiente de la fila puede pasar casi de inmediato
-      setTimeout(() => { pausadoRef.current = false; }, 600);
+      setTimeout(() => { pausadoRef.current = false; }, 400);
     }
 
     async function loop() {
@@ -173,15 +186,15 @@ export function EscanerClient({ esTester = false }: { esTester?: boolean }) {
           }
         } catch { /* frame fallido, seguimos */ }
       }
-      // Detector nativo (tabletas Android/Samsung): ~7 lecturas/seg; jsQR es más
-      // pesado por frame, se queda en ~4.5/seg.
-      raf = window.setTimeout(loop, detector ? 140 : 220) as unknown as number;
+      // Detector nativo (tabletas Android/Samsung): ~12 lecturas/seg; jsQR es
+      // más pesado por frame, se queda en ~5/seg.
+      raf = window.setTimeout(loop, detector ? 80 : 180) as unknown as number;
     }
 
     async function iniciar() {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
+          video: { facingMode: camara, width: { ideal: 1280 }, height: { ideal: 720 } },
           audio: false,
         });
         if (!vivo) { stream.getTracks().forEach((t) => t.stop()); return; }
@@ -213,7 +226,8 @@ export function EscanerClient({ esTester = false }: { esTester?: boolean }) {
       window.clearTimeout(raf);
       streamRef.current?.getTracks().forEach((t) => t.stop());
     };
-  }, []);
+    // Reinicia el stream al cambiar de cámara (trasera ↔ frontal)
+  }, [camara]);
 
   const r = ultimo?.resultado;
 
@@ -271,7 +285,13 @@ export function EscanerClient({ esTester = false }: { esTester?: boolean }) {
       )}
       {/* Cámara */}
       <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-black">
-        <video ref={videoRef} playsInline muted className={`${modoTableta ? "h-[72vh]" : "h-[46vh]"} w-full object-cover`} />
+        <video
+          ref={videoRef}
+          playsInline
+          muted
+          className={`${modoTableta ? "h-[72vh]" : "h-[46vh]"} w-full object-cover`}
+          style={camara === "user" ? { transform: "scaleX(-1)" } : undefined}
+        />
         <canvas ref={canvasRef} className="hidden" />
         {/* Marco guía */}
         {estado === "activo" && (
@@ -331,6 +351,19 @@ export function EscanerClient({ esTester = false }: { esTester?: boolean }) {
             </div>
           );
         })()}
+        {/* Cambiar de cámara (trasera ↔ frontal). También visible si la cámara
+            falló, para poder regresar a la otra. */}
+        {estado !== "inicial" && (
+          <button
+            type="button"
+            onClick={cambiarCamara}
+            className={`absolute bottom-3 right-3 rounded-full border border-white/25 bg-black/60 font-semibold text-white backdrop-blur-sm active:scale-95 ${
+              modoTableta ? "px-5 py-3 text-base" : "px-3.5 py-2 text-xs"
+            }`}
+          >
+            🔄 {camara === "environment" ? "Usar frontal" : "Usar trasera"}
+          </button>
+        )}
         {/* Estado de ubicación (geocerca) */}
         <div
           className={`absolute left-3 top-3 rounded-full px-2.5 py-1 text-[10px] font-bold ${
