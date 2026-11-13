@@ -5,6 +5,7 @@ import {
   enriquecerConAltaBaja,
   fetchEmpleadosPorSedePeriodo,
   fetchMarcasConSnapshot,
+  fetchHorarios,
   rangeDates,
   quincenaRange,
 } from "@/lib/pdf/fetchPeriodData";
@@ -77,6 +78,7 @@ export async function GET(req: NextRequest) {
     await fetchEmpleadosPorSedePeriodo(supabase, sedeId, start, end),
   );
   const marcas = await fetchMarcasConSnapshot(supabase, empleados.map((e) => e.id), sedeId, start, end);
+  const horarios = await fetchHorarios(supabase, empleados.map((e) => e.id), start, end);
 
   const buffer = await buildAsistenciasXlsx({
     sedeNombre: sede.nombre,
@@ -86,6 +88,7 @@ export async function GET(req: NextRequest) {
     fechas,
     empleados,
     marcas,
+    horarios,
     generadoPor: perfil.nombre || perfil.username,
     generadoEn: new Date().toISOString(),
     periodoLabel: rangoLabel,

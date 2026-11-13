@@ -179,6 +179,39 @@ export async function fetchMarcas(
   return map;
 }
 
+export interface HorarioDia {
+  entrada: string | null;
+  salida: string | null;
+}
+
+/**
+ * Horarios de entrada/salida por empleado×fecha (Eventos Extraordinarios).
+ * Tolerante: si la migración v37 no está aplicada (columnas inexistentes),
+ * devuelve {} y el reporte simplemente no muestra la hoja de horarios.
+ */
+export async function fetchHorarios(
+  sb: SupabaseClient,
+  empleadoIds: string[],
+  start: string,
+  end: string,
+): Promise<Record<string, Record<string, HorarioDia>>> {
+  if (!empleadoIds.length) return {};
+  const { data, error } = await sb
+    .from("asistencias")
+    .select("empleado_id, fecha, hora_entrada, hora_salida")
+    .in("empleado_id", empleadoIds)
+    .gte("fecha", start)
+    .lte("fecha", end);
+  if (error) return {};
+  const map: Record<string, Record<string, HorarioDia>> = {};
+  for (const m of (data ?? []) as { empleado_id: string; fecha: string; hora_entrada: string | null; hora_salida: string | null }[]) {
+    if (!m.hora_entrada && !m.hora_salida) continue;
+    if (!map[m.empleado_id]) map[m.empleado_id] = {};
+    map[m.empleado_id]![m.fecha] = { entrada: m.hora_entrada, salida: m.hora_salida };
+  }
+  return map;
+}
+
 /**
  * Marcas FILTRADAS por sede vigente cada día. Si Juanita estaba en O'Horán
  * del 1 al 9 y luego se cambió a UNEME, este fetch:

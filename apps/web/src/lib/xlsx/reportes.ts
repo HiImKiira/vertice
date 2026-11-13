@@ -39,9 +39,22 @@ interface BuildContext {
   fechas: string[];
   empleados: Empleado[];
   marcas: Record<string, Record<string, CodigoAsistencia>>;
+  /** Entrada/salida por empleado×fecha (Eventos Extraordinarios · QR). */
+  horarios?: Record<string, Record<string, { entrada: string | null; salida: string | null }>> | undefined;
   generadoPor: string;
   generadoEn: string;
   periodoLabel: string;
+}
+
+function horaMx(iso: string | null): string {
+  return iso ? new Date(iso).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", timeZone: "America/Merida" }) : "—";
+}
+function duracion(a: string | null, b: string | null): string {
+  if (!a || !b) return "";
+  const ms = new Date(b).getTime() - new Date(a).getTime();
+  if (!Number.isFinite(ms) || ms <= 0) return "";
+  const min = Math.round(ms / 60000);
+  return `${Math.floor(min / 60)}h ${String(min % 60).padStart(2, "0")}m`;
 }
 
 function setHeader(row: ExcelJS.Row, columnCount: number, title: string, subtitle: string, periodo: string) {
@@ -243,6 +256,38 @@ export async function buildAsistenciasXlsx(ctx: BuildContext): Promise<Buffer> {
       row.getCell(1).font = { bold: true, color: { argb: COLOR_HEADER_TEXT } };
       row.getCell(1).alignment = { horizontal: "center" };
     }
+  }
+
+  // ─────────────── Hoja 3: Horarios entrada/salida (QR) ───────────────
+  if (ctx.horarios && Object.keys(ctx.horarios).length) {
+    const wsH = wb.addWorksheet("Horarios", { properties: { defaultColWidth: 16 } });
+    wsH.columns = [
+      { header: "#", key: "num", width: 8 },
+      { header: "Empleado", key: "nom", width: 36 },
+      { header: "Jornada", key: "jor", width: 14 },
+      { header: "Fecha", key: "fecha", width: 14 },
+      { header: "Entrada", key: "ent", width: 12 },
+      { header: "Salida", key: "sal", width: 12 },
+      { header: "Horas", key: "hrs", width: 12 },
+    ];
+    const head = wsH.getRow(1);
+    head.font = { bold: true, color: { argb: COLOR_HEADER_TEXT } };
+    head.fill = { type: "pattern", pattern: "solid", fgColor: { argb: COLOR_BG } };
+    head.height = 20;
+
+    for (const emp of ctx.empleados) {
+      const dias = ctx.horarios[emp.id];
+      if (!dias) continue;
+      for (const fecha of Object.keys(dias).sort()) {
+        const h = dias[fecha]!;
+        wsH.addRow({
+          num: emp.numero_empleado, nom: emp.nombre, jor: emp.jornada, fecha,
+          ent: horaMx(h.entrada), sal: horaMx(h.salida), hrs: duracion(h.entrada, h.salida),
+        });
+      }
+    }
+    wsH.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: 7 } };
+    wsH.views = [{ state: "frozen", ySplit: 1 }];
   }
 
   const arr = await wb.xlsx.writeBuffer();
