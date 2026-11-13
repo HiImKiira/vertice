@@ -5,16 +5,21 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { meridaToday } from "@/lib/quincena";
 
+export type TipoMarca = "entrada" | "salida";
+
 export type ScanResult =
   | {
       ok: true;
-      estado: "marcado" | "ya_marcado" | "prueba" | "baja" | "ya_baja";
+      estado: "entrada" | "salida" | "ya_entrada" | "ya_salida" | "prueba" | "baja" | "ya_baja";
       nombre: string;
       numero: string;
       jornada: string;
       sede: string;
-      codigo: string;      // el código que quedó (A, o el que ya tenía)
-      hora?: string | undefined; // si ya estaba marcado, a qué hora
+      codigo: string;
+      horaEntrada?: string | undefined;
+      horaSalida?: string | undefined;
+      /** Salida marcada sin que hubiera entrada registrada hoy (aviso). */
+      sinEntrada?: boolean | undefined;
     }
   | { ok: false; error: string };
 
@@ -23,6 +28,45 @@ export interface GeoScan {
   lng: number;
   /** Precisión reportada por el GPS, en metros. */
   acc?: number | undefined;
+}
+
+export interface MarcarOpts {
+  tipo?: TipoMarca | undefined;
+  geo?: GeoScan | null | undefined;
+  prueba?: boolean | undefined;
+  /** Foto del momento del escaneo como data URL (image/jpeg base64). */
+  foto?: string | null | undefined;
+}
+
+/** Sube la foto del escaneo al bucket privado. Nunca bloquea la marca. */
+async function subirFotoChecada(
+  admin: ReturnType<typeof supabaseAdmin>,
+  empleadoId: string,
+  tipo: TipoMarca,
+  fecha: string,
+  dataUrl: string,
+): Promise<string | null> {
+  try {
+    const m = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl.trim());
+    if (!m) return null;
+    const mime = m[1]!;
+    const buffer = Buffer.from(m[2]!, "base64");
+    if (buffer.length < 500 || buffer.length > 2_000_000) return null;
+    const ext = mime === "image/png" ? "png" : mime === "image/webp" ? "webp" : "jpg";
+    const path = `${fecha}/${empleadoId}/${tipo}_${Date.now()}.${ext}`;
+    const { error } = await admin.storage
+      .from("asistencia-fotos")
+      .upload(path, buffer, { contentType: mime, upsert: true });
+    return error ? null : path;
+  } catch {
+    return null;
+  }
+}
+
+function horaMerida(ts: string): string {
+  return new Date(ts).toLocaleTimeString("es-MX", {
+    hour: "2-digit", minute: "2-digit", timeZone: "America/Merida",
+  });
 }
 
 /** Distancia en metros entre dos coordenadas (haversine). */
@@ -50,11 +94,17 @@ function distanciaM(lat1: number, lng1: number, lat2: number, lng2: number): num
  *     pasa sin asignación). COORDINACION marca solo sus sedes asignadas.
  *  5. Sin doble marca: si ya tiene asistencia hoy, se informa, no se pisa.
  *
+ * Registra ENTRADA o SALIDA (opts.tipo) con su hora sobre la misma fila diaria,
+ * y guarda la foto del momento (opts.foto) como evidencia anti-fraude.
+ *
  * `prueba: true` (solo SUPERADMIN/SOPORTE): corre TODAS las validaciones,
  * geocerca incluida, pero NO inserta la asistencia — para probar el flujo
  * sin ensuciar el pase de lista.
  */
-export async function marcarPorQRAction(token: string, geo?: GeoScan | null, prueba?: boolean): Promise<ScanResult> {
+export async function marcarPorQRAction(token: string, opts?: MarcarOpts): Promise<ScanResult> {
+  const geo = opts?.geo ?? null;
+  const prueba = opts?.prueba ?? false;
+  const tipo: TipoMarca = opts?.tipo === "salida" ? "salida" : "entrada";
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Sin sesión" };
@@ -133,67 +183,75 @@ export async function marcarPorQRAction(token: string, geo?: GeoScan | null, pru
   }
 
   const hoy = meridaToday();
+  const base = { ok: true as const, nombre: emp.nombre, numero: emp.numero_empleado, jornada: emp.jornada, sede: sede.abrev, codigo: "A" };
 
-  // ¿Ya está marcado hoy?
+  // Fila diaria existente (una por empleado×fecha)
   const { data: ya } = await admin
     .from("asistencias")
-    .select("codigo, actualizado_en")
+    .select("id, hora_entrada, hora_salida")
     .eq("empleado_id", emp.id)
     .eq("fecha", hoy)
-    .maybeSingle<{ codigo: string; actualizado_en: string | null }>();
-  if (ya) {
-    return {
-      ok: true, estado: "ya_marcado",
-      nombre: emp.nombre, numero: emp.numero_empleado, jornada: emp.jornada, sede: sede.abrev,
-      codigo: ya.codigo,
-      hora: ya.actualizado_en
-        ? new Date(ya.actualizado_en).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })
-        : undefined,
-    };
-  }
+    .maybeSingle<{ id: string; hora_entrada: string | null; hora_salida: string | null }>();
 
-  // Modo prueba: todo validó (credencial, sede, geocerca, permisos) — no se marca.
+  // Modo prueba: todo validó — no escribe nada ni sube foto.
   if (prueba) {
     return {
-      ok: true, estado: "prueba",
-      nombre: emp.nombre, numero: emp.numero_empleado, jornada: emp.jornada, sede: sede.abrev,
-      codigo: "A",
+      ...base, estado: "prueba",
+      horaEntrada: ya?.hora_entrada ? horaMerida(ya.hora_entrada) : undefined,
+      horaSalida: ya?.hora_salida ? horaMerida(ya.hora_salida) : undefined,
     };
   }
 
-  // Marcar A — con el cliente del USUARIO, para que el RLS vuelva a validar
-  // (capturado_por propio + sede asignada + fecha reciente).
-  const { error } = await supabase.from("asistencias").insert({
-    empleado_id: emp.id,
-    fecha: hoy,
-    codigo: "A",
-    capturado_por: user.id,
-  });
-  if (error) {
-    // Traducir los errores técnicos a algo accionable para quien escanea
-    const m = error.message.toLowerCase();
-    if (m.includes("row-level security") || m.includes("violates")) {
-      return {
-        ok: false,
-        error: `Tu usuario no tiene permiso para marcar en ${sede.abrev} hoy. Pide a RH que te asigne el turno (o la designación Captura XMA) y vuelve a intentar.`,
-      };
+  // Doble marca del mismo tipo: se informa, no se pisa (ni se re-sube foto).
+  if (tipo === "entrada" && ya?.hora_entrada) {
+    return { ...base, estado: "ya_entrada", horaEntrada: horaMerida(ya.hora_entrada), horaSalida: ya.hora_salida ? horaMerida(ya.hora_salida) : undefined };
+  }
+  if (tipo === "salida" && ya?.hora_salida) {
+    return { ...base, estado: "ya_salida", horaEntrada: ya.hora_entrada ? horaMerida(ya.hora_entrada) : undefined, horaSalida: horaMerida(ya.hora_salida) };
+  }
+
+  const ahora = new Date().toISOString();
+  const fotoPath = opts?.foto ? await subirFotoChecada(admin, emp.id, tipo, hoy, opts.foto) : null;
+
+  // Columnas a escribir según el tipo
+  const campos = tipo === "entrada"
+    ? { hora_entrada: ahora, ...(fotoPath ? { foto_entrada: fotoPath } : {}) }
+    : { hora_salida: ahora, ...(fotoPath ? { foto_salida: fotoPath } : {}) };
+
+  let err: { message: string } | null = null;
+  if (ya) {
+    ({ error: err } = await admin.from("asistencias").update(campos).eq("id", ya.id));
+  } else {
+    ({ error: err } = await admin.from("asistencias").insert({
+      empleado_id: emp.id, fecha: hoy, codigo: "A", capturado_por: user.id, ...campos,
+    }));
+  }
+  // Colchón: si la migración v37 aún no se aplicó (columnas nuevas inexistentes),
+  // al menos marcamos la asistencia base para no romper la toma en vivo.
+  if (err && /column|does not exist|hora_|foto_|schema cache/i.test(err.message)) {
+    if (ya) {
+      err = null; // la fila ya existe; sin columnas nuevas no hay nada más que escribir
+    } else {
+      ({ error: err } = await admin.from("asistencias").insert({
+        empleado_id: emp.id, fecha: hoy, codigo: "A", capturado_por: user.id,
+      }));
     }
-    if (m.includes("duplicate") || m.includes("unique")) {
-      return {
-        ok: true, estado: "ya_marcado",
-        nombre: emp.nombre, numero: emp.numero_empleado, jornada: emp.jornada, sede: sede.abrev,
-        codigo: "A",
-      };
-    }
-    return { ok: false, error: `No se pudo marcar (error del servidor): ${error.message}` };
+  }
+  if (err) {
+    if (fotoPath) await admin.storage.from("asistencia-fotos").remove([fotoPath]).catch(() => {});
+    return { ok: false, error: `No se pudo marcar ${tipo} (error del servidor): ${err.message}` };
   }
 
   revalidatePath("/pase-lista");
   revalidatePath("/mi-quincena");
+  revalidatePath("/rh-pro/qr/checadas");
+  if (tipo === "entrada") {
+    return { ...base, estado: "entrada", horaEntrada: horaMerida(ahora), horaSalida: ya?.hora_salida ? horaMerida(ya.hora_salida) : undefined };
+  }
   return {
-    ok: true, estado: "marcado",
-    nombre: emp.nombre, numero: emp.numero_empleado, jornada: emp.jornada, sede: sede.abrev,
-    codigo: "A",
+    ...base, estado: "salida", horaSalida: horaMerida(ahora),
+    horaEntrada: ya?.hora_entrada ? horaMerida(ya.hora_entrada) : undefined,
+    sinEntrada: !ya?.hora_entrada,
   };
 }
 

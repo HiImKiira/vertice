@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/Icon";
-import { bajaPorQRAction, marcarPorQRAction, validarCodigoBajaAction, type GeoScan, type ScanResult } from "./actions";
+import { bajaPorQRAction, marcarPorQRAction, validarCodigoBajaAction, type GeoScan, type ScanResult, type TipoMarca } from "./actions";
 
 interface Registro {
   ts: number;
@@ -44,7 +44,7 @@ function beep(ok: boolean) {
   } catch { /* sin audio */ }
 }
 
-export function EscanerClient({ esTester = false }: { esTester?: boolean }) {
+export function EscanerClient({ esTester = false, modoInicial = "entrada" }: { esTester?: boolean; modoInicial?: TipoMarca }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -52,6 +52,26 @@ export function EscanerClient({ esTester = false }: { esTester?: boolean }) {
   const recientesRef = useRef<Map<string, number>>(new Map());
   const geoRef = useRef<GeoScan | null>(null);
   const pruebaRef = useRef(false);
+  // Tipo de marca: entrada o salida. tipoRef lo lee el loop de escaneo.
+  const [tipoMarca, setTipoMarca] = useState<TipoMarca>(modoInicial);
+  const tipoRef = useRef<TipoMarca>(modoInicial);
+  function cambiarTipo(t: TipoMarca) { tipoRef.current = t; setTipoMarca(t); }
+
+  // Captura un frame de la cámara como JPEG liviano (evidencia del escaneo).
+  function capturarFoto(): string | null {
+    try {
+      const video = videoRef.current;
+      if (!video || !video.videoWidth) return null;
+      const w = 480;
+      const h = Math.round(w * (video.videoHeight / video.videoWidth)) || 360;
+      const c = document.createElement("canvas");
+      c.width = w; c.height = h;
+      const g = c.getContext("2d");
+      if (!g) return null;
+      g.drawImage(video, 0, 0, w, h);
+      return c.toDataURL("image/jpeg", 0.55);
+    } catch { return null; }
+  }
   const wakeLockRef = useRef<{ release?: () => Promise<void> } | null>(null);
   const [modoPrueba, setModoPrueba] = useState(false);
   const [modoTableta, setModoTableta] = useState(false);
@@ -174,11 +194,14 @@ export function EscanerClient({ esTester = false }: { esTester?: boolean }) {
       setLeyendo(true);
       if (navigator.vibrate) navigator.vibrate(25);
 
+      // Foto de evidencia en el momento del escaneo (no en baja ni prueba).
+      const foto = bajaRef.current || pruebaRef.current ? null : capturarFoto();
+
       let r: ScanResult;
       try {
         r = bajaRef.current
           ? await bajaPorQRAction(token, bajaRef.current)
-          : await marcarPorQRAction(token, geoRef.current, pruebaRef.current);
+          : await marcarPorQRAction(token, { tipo: tipoRef.current, geo: geoRef.current, prueba: pruebaRef.current, foto });
       } catch {
         // Falla de red o del servidor antes de responder: que se pueda reintentar ya
         recientesRef.current.delete(token);
@@ -191,8 +214,8 @@ export function EscanerClient({ esTester = false }: { esTester?: boolean }) {
       if (flashTimer.current) window.clearTimeout(flashTimer.current);
       flashTimer.current = window.setTimeout(() => setFlash(null), 2200);
       setHistorial((h) => [reg, ...h].slice(0, 20));
-      if (r.ok && r.estado === "marcado") setMarcados((n) => n + 1);
-      beep(r.ok && (r.estado === "marcado" || r.estado === "prueba"));
+      if (r.ok && (r.estado === "entrada" || r.estado === "salida")) setMarcados((n) => n + 1);
+      beep(r.ok && (r.estado === "entrada" || r.estado === "salida" || r.estado === "prueba"));
       if (navigator.vibrate) navigator.vibrate(r.ok ? 80 : [60, 60, 60]);
 
       // Pausa corta: el siguiente de la fila puede pasar casi de inmediato
@@ -278,6 +301,35 @@ export function EscanerClient({ esTester = false }: { esTester?: boolean }) {
 
   return (
     <div className="space-y-4">
+      {/* Selector ENTRADA / SALIDA — lo primero y más grande (una tableta en la
+          puerta de entrada, otra en la de salida). Oculto en modo baja. */}
+      {!modoBaja && (
+        <div className="grid grid-cols-2 gap-2">
+          {(["entrada", "salida"] as const).map((t) => {
+            const activo = tipoMarca === t;
+            const esEntrada = t === "entrada";
+            return (
+              <button
+                key={t}
+                type="button"
+                onClick={() => cambiarTipo(t)}
+                className={`rounded-xl border-2 font-black uppercase tracking-wide transition ${
+                  modoTableta ? "py-5 text-2xl" : "py-3 text-base"
+                } ${
+                  activo
+                    ? esEntrada
+                      ? "border-emerald-400 bg-emerald-500/25 text-emerald-100 shadow-[0_0_24px_-6px_rgba(16,185,129,0.6)]"
+                      : "border-amber-400 bg-amber-500/25 text-amber-100 shadow-[0_0_24px_-6px_rgba(245,158,11,0.6)]"
+                    : "border-white/10 bg-[color:var(--card)] text-muted"
+                }`}
+              >
+                {esEntrada ? "⬇ Tomar Entrada" : "⬆ Tomar Salida"}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* Modo tableta: pantalla completa, sin apagado, UI grande para fila */}
       <button
         type="button"
@@ -417,41 +469,40 @@ export function EscanerClient({ esTester = false }: { esTester?: boolean }) {
           const f = flash.resultado;
           const estilo = !f.ok
             ? "bg-red-600/95 text-white"
-            : f.estado === "marcado"
+            : f.estado === "entrada"
               ? "bg-emerald-500/95 text-black"
-              : f.estado === "prueba"
-                ? "bg-violet-500/95 text-white"
-                : f.estado === "baja"
-                  ? "bg-red-800/95 text-white"
-                  : f.estado === "ya_baja"
-                    ? "bg-amber-400/95 text-black"
+              : f.estado === "salida"
+                ? "bg-sky-500/95 text-white"
+                : f.estado === "prueba"
+                  ? "bg-violet-500/95 text-white"
+                  : f.estado === "baja"
+                    ? "bg-red-800/95 text-white"
                     : "bg-amber-400/95 text-black";
+          const titulo = !f.ok ? "✕ NO SE MARCÓ"
+            : f.estado === "entrada" ? "⬇ ENTRADA REGISTRADA"
+            : f.estado === "salida" ? "⬆ SALIDA REGISTRADA"
+            : f.estado === "ya_entrada" ? "⚠ YA MARCÓ ENTRADA"
+            : f.estado === "ya_salida" ? "⚠ YA MARCÓ SALIDA"
+            : f.estado === "prueba" ? "🧪 PRUEBA OK (no se marcó)"
+            : f.estado === "baja" ? "🚫 DADO DE BAJA"
+            : "⚠ YA ESTABA DADO DE BAJA";
+          const horas = f.ok && (f.horaEntrada || f.horaSalida)
+            ? [f.horaEntrada && `Entrada ${f.horaEntrada}`, f.horaSalida && `Salida ${f.horaSalida}`].filter(Boolean).join(" · ")
+            : "";
           return (
             <div className="pointer-events-none absolute inset-x-2 bottom-2 animate-slide-up">
               <div className={`rounded-xl px-4 py-3 text-center shadow-2xl ${estilo}`}>
+                <p className={`font-black leading-tight ${modoTableta ? "text-4xl" : "text-lg"}`}>{titulo}</p>
                 {f.ok ? (
                   <>
-                    <p className={`font-black leading-tight ${modoTableta ? "text-4xl" : "text-lg"}`}>
-                      {f.estado === "marcado"
-                        ? "✓ ASISTENCIA PUESTA"
-                        : f.estado === "prueba"
-                          ? "🧪 PRUEBA OK (no se marcó)"
-                          : f.estado === "baja"
-                            ? "🚫 DADO DE BAJA"
-                            : f.estado === "ya_baja"
-                              ? "⚠ YA ESTABA DADO DE BAJA"
-                              : "⚠ YA TENÍA ASISTENCIA"}
-                    </p>
                     <p className={`truncate font-semibold ${modoTableta ? "text-2xl" : "text-sm"}`}>#{f.numero} · {f.nombre}</p>
-                    {f.estado === "ya_marcado" && (
-                      <p className={`font-medium ${modoTableta ? "text-lg" : "text-xs"}`}>código {f.codigo}{f.hora ? ` · desde las ${f.hora}` : ""} — no se pisó</p>
+                    {horas && <p className={`font-bold ${modoTableta ? "text-xl" : "text-xs"}`}>{horas}</p>}
+                    {f.ok && f.estado === "salida" && f.sinEntrada && (
+                      <p className={`font-medium ${modoTableta ? "text-base" : "text-[11px]"}`}>⚠ no tenía entrada registrada hoy</p>
                     )}
                   </>
                 ) : (
-                  <>
-                    <p className={`font-black leading-tight ${modoTableta ? "text-4xl" : "text-lg"}`}>✕ NO SE MARCÓ</p>
-                    <p className={`font-semibold leading-snug ${modoTableta ? "text-xl" : "text-sm"}`}>{f.error}</p>
-                  </>
+                  <p className={`font-semibold leading-snug ${modoTableta ? "text-xl" : "text-sm"}`}>{f.error}</p>
                 )}
               </div>
             </div>
@@ -503,13 +554,15 @@ export function EscanerClient({ esTester = false }: { esTester?: boolean }) {
           className={`rounded-xl border p-4 ${
             !r.ok
               ? "border-red-400/50 bg-red-500/[0.12]"
-              : r.estado === "marcado"
+              : r.estado === "entrada"
                 ? "border-emerald-400/50 bg-emerald-500/[0.12]"
-                : r.estado === "prueba"
-                  ? "border-violet-400/50 bg-violet-500/[0.12]"
-                  : r.estado === "baja"
-                    ? "border-red-400/60 bg-red-900/[0.25]"
-                    : "border-amber-400/50 bg-amber-500/[0.12]"
+                : r.estado === "salida"
+                  ? "border-sky-400/50 bg-sky-500/[0.12]"
+                  : r.estado === "prueba"
+                    ? "border-violet-400/50 bg-violet-500/[0.12]"
+                    : r.estado === "baja"
+                      ? "border-red-400/60 bg-red-900/[0.25]"
+                      : "border-amber-400/50 bg-amber-500/[0.12]"
           }`}
         >
           {!r.ok ? (
@@ -517,24 +570,30 @@ export function EscanerClient({ esTester = false }: { esTester?: boolean }) {
           ) : (
             <>
               <p className={`text-base font-bold ${
-                r.estado === "marcado" ? "text-emerald-200" : r.estado === "prueba" ? "text-violet-200" : r.estado === "baja" ? "text-red-200" : "text-amber-200"
+                r.estado === "entrada" ? "text-emerald-200" : r.estado === "salida" ? "text-sky-200" : r.estado === "prueba" ? "text-violet-200" : r.estado === "baja" ? "text-red-200" : "text-amber-200"
               }`}>
-                {r.estado === "marcado"
-                  ? "✓ Asistencia registrada"
-                  : r.estado === "prueba"
-                    ? "🧪 Prueba OK — credencial válida (NO se marcó)"
-                    : r.estado === "baja"
-                      ? "🚫 Dado de baja — su QR dejó de servir"
-                      : r.estado === "ya_baja"
-                        ? "⚠ Ya estaba dado de baja"
-                        : "⚠ Ya estaba marcado"}
+                {r.estado === "entrada"
+                  ? "⬇ Entrada registrada"
+                  : r.estado === "salida"
+                    ? "⬆ Salida registrada"
+                    : r.estado === "ya_entrada"
+                      ? "⚠ Ya había marcado entrada"
+                      : r.estado === "ya_salida"
+                        ? "⚠ Ya había marcado salida"
+                        : r.estado === "prueba"
+                          ? "🧪 Prueba OK — credencial válida (NO se marcó)"
+                          : r.estado === "baja"
+                            ? "🚫 Dado de baja — su QR dejó de servir"
+                            : "⚠ Ya estaba dado de baja"}
               </p>
               <p className="mt-1 text-sm text-text">
                 #{r.numero} · {r.nombre}
               </p>
               <p className="text-xs text-muted">
-                {r.sede} · {r.jornada} · código <span className="font-mono font-bold">{r.codigo}</span>
-                {r.estado === "ya_marcado" && r.hora && <> · desde las {r.hora}</>}
+                {r.sede} · {r.jornada}
+                {(r.horaEntrada || r.horaSalida) && (
+                  <> · {[r.horaEntrada && `entrada ${r.horaEntrada}`, r.horaSalida && `salida ${r.horaSalida}`].filter(Boolean).join(" · ")}</>
+                )}
               </p>
             </>
           )}
@@ -548,9 +607,14 @@ export function EscanerClient({ esTester = false }: { esTester?: boolean }) {
           <ul className="space-y-1">
             {historial.map((h) => {
               const x = h.resultado;
+              const icono = !x.ok ? "✕"
+                : x.estado === "entrada" ? "⬇"
+                : x.estado === "salida" ? "⬆"
+                : x.estado === "prueba" ? "🧪"
+                : x.estado === "baja" ? "🚫" : "⚠️";
               return (
                 <li key={h.ts} className="flex items-center gap-2 rounded-md border border-white/5 bg-[color:var(--card)] px-2.5 py-1.5 text-xs">
-                  <span>{!x.ok ? "✕" : x.estado === "marcado" ? "✅" : x.estado === "prueba" ? "🧪" : x.estado === "baja" ? "🚫" : "⚠️"}</span>
+                  <span>{icono}</span>
                   <span className="min-w-0 flex-1 truncate">
                     {x.ok ? `#${x.numero} ${x.nombre}` : x.error}
                   </span>
@@ -566,7 +630,7 @@ export function EscanerClient({ esTester = false }: { esTester?: boolean }) {
 
       <p className="flex items-start gap-1.5 text-[11px] text-muted-2">
         <Icon name="alert-triangle" size={12} className="mt-0.5 shrink-0" />
-        Apunta la cámara al QR de la credencial. Marca A automáticamente; si ya estaba marcado no lo pisa.
+        Apunta la cámara al QR de la credencial. Según el modo marca <strong>entrada</strong> o <strong>salida</strong> con su hora.
         Solo funciona con trabajadores de sedes designadas que tengas asignadas.
       </p>
     </div>

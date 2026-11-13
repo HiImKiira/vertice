@@ -63,6 +63,9 @@ export default async function QRPage() {
             El supervisor las escanea desde <strong>Escáner QR</strong> y la asistencia se marca sola.
             Si una credencial se pierde, regenera su token y la anterior queda invalidada.
           </p>
+          <Link href="/rh-pro/qr/checadas" className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-cyan-400/40 bg-cyan-500/10 px-3 py-1.5 text-xs font-semibold text-cyan-100 hover:bg-cyan-500/20">
+            📸 Ver checadas con foto (entrada/salida)
+          </Link>
         </header>
 
         <QRAdminClient sedes={sedes} rol={profile.rol} />

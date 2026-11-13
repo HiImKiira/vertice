@@ -7,8 +7,10 @@ import { EscanerClient } from "./EscanerClient";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Escáner QR · Vortex" };
 
-export default async function EscanerPage() {
+export default async function EscanerPage({ searchParams }: { searchParams: Promise<{ modo?: string }> }) {
   const { profile } = await requireUser();
+  const { modo } = await searchParams;
+  const modoInicial = modo === "salida" ? "salida" : "entrada";
 
   return (
     <main className="min-h-screen overflow-x-hidden text-text">
@@ -22,11 +24,11 @@ export default async function EscanerPage() {
             Escáner <span className="text-gradient-blue serif-italic">QR</span>
           </h1>
           <p className="mt-1 text-xs text-muted">
-            Eventos Extraordinarios · Escanea la credencial del trabajador y su asistencia de hoy queda marcada (A) al instante.
+            Eventos Extraordinarios · Escanea la credencial y registra <strong>entrada</strong> o <strong>salida</strong> con su hora.
           </p>
         </header>
 
-        <EscanerClient esTester={["SUPERADMIN", "SOPORTE"].includes(profile.rol)} />
+        <EscanerClient esTester={["SUPERADMIN", "SOPORTE"].includes(profile.rol)} modoInicial={modoInicial} />
       </div>
     </main>
   );
